@@ -1,0 +1,57 @@
+{
+  "manifest_version": 3,
+  "name": "Auto Parts → FB Marketplace",
+  "version": "1.0.0",
+  "description": "Scrape product data from your inventory site and cross-post to Facebook Marketplace",
+  "icons": {
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "downloads"
+  ],
+  "host_permissions": [
+    "*://www.facebook.com/*",
+    "*://localhost/*",
+    "*://*.vercel.app/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://localhost/parts/*",
+        "*://localhost:*/parts/*",
+        "*://*.vercel.app/parts/*"
+      ],
+      "js": ["content-scraper.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://localhost/admin/*",
+        "*://localhost:*/admin/*",
+        "*://*.vercel.app/admin/*"
+      ],
+      "js": ["content-admin.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://www.facebook.com/marketplace/create/*"],
+      "js": ["content-fb.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}

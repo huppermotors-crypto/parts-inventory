@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Auto Parts → FB</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="popup">
+    <div class="header">
+      <div class="logo">🔧</div>
+      <h1>Parts → FB Marketplace</h1>
+    </div>
+
+    <!-- Status area -->
+    <div id="status" class="status status-idle">
+      <span id="status-icon">⏳</span>
+      <span id="status-text">Open a product page to begin</span>
+    </div>
+
+    <!-- Scraped data preview -->
+    <div id="preview" class="preview hidden">
+      <div class="preview-row">
+        <span class="preview-label">Title</span>
+        <span id="preview-title" class="preview-value">—</span>
+      </div>
+      <div class="preview-row">
+        <span class="preview-label">Price</span>
+        <span id="preview-price" class="preview-value">—</span>
+      </div>
+      <div class="preview-row">
+        <span class="preview-label">Condition</span>
+        <span id="preview-condition" class="preview-value">—</span>
+      </div>
+      <div class="preview-row">
+        <span class="preview-label">Photos</span>
+        <span id="preview-photos" class="preview-value">—</span>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions">
+      <button id="btn-scrape" class="btn btn-primary">
+        🚀 Scrape & Post to FB
+      </button>
+      <button id="btn-open-fb" class="btn btn-secondary hidden">
+        📘 Re-open FB Marketplace
+      </button>
+      <button id="btn-clear" class="btn btn-ghost">
+        🗑️ Clear Data
+      </button>
+    </div>
+
+    <!-- Help text -->
+    <div class="help">
+      <p><strong>How it works:</strong></p>
+      <ol>
+        <li>Open a product page on your site (<code>/parts/[id]</code>)</li>
+        <li>Click <em>"Scrape & Post to FB"</em></li>
+        <li>Images download automatically to <code>Downloads/fb-upload/</code></li>
+        <li>FB Marketplace opens — fields are auto-filled</li>
+        <li>Drag downloaded images into the photo area</li>
+      </ol>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
