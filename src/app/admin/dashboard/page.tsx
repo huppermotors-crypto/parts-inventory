@@ -80,6 +80,17 @@ export default function DashboardPage() {
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
 
+  // Force grid view on mobile (table is unusable on small screens)
+  useEffect(() => {
+    const mql = window.matchMedia("(max-width: 767px)");
+    const handler = (e: MediaQueryListEvent | MediaQueryList) => {
+      if (e.matches) setViewMode("grid");
+    };
+    handler(mql);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, []);
+
   // Dialog states
   const [editPart, setEditPart] = useState<Part | null>(null);
   const [editOpen, setEditOpen] = useState(false);
@@ -214,9 +225,9 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground mt-1">
             {parts.length} part{parts.length !== 1 ? "s" : ""} in inventory
             {filteredParts.length !== parts.length && (
@@ -235,7 +246,7 @@ export default function DashboardPage() {
       {/* Filters bar */}
       <div className="flex flex-wrap items-center gap-3">
         {/* Search */}
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
+        <div className="relative w-full sm:flex-1 sm:min-w-[200px] sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search parts..."
@@ -247,7 +258,7 @@ export default function DashboardPage() {
 
         {/* Make filter */}
         <Select value={filterMake} onValueChange={setFilterMake}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <CarFront className="h-4 w-4 mr-2 text-muted-foreground" />
             <SelectValue placeholder="All Makes" />
           </SelectTrigger>
@@ -263,7 +274,7 @@ export default function DashboardPage() {
 
         {/* Category filter */}
         <Select value={filterCategory} onValueChange={setFilterCategory}>
-          <SelectTrigger className="w-[240px]">
+          <SelectTrigger className="w-full sm:w-[240px]">
             <Layers className="h-4 w-4 mr-2 text-muted-foreground" />
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>
@@ -288,24 +299,26 @@ export default function DashboardPage() {
         )}
 
         {/* Spacer */}
-        <div className="flex-1" />
+        <div className="hidden sm:block sm:flex-1" />
 
-        {/* View toggle */}
-        <Tabs
-          value={viewMode}
-          onValueChange={(v) => setViewMode(v as "table" | "grid")}
-        >
-          <TabsList>
-            <TabsTrigger value="table" className="gap-1.5">
-              <LayoutList className="h-4 w-4" />
-              Table
-            </TabsTrigger>
-            <TabsTrigger value="grid" className="gap-1.5">
-              <LayoutGrid className="h-4 w-4" />
-              Grid
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        {/* View toggle (hidden on mobile, grid is forced) */}
+        <div className="hidden sm:block">
+          <Tabs
+            value={viewMode}
+            onValueChange={(v) => setViewMode(v as "table" | "grid")}
+          >
+            <TabsList>
+              <TabsTrigger value="table" className="gap-1.5">
+                <LayoutList className="h-4 w-4" />
+                Table
+              </TabsTrigger>
+              <TabsTrigger value="grid" className="gap-1.5">
+                <LayoutGrid className="h-4 w-4" />
+                Grid
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       </div>
 
       {/* Content */}
@@ -339,6 +352,7 @@ export default function DashboardPage() {
         /* Table View */
         <Card>
           <CardContent className="p-0">
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -475,6 +489,7 @@ export default function DashboardPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       ) : (
@@ -513,7 +528,7 @@ export default function DashboardPage() {
                       <Button
                         variant="secondary"
                         size="icon"
-                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="h-8 w-8 sm:h-7 sm:w-7 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                       >
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>

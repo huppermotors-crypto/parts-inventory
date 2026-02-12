@@ -197,14 +197,14 @@ export function EditPartDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>Edit Part</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="grid grid-cols-4 gap-4">
-            <div className="space-y-2 col-span-4">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div className="space-y-2 sm:col-span-4">
               <Label>VIN</Label>
               <Input
                 value={vin}
@@ -227,7 +227,7 @@ export function EditPartDialog({
               <Label>Make</Label>
               <Input value={make} onChange={(e) => setMake(e.target.value)} />
             </div>
-            <div className="space-y-2 col-span-2">
+            <div className="space-y-2 sm:col-span-2">
               <Label>Model</Label>
               <Input value={model} onChange={(e) => setModel(e.target.value)} />
             </div>
@@ -249,7 +249,7 @@ export function EditPartDialog({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Serial Number</Label>
               <Input
@@ -286,7 +286,7 @@ export function EditPartDialog({
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Condition</Label>
               <Select value={condition} onValueChange={setCondition}>
@@ -328,7 +328,7 @@ export function EditPartDialog({
 
             {/* Existing photos */}
             {existingPhotos.length > 0 && (
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {existingPhotos.map((url, index) => (
                   <div
                     key={url}
@@ -344,7 +344,7 @@ export function EditPartDialog({
                       type="button"
                       variant="destructive"
                       size="icon"
-                      className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-1 right-1 h-7 w-7 sm:h-6 sm:w-6 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                       onClick={() => removeExistingPhoto(index)}
                     >
                       <X className="h-3 w-3" />

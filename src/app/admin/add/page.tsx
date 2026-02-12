@@ -191,7 +191,7 @@ export default function AddPartPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Add New Part</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Add New Part</h1>
         <p className="text-muted-foreground mt-1">
           Add a new auto part to your inventory
         </p>
@@ -213,7 +213,7 @@ export default function AddPartPage() {
             {/* VIN Input Row */}
             <div className="space-y-2">
               <Label htmlFor="vin">VIN Code</Label>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Input
                   id="vin"
                   placeholder="e.g. 1HGBH41JXMN109186"
@@ -222,7 +222,7 @@ export default function AddPartPage() {
                     setVin(e.target.value.toUpperCase().slice(0, 17))
                   }
                   maxLength={17}
-                  className="font-mono"
+                  className="font-mono flex-1 min-w-0"
                 />
                 <Button
                   type="button"
@@ -257,7 +257,7 @@ export default function AddPartPage() {
             <Separator />
 
             {/* Vehicle Fields */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="year">Year</Label>
                 <Input
@@ -325,7 +325,7 @@ export default function AddPartPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="serial_number">Serial Number (S/N)</Label>
                 <Input
@@ -353,7 +353,7 @@ export default function AddPartPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="condition">Condition</Label>
                 <Select value={condition} onValueChange={setCondition}>
@@ -408,7 +408,7 @@ export default function AddPartPage() {
         </Card>
 
         {/* Submit */}
-        <div className="flex justify-end gap-3">
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button
             type="button"
             variant="outline"
