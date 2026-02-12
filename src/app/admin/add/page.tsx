@@ -166,6 +166,7 @@ export default function AddPartPage() {
         category,
         photos: photoUrls,
         is_published: true,
+        is_sold: false,
       });
 
       if (error) throw error;

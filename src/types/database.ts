@@ -14,6 +14,7 @@ export interface Part {
   category: string;
   photos: string[];
   is_published: boolean;
+  is_sold: boolean;
 }
 
 export type PartInsert = Omit<Part, "id" | "created_at" | "updated_at">;

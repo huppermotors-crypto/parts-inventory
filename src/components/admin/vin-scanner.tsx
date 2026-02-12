@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import {
   Dialog,
   DialogContent,
@@ -27,15 +27,24 @@ export function VinScanner({ open, onOpenChange, onScan }: VinScannerProps) {
     const startScanner = async () => {
       try {
         setError(null);
-        const scanner = new Html5Qrcode("vin-reader");
+        const scanner = new Html5Qrcode("vin-reader", {
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.CODE_39,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_93,
+            Html5QrcodeSupportedFormats.QR_CODE,
+            Html5QrcodeSupportedFormats.DATA_MATRIX,
+          ],
+          verbose: false,
+        });
         scannerRef.current = scanner;
 
         await scanner.start(
           { facingMode: "environment" },
           {
             fps: 10,
-            qrbox: { width: 300, height: 100 },
-            aspectRatio: 3,
+            qrbox: { width: 350, height: 150 },
+            aspectRatio: 2,
           },
           (decodedText) => {
             // VIN codes are 17 characters

@@ -32,6 +32,7 @@ export default function StorefrontPage() {
       .from("parts")
       .select("*")
       .eq("is_published", true)
+      .eq("is_sold", false)
       .order("created_at", { ascending: false });
 
     if (error) {

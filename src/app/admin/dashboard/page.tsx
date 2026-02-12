@@ -30,20 +30,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { EditPartDialog } from "@/components/admin/edit-part-dialog";
 import { DeletePartDialog } from "@/components/admin/delete-part-dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   PlusCircle,
   Search,
-  MoreHorizontal,
   Pencil,
   Trash2,
   Eye,
@@ -56,6 +55,8 @@ import {
   Layers,
   CarFront,
   Facebook,
+  BadgeDollarSign,
+  Undo2,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -169,6 +170,21 @@ export default function DashboardPage() {
     const { error } = await supabase
       .from("parts")
       .update({ is_published: !part.is_published })
+      .eq("id", part.id);
+
+    if (!error) {
+      fetchParts();
+    }
+  };
+
+  const toggleSold = async (part: Part) => {
+    const updates: Record<string, boolean> = { is_sold: !part.is_sold };
+    if (!part.is_sold) {
+      updates.is_published = false;
+    }
+    const { error } = await supabase
+      .from("parts")
+      .update(updates)
       .eq("id", part.id);
 
     if (!error) {
@@ -363,7 +379,7 @@ export default function DashboardPage() {
                   <TableHead>Condition</TableHead>
                   <TableHead className="text-right">Price</TableHead>
                   <TableHead className="w-20">Status</TableHead>
-                  <TableHead className="w-12"></TableHead>
+                  <TableHead className="w-40">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -423,7 +439,12 @@ export default function DashboardPage() {
                       {formatPrice(part.price)}
                     </TableCell>
                     <TableCell>
-                      {part.is_published ? (
+                      {part.is_sold ? (
+                        <Badge variant="secondary" className="bg-amber-100 text-amber-800">
+                          <BadgeDollarSign className="h-3 w-3 mr-1" />
+                          Sold
+                        </Badge>
+                      ) : part.is_published ? (
                         <Badge variant="default" className="bg-green-600">
                           <Eye className="h-3 w-3 mr-1" />
                           Live
@@ -436,54 +457,78 @@ export default function DashboardPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => postToFB(part)}
-                            className="text-blue-600 focus:text-blue-600"
-                          >
-                            <Facebook className="mr-2 h-4 w-4" />
-                            Post to FB
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setEditPart(part);
-                              setEditOpen(true);
-                            }}
-                          >
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => togglePublish(part)}>
-                            {part.is_published ? (
-                              <>
-                                <EyeOff className="mr-2 h-4 w-4" />
-                                Hide
-                              </>
-                            ) : (
-                              <>
-                                <Eye className="mr-2 h-4 w-4" />
-                                Publish
-                              </>
-                            )}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => {
-                              setDeletePart(part);
-                              setDeleteOpen(true);
-                            }}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <TooltipProvider delayDuration={300}>
+                        <div className="flex gap-1">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                onClick={() => postToFB(part)}
+                              >
+                                <Facebook className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Post to FB</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => {
+                                  setEditPart(part);
+                                  setEditOpen(true);
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Edit</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className={`h-8 w-8 ${
+                                  part.is_sold
+                                    ? "text-green-600 hover:text-green-700 hover:bg-green-50"
+                                    : "text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                }`}
+                                onClick={() => toggleSold(part)}
+                              >
+                                {part.is_sold ? (
+                                  <Undo2 className="h-4 w-4" />
+                                ) : (
+                                  <BadgeDollarSign className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {part.is_sold ? "Mark as Available" : "Mark as Sold"}
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => {
+                                  setDeletePart(part);
+                                  setDeleteOpen(true);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Delete</TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </TooltipProvider>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -512,69 +557,66 @@ export default function DashboardPage() {
                 )}
                 {/* Overlay badges */}
                 <div className="absolute top-2 left-2 flex gap-1.5">
-                  {!part.is_published && (
+                  {part.is_sold ? (
+                    <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800">
+                      Sold
+                    </Badge>
+                  ) : !part.is_published ? (
                     <Badge variant="secondary" className="text-xs">
                       <EyeOff className="h-3 w-3 mr-1" />
                       Hidden
                     </Badge>
-                  )}
+                  ) : null}
                   <Badge variant="secondary" className="text-xs bg-white/80 text-black">
-                    {getCategoryLabel(part.category).split(" / ")[0]}
+                    {getCategoryLabel(part.category)}
                   </Badge>
                 </div>
-                <div className="absolute top-2 right-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        className="h-8 w-8 sm:h-7 sm:w-7 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => postToFB(part)}
-                        className="text-blue-600 focus:text-blue-600"
-                      >
-                        <Facebook className="mr-2 h-4 w-4" />
-                        Post to FB
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setEditPart(part);
-                          setEditOpen(true);
-                        }}
-                      >
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => togglePublish(part)}>
-                        {part.is_published ? (
-                          <>
-                            <EyeOff className="mr-2 h-4 w-4" />
-                            Hide
-                          </>
-                        ) : (
-                          <>
-                            <Eye className="mr-2 h-4 w-4" />
-                            Publish
-                          </>
-                        )}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        onClick={() => {
-                          setDeletePart(part);
-                          setDeleteOpen(true);
-                        }}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                {/* Action buttons */}
+                <div className="absolute top-2 right-2 flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="h-8 w-8 sm:h-7 sm:w-7 text-blue-600"
+                    onClick={() => postToFB(part)}
+                  >
+                    <Facebook className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="h-8 w-8 sm:h-7 sm:w-7"
+                    onClick={() => {
+                      setEditPart(part);
+                      setEditOpen(true);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className={`h-8 w-8 sm:h-7 sm:w-7 ${
+                      part.is_sold ? "text-green-600" : "text-amber-600"
+                    }`}
+                    onClick={() => toggleSold(part)}
+                  >
+                    {part.is_sold ? (
+                      <Undo2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                    ) : (
+                      <BadgeDollarSign className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="h-8 w-8 sm:h-7 sm:w-7 text-destructive"
+                    onClick={() => {
+                      setDeletePart(part);
+                      setDeleteOpen(true);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                  </Button>
                 </div>
               </div>
               <CardContent className="p-4">

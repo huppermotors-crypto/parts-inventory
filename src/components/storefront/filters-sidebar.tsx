@@ -65,7 +65,7 @@ export function FiltersSidebar({
             )}
             {selectedCategory && (
               <Badge variant="secondary" className="gap-1 pr-1">
-                {getCategoryLabel(selectedCategory).split(" / ")[0]}
+                {getCategoryLabel(selectedCategory)}
                 <button
                   onClick={() => onCategoryChange(null)}
                   className="ml-1 rounded-full hover:bg-muted-foreground/20 p-0.5"
@@ -134,7 +134,7 @@ export function FiltersSidebar({
                     : "hover:bg-muted text-foreground"
                 }`}
               >
-                {cat.label.split(" / ")[0]}
+                {cat.label}
               </button>
             )
           )}
