@@ -24,6 +24,7 @@
     "browser-image-compression": "^2.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "ebay-api": "^9.4.2",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.563.0",
     "next": "14.2.35",

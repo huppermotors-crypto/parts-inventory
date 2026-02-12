@@ -24,6 +24,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { PART_CATEGORIES, PART_CONDITIONS } from "@/lib/constants";
 import { PhotoUploader, PhotoFile } from "@/components/admin/photo-uploader";
+import { EbayPriceSearch } from "@/components/admin/ebay-price-search";
 import { Loader2, Save, X, ImageIcon } from "lucide-react";
 import Image from "next/image";
 
@@ -318,6 +319,15 @@ export function EditPartDialog({
               </Select>
             </div>
           </div>
+
+          {/* eBay Price Check */}
+          <EbayPriceSearch
+            partName={name}
+            make={make || null}
+            model={model || null}
+            year={year ? parseInt(year, 10) : null}
+            onPriceSelect={(p) => setPrice(p.toFixed(2))}
+          />
 
           {/* Photos Section */}
           <div className="space-y-3">

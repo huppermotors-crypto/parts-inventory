@@ -26,6 +26,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { PhotoUploader, PhotoFile } from "@/components/admin/photo-uploader";
 import { VinScanner } from "@/components/admin/vin-scanner";
+import { EbayPriceSearch } from "@/components/admin/ebay-price-search";
 import { PART_CATEGORIES, PART_CONDITIONS } from "@/lib/constants";
 import {
   ScanBarcode,
@@ -390,6 +391,15 @@ export default function AddPartPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* eBay Price Check */}
+        <EbayPriceSearch
+          partName={name}
+          make={make || null}
+          model={model || null}
+          year={year ? parseInt(year, 10) : null}
+          onPriceSelect={(p) => setPrice(p.toFixed(2))}
+        />
 
         {/* Photos */}
         <Card>

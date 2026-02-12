@@ -57,6 +57,7 @@ import {
   Facebook,
   BadgeDollarSign,
   Undo2,
+  ShoppingBag,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -181,7 +182,48 @@ export default function DashboardPage() {
     }
   };
 
+  const [ebayPosting, setEbayPosting] = useState<string | null>(null);
+
   const { toast } = useToast();
+
+  const postToEbay = async (part: Part) => {
+    if (part.ebay_listing_id) {
+      window.open(part.ebay_listing_url!, "_blank");
+      return;
+    }
+
+    setEbayPosting(part.id);
+    try {
+      const response = await fetch("/api/ebay/list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ partId: part.id }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to list on eBay");
+      }
+
+      toast({
+        title: "Listed on eBay!",
+        description: `"${part.name}" is now live on eBay.`,
+      });
+
+      fetchParts();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "eBay listing failed";
+      toast({
+        title: "eBay Error",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setEbayPosting(null);
+    }
+  };
 
   const postToFB = (part: Part) => {
     const partData = {
@@ -466,6 +508,30 @@ export default function DashboardPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                className={`h-8 w-8 ${
+                                  part.ebay_listing_id
+                                    ? "text-green-600 hover:text-green-700 hover:bg-green-50"
+                                    : "text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                }`}
+                                onClick={() => postToEbay(part)}
+                                disabled={ebayPosting === part.id}
+                              >
+                                {ebayPosting === part.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <ShoppingBag className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {part.ebay_listing_id ? "View on eBay" : "Post to eBay"}
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
                                 className="h-8 w-8"
                                 onClick={() => {
                                   setEditPart(part);
@@ -569,6 +635,21 @@ export default function DashboardPage() {
                     onClick={() => postToFB(part)}
                   >
                     <Facebook className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className={`h-8 w-8 sm:h-7 sm:w-7 ${
+                      part.ebay_listing_id ? "text-green-600" : "text-orange-600"
+                    }`}
+                    onClick={() => postToEbay(part)}
+                    disabled={ebayPosting === part.id}
+                  >
+                    {ebayPosting === part.id ? (
+                      <Loader2 className="h-4 w-4 sm:h-3.5 sm:w-3.5 animate-spin" />
+                    ) : (
+                      <ShoppingBag className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                    )}
                   </Button>
                   <Button
                     variant="secondary"
