@@ -166,17 +166,6 @@ export default function DashboardPage() {
     setSearch("");
   };
 
-  const togglePublish = async (part: Part) => {
-    const { error } = await supabase
-      .from("parts")
-      .update({ is_published: !part.is_published })
-      .eq("id", part.id);
-
-    if (!error) {
-      fetchParts();
-    }
-  };
-
   const toggleSold = async (part: Part) => {
     const updates: Record<string, boolean> = { is_sold: !part.is_sold };
     if (!part.is_sold) {
