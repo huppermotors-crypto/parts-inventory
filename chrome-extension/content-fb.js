@@ -175,8 +175,10 @@
       await sleep(600);
     }
 
-    // 7. Try to set category
-    await clickByText("Category");
+    // 7. Set category to "Car Parts & Accessories"
+    updateOverlay("✏️ Setting category...");
+    await setCategory();
+    await sleep(600);
 
     // 8. Clear stored data so it doesn't auto-fill next time
     chrome.storage.local.remove("scrapedPart");
@@ -442,9 +444,9 @@
     like_new: "Used - Like New",
     excellent: "Used - Good",
     good: "Used - Good",
-    fair: "Used - Fair",
-    used: "Used - Fair",
-    for_parts: "Used - Fair",
+    fair: "Used - Good",
+    used: "Used - Good",
+    for_parts: "Used - Good",
   };
 
   async function setCondition(condition) {
@@ -504,6 +506,86 @@
     }
 
     log("Could not select condition:", target);
+  }
+
+  // ============================================
+  // Category selection
+  // ============================================
+
+  async function setCategory() {
+    const TARGET_CATEGORY = "Car Parts & Accessories";
+
+    // Find and click the category field
+    const btn =
+      document.querySelector('[aria-label="Category"]') ||
+      findClickableByText("Category") ||
+      findClickableByText("Select category");
+
+    if (!btn) {
+      log("Category button not found");
+      return;
+    }
+
+    btn.click();
+    await sleep(1000);
+
+    // Wait for category options/search to appear
+    for (let i = 0; i < 10; i++) {
+      // Try to find a search input inside the category dialog
+      const searchInput =
+        document.querySelector('[aria-label="Search categories"]') ||
+        document.querySelector('[aria-label="Search"]') ||
+        document.querySelector('[placeholder*="Search"]') ||
+        document.querySelector('[role="dialog"] input[type="search"]') ||
+        document.querySelector('[role="dialog"] input[type="text"]');
+
+      if (searchInput) {
+        // Type category name to filter
+        await setInputValue(searchInput, "Car Parts");
+        await sleep(1500);
+
+        // Click matching option
+        const option =
+          findClickableByText(TARGET_CATEGORY) ||
+          findClickableByText("Car Parts");
+        if (option) {
+          option.click();
+          log("Category set:", TARGET_CATEGORY);
+          return;
+        }
+      }
+
+      // No search input — try direct option list
+      const options = document.querySelectorAll(
+        '[role="option"], [role="menuitem"], [role="listbox"] [role="option"]'
+      );
+      for (const opt of options) {
+        if (opt.textContent.trim().includes("Car Parts")) {
+          opt.click();
+          log("Category set (direct):", opt.textContent.trim());
+          return;
+        }
+      }
+
+      // Also try clicking any span that matches
+      for (const span of document.querySelectorAll("span")) {
+        const text = span.textContent.trim();
+        if (text === TARGET_CATEGORY || text === "Car Parts & Accessories") {
+          const clickTarget =
+            span.closest("[role='option']") ||
+            span.closest("[role='menuitem']") ||
+            span.closest("[role='button']") ||
+            span;
+          clickTarget.click();
+          log("Category set (span):", text);
+          return;
+        }
+      }
+
+      await sleep(500);
+    }
+
+    log("Could not select category:", TARGET_CATEGORY);
   }
 
   // ============================================
