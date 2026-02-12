@@ -513,79 +513,88 @@
   // ============================================
 
   async function setCategory() {
-    const TARGET_CATEGORY = "Car Parts & Accessories";
+    const CATEGORY_KEYWORDS = [
+      "Car Parts & Accessories",
+      "Car Parts",
+      "Auto Parts",
+      "Vehicle Parts",
+      "Parts & Accessories",
+    ];
 
-    // Find and click the category field
-    const btn =
-      document.querySelector('[aria-label="Category"]') ||
-      findClickableByText("Category") ||
-      findClickableByText("Select category");
+    // Find the category dropdown — look for a <label> or <span> that says "Category"
+    // followed by a clickable element (select trigger, combobox, etc.)
+    let btn = document.querySelector('[aria-label="Category"]');
+
+    if (!btn) {
+      // Look for a label "Category" and find the nearest interactive element
+      const labels = document.querySelectorAll("label, span");
+      for (const label of labels) {
+        const text = label.textContent.trim();
+        if (text === "Category" || text === "Select a category") {
+          // Find the closest parent that's clickable, or a sibling select/button
+          btn =
+            label.closest('[role="button"]') ||
+            label.closest('[role="combobox"]') ||
+            label.parentElement?.querySelector('[role="button"]') ||
+            label.parentElement?.querySelector('[role="combobox"]') ||
+            label.nextElementSibling ||
+            label;
+          break;
+        }
+      }
+    }
 
     if (!btn) {
       log("Category button not found");
       return;
     }
 
+    log("Clicking category button:", btn.textContent?.trim()?.substring(0, 30));
     btn.click();
-    await sleep(1000);
+    await sleep(1500);
 
-    // Wait for category options/search to appear
-    for (let i = 0; i < 10; i++) {
-      // Try to find a search input inside the category dialog
-      const searchInput =
-        document.querySelector('[aria-label="Search categories"]') ||
-        document.querySelector('[aria-label="Search"]') ||
-        document.querySelector('[placeholder*="Search"]') ||
-        document.querySelector('[role="dialog"] input[type="search"]') ||
-        document.querySelector('[role="dialog"] input[type="text"]');
-
-      if (searchInput) {
-        // Type category name to filter
-        await setInputValue(searchInput, "Car Parts");
-        await sleep(1500);
-
-        // Click matching option
-        const option =
-          findClickableByText(TARGET_CATEGORY) ||
-          findClickableByText("Car Parts");
-        if (option) {
-          option.click();
-          log("Category set:", TARGET_CATEGORY);
-          return;
-        }
-      }
-
-      // No search input — try direct option list
-      const options = document.querySelectorAll(
-        '[role="option"], [role="menuitem"], [role="listbox"] [role="option"]'
+    // Wait for category list/popup to appear and find matching option
+    for (let attempt = 0; attempt < 15; attempt++) {
+      // Search through all visible options, menu items, list items
+      const candidates = document.querySelectorAll(
+        '[role="option"], [role="menuitem"], [role="menuitemradio"], [role="listbox"] > *, [role="dialog"] [role="option"]'
       );
-      for (const opt of options) {
-        if (opt.textContent.trim().includes("Car Parts")) {
-          opt.click();
-          log("Category set (direct):", opt.textContent.trim());
-          return;
+
+      for (const opt of candidates) {
+        const text = opt.textContent.trim();
+        for (const keyword of CATEGORY_KEYWORDS) {
+          if (text === keyword || text.includes(keyword)) {
+            opt.click();
+            log("Category set:", text);
+            return;
+          }
         }
       }
 
-      // Also try clicking any span that matches
-      for (const span of document.querySelectorAll("span")) {
+      // Also search all spans (FB often wraps option text in spans)
+      const spans = document.querySelectorAll("span");
+      for (const span of spans) {
         const text = span.textContent.trim();
-        if (text === TARGET_CATEGORY || text === "Car Parts & Accessories") {
-          const clickTarget =
-            span.closest("[role='option']") ||
-            span.closest("[role='menuitem']") ||
-            span.closest("[role='button']") ||
-            span;
-          clickTarget.click();
-          log("Category set (span):", text);
-          return;
+        for (const keyword of CATEGORY_KEYWORDS) {
+          if (text === keyword) {
+            const clickTarget =
+              span.closest("[role='option']") ||
+              span.closest("[role='menuitem']") ||
+              span.closest("[role='listitem']") ||
+              span.closest("li") ||
+              span.closest("[role='button']") ||
+              span;
+            clickTarget.click();
+            log("Category set (span):", text);
+            return;
+          }
         }
       }
 
       await sleep(500);
     }
 
-    log("Could not select category:", TARGET_CATEGORY);
+    log("Could not find matching category — leaving for manual selection");
   }
 
   // ============================================
