@@ -16,7 +16,8 @@
   "host_permissions": [
     "*://www.facebook.com/*",
     "*://localhost/*",
-    "*://*.vercel.app/*"
+    "*://*.vercel.app/*",
+    "*://*.onrender.com/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -33,7 +34,8 @@
       "matches": [
         "*://localhost/parts/*",
         "*://localhost:*/parts/*",
-        "*://*.vercel.app/parts/*"
+        "*://*.vercel.app/parts/*",
+        "*://*.onrender.com/parts/*"
       ],
       "js": ["content-scraper.js"],
       "run_at": "document_idle"
@@ -42,7 +44,8 @@
       "matches": [
         "*://localhost/admin/*",
         "*://localhost:*/admin/*",
-        "*://*.vercel.app/admin/*"
+        "*://*.vercel.app/admin/*",
+        "*://*.onrender.com/admin/*"
       ],
       "js": ["content-admin.js"],
       "run_at": "document_idle"

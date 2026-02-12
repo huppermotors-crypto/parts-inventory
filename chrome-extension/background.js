@@ -38,6 +38,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ status: "started" });
     return true;
   }
+
+  // Fetch image from content script (CORS workaround — background has no origin restrictions)
+  if (message.action === "FETCH_IMAGE") {
+    fetch(message.url)
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const contentType = r.headers.get("content-type") || "image/jpeg";
+        return r.arrayBuffer().then((buf) => ({ buf, contentType }));
+      })
+      .then(({ buf, contentType }) => {
+        // Convert ArrayBuffer to base64 in chunks (avoid stack overflow on large images)
+        const bytes = new Uint8Array(buf);
+        let binary = "";
+        const chunkSize = 8192;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          binary += String.fromCharCode.apply(
+            null,
+            bytes.subarray(i, i + chunkSize)
+          );
+        }
+        sendResponse({ data: btoa(binary), type: contentType });
+      })
+      .catch((err) => {
+        console.error("[BG] FETCH_IMAGE error:", err);
+        sendResponse({ error: err.message });
+      });
+    return true; // async
+  }
 });
 
 async function handleScrapeAndPost(tabId) {

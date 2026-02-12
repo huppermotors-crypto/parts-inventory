@@ -6,12 +6,22 @@
 (function () {
   "use strict";
 
-  const MAX_WAIT = 60; // retries
-  const WAIT_MS = 500;
+  const MAX_RETRIES = 120; // 120 * 500ms = 60 seconds max wait
+  const RETRY_MS = 500;
 
   let hasRun = false;
 
-  init();
+  // FB is a SPA — the page may not be ready yet. Wait for load then init.
+  if (document.readyState === "complete") {
+    startWithDelay();
+  } else {
+    window.addEventListener("load", startWithDelay);
+  }
+
+  function startWithDelay() {
+    // Give FB extra time to render its React app after page load
+    setTimeout(init, 3000);
+  }
 
   async function init() {
     if (hasRun) return;
@@ -28,7 +38,6 @@
     log("Data loaded:", data.title);
     showOverlay(data);
 
-    // Wait for the listing type selection if present, then wait for form
     await waitForFormAndFill(data);
   }
 
@@ -47,127 +56,142 @@
   // ============================================
 
   async function waitForFormAndFill(data) {
-    // First, check if we need to select "Item for Sale" listing type
+    // Step 1: Wait for and select listing type
+    updateOverlay("⏳ Waiting for FB to load...");
     await selectListingType();
 
-    // Now wait for the actual form
+    // Step 2: Wait for form fields to appear
+    updateOverlay("⏳ Waiting for form...");
     let retries = 0;
-    while (retries < MAX_WAIT) {
+    while (retries < MAX_RETRIES) {
       retries++;
 
-      // Try multiple known selectors for the title field
-      const titleInput = findField("Title") || findField("What are you selling?");
+      const titleInput =
+        findField("Title") ||
+        findField("What are you selling?") ||
+        findField("Listing title");
       if (titleInput) {
-        log("Form found! Filling...");
+        log("Form found after", retries, "retries. Filling...");
+        await sleep(500); // brief pause for other fields to render
         await fillForm(data, titleInput);
         return;
       }
 
-      await sleep(WAIT_MS);
+      await sleep(RETRY_MS);
     }
 
-    updateOverlay("⚠️ Form not found after waiting. Try refreshing the page.");
+    updateOverlay("⚠️ Form not found after 60s. Try refreshing the page.");
   }
 
   async function selectListingType() {
-    // FB might show a selection screen: "Item for Sale", "Vehicle", "Home for Sale/Rent"
-    // Wait a bit for it to appear
-    await sleep(2000);
+    // FB might show a selection screen: "Item for Sale", "Vehicle", etc.
+    // Use retry loop instead of fixed wait
+    let retries = 0;
+    const maxRetries = 20; // 20 * 500ms = 10 seconds
 
-    const selectors = [
-      // Try to find "Item for Sale" or similar text
-      () => findClickableByText("Item for sale"),
-      () => findClickableByText("Item for Sale"),
-      () => findClickableByText("Items for sale"),
-      () => findClickableByText("Miscellaneous"),
-      // aria-label approach
-      () => document.querySelector('[aria-label="Item for sale"]'),
-      () => document.querySelector('[aria-label="Item for Sale"]'),
-    ];
+    while (retries < maxRetries) {
+      retries++;
 
-    for (const selector of selectors) {
-      const el = selector();
+      const el =
+        findClickableByText("Item for sale") ||
+        findClickableByText("Item for Sale") ||
+        findClickableByText("Items for sale") ||
+        findClickableByText("Miscellaneous") ||
+        document.querySelector('[aria-label="Item for sale"]') ||
+        document.querySelector('[aria-label="Item for Sale"]');
+
       if (el) {
         log("Clicking listing type:", el.textContent?.trim());
         el.click();
-        await sleep(1500);
+        await sleep(2000); // wait for form to load after selection
         return;
       }
+
+      // Check if form is already showing (no listing type selection needed)
+      const titleInput =
+        findField("Title") ||
+        findField("What are you selling?") ||
+        findField("Listing title");
+      if (titleInput) {
+        log("Form already visible — no listing type selection needed");
+        return;
+      }
+
+      await sleep(500);
     }
 
-    log("No listing type selection found — may already be on item form");
+    log("No listing type selection found after waiting — proceeding anyway");
   }
 
   async function fillForm(data, titleInput) {
-    // 1. Upload photos FIRST (FB expects photos before other fields sometimes)
+    // 1. Upload photos FIRST
     if (data.photos && data.photos.length > 0) {
       updateOverlay("📷 Uploading photos...");
       await uploadPhotos(data.photos);
-      await sleep(1000);
+      await sleep(2000); // wait for FB to process uploads
     }
 
     // 2. Fill Title
     updateOverlay("✏️ Filling title...");
     await setInputValue(titleInput, data.title || "");
-    await sleep(400);
+    await sleep(600);
 
     // 3. Fill Price
     const priceInput = findField("Price");
     if (priceInput) {
-      const price = data.price ? Math.round(parseFloat(data.price)).toString() : "0";
+      const price = data.price
+        ? Math.round(parseFloat(data.price)).toString()
+        : "0";
       await setInputValue(priceInput, price);
-      await sleep(400);
+      await sleep(600);
     }
 
-    // 4. Try to expand "More details"
-    await clickByText("More details");
+    // 4. Set Condition (do before expanding "More details")
+    updateOverlay("✏️ Setting condition...");
+    await setCondition(data.condition);
     await sleep(600);
 
-    // 5. Fill Description
-    const descInput = findField("Description") || findField("Describe your item");
+    // 5. Try to expand "More details"
+    await clickByText("More details");
+    await sleep(1000);
+
+    // 6. Fill Description
+    updateOverlay("✏️ Filling description...");
+    const descInput =
+      findField("Description") ||
+      findField("Describe your item") ||
+      findField("Add a description");
     if (descInput) {
       let desc = data.description || "";
       if (data.make || data.model || data.year) {
-        const vehicle = [data.year, data.make, data.model].filter(Boolean).join(" ");
-        desc = `🚗 ${vehicle}\n\n${desc}`;
+        const vehicle = [data.year, data.make, data.model]
+          .filter(Boolean)
+          .join(" ");
+        desc = `${vehicle}\n\n${desc}`;
       }
       if (data.vin) desc += `\n\nVIN: ${data.vin}`;
       if (data.serial_number) desc += `\nS/N: ${data.serial_number}`;
-      await setInputValue(descInput, desc);
-      await sleep(400);
+      await setInputValue(descInput, desc.trim());
+      await sleep(600);
     }
 
-    // 6. Set Condition
-    await setCondition(data.condition);
-    await sleep(400);
-
-    // 7. Open Category for manual selection
+    // 7. Try to set category
     await clickByText("Category");
 
-    updateOverlay("✅ Done! Select category manually if needed.");
+    // 8. Clear stored data so it doesn't auto-fill next time
+    chrome.storage.local.remove("scrapedPart");
+
+    updateOverlay("✅ Done! Review and publish your listing.");
     log("Form filling complete!");
   }
 
   // ============================================
-  // Photo Upload via hidden file input
+  // Photo Upload
   // ============================================
 
   async function uploadPhotos(photoUrls) {
-    // Find the file input — FB hides it but it exists
-    const fileInputs = document.querySelectorAll('input[type="file"]');
-    let fileInput = null;
-
-    for (const input of fileInputs) {
-      if (input.accept && input.accept.includes("image")) {
-        fileInput = input;
-        break;
-      }
-    }
-
-    // Fallback: any file input
-    if (!fileInput && fileInputs.length > 0) {
-      fileInput = fileInputs[0];
-    }
+    // Find or trigger the file input
+    let fileInput = findFileInput();
 
     if (!fileInput) {
       // Try clicking the "Add photos" area to make the input appear
@@ -179,15 +203,10 @@
 
       if (addPhotoBtn) {
         addPhotoBtn.click();
-        await sleep(1000);
+        await sleep(1500);
       }
 
-      // Try again
-      const inputs = document.querySelectorAll('input[type="file"]');
-      for (const input of inputs) {
-        fileInput = input;
-        break;
-      }
+      fileInput = findFileInput();
     }
 
     if (!fileInput) {
@@ -198,25 +217,43 @@
 
     log("File input found, fetching", photoUrls.length, "images...");
 
-    // Fetch all images as blobs and create File objects
+    // Fetch images via background script to avoid CORS issues
     const files = [];
     for (let i = 0; i < photoUrls.length; i++) {
       try {
-        const resp = await fetch(photoUrls[i]);
-        const blob = await resp.blob();
-        const ext = blob.type.split("/")[1] || "jpg";
-        const file = new File([blob], `photo_${i + 1}.${ext}`, {
-          type: blob.type,
-        });
-        files.push(file);
-        log(`Fetched image ${i + 1}/${photoUrls.length}`);
+        updateOverlay(
+          `📷 Downloading image ${i + 1}/${photoUrls.length}...`
+        );
+        const blob = await fetchImageViaBackground(photoUrls[i]);
+        if (blob) {
+          const ext = blob.type.split("/")[1] || "jpg";
+          const file = new File([blob], `photo_${i + 1}.${ext}`, {
+            type: blob.type,
+          });
+          files.push(file);
+          log(`Fetched image ${i + 1}/${photoUrls.length}`);
+        }
       } catch (err) {
         log(`Failed to fetch image ${i + 1}:`, err.message);
+        // Fallback: try direct fetch (might work if same-origin or CORS allowed)
+        try {
+          const resp = await fetch(photoUrls[i]);
+          const blob = await resp.blob();
+          const ext = blob.type.split("/")[1] || "jpg";
+          const file = new File([blob], `photo_${i + 1}.${ext}`, {
+            type: blob.type,
+          });
+          files.push(file);
+          log(`Fetched image ${i + 1} via direct fetch`);
+        } catch (e) {
+          log(`Direct fetch also failed for image ${i + 1}:`, e.message);
+        }
       }
     }
 
     if (files.length === 0) {
       log("No images fetched successfully");
+      updateOverlay("⚠️ Could not download photos. Add them manually.");
       return;
     }
 
@@ -224,23 +261,58 @@
     const dataTransfer = new DataTransfer();
     files.forEach((f) => dataTransfer.items.add(f));
 
-    // Set files on the input
+    // Set files on the input and trigger events
     fileInput.files = dataTransfer.files;
-
-    // Dispatch events to trigger React
     fileInput.dispatchEvent(new Event("change", { bubbles: true }));
     fileInput.dispatchEvent(new Event("input", { bubbles: true }));
 
-    log(`Uploaded ${files.length} photos via file input`);
-    updateOverlay(`📷 ${files.length} photos uploaded!`);
-    await sleep(1000);
+    log(`Set ${files.length} photos on file input`);
+    updateOverlay(`📷 ${files.length} photo(s) uploading...`);
 
-    // Also try drag-and-drop as a fallback
+    await sleep(1500);
+
+    // Also try drag-and-drop as fallback
     await tryDragDrop(files);
   }
 
+  function findFileInput() {
+    const fileInputs = document.querySelectorAll('input[type="file"]');
+    // Prefer the one that accepts images
+    for (const input of fileInputs) {
+      if (input.accept && input.accept.includes("image")) {
+        return input;
+      }
+    }
+    // Fallback: any file input
+    return fileInputs.length > 0 ? fileInputs[0] : null;
+  }
+
+  function fetchImageViaBackground(url) {
+    return new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage(
+        { action: "FETCH_IMAGE", url },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+            return;
+          }
+          if (response && response.data) {
+            // Convert base64 back to blob
+            const binary = atob(response.data);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+              bytes[i] = binary.charCodeAt(i);
+            }
+            resolve(new Blob([bytes], { type: response.type || "image/jpeg" }));
+          } else {
+            reject(new Error("No image data returned"));
+          }
+        }
+      );
+    });
+  }
+
   async function tryDragDrop(files) {
-    // Find the drop zone (usually the photo area)
     const dropZone =
       document.querySelector('[aria-label="Add photos"]') ||
       document.querySelector('[aria-label="Add Photos"]') ||
@@ -260,60 +332,105 @@
         dataTransfer,
       });
       dropZone.dispatchEvent(event);
-      await sleep(100);
+      await sleep(150);
     }
 
     log("Drag-and-drop events dispatched");
   }
 
   // ============================================
-  // React input filling
+  // React-compatible input filling
   // ============================================
 
   async function setInputValue(el, value) {
     if (!el) return;
 
     el.focus();
+    await sleep(100);
     el.click();
-    await sleep(80);
+    await sleep(100);
 
-    // contentEditable
+    // contentEditable elements (FB uses these for some fields)
     if (el.getAttribute("contenteditable") === "true" || el.isContentEditable) {
+      // Clear existing content
       el.textContent = "";
+      el.innerHTML = "";
       el.focus();
+      await sleep(50);
+
+      // Use execCommand for React compatibility
       document.execCommand("selectAll", false, null);
-      document.execCommand("insertText", false, value);
+      document.execCommand("delete", false, null);
+      await sleep(50);
+
+      // Insert text character by character for short values,
+      // or all at once for long values
+      if (value.length <= 100) {
+        document.execCommand("insertText", false, value);
+      } else {
+        // For long text, insert in chunks to avoid issues
+        const chunks = value.match(/.{1,50}/gs) || [value];
+        for (const chunk of chunks) {
+          document.execCommand("insertText", false, chunk);
+          await sleep(30);
+        }
+      }
+
       el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      await sleep(100);
       return;
     }
 
-    // Regular input / textarea
+    // Regular input / textarea — use native setter to bypass React
     const proto =
       el.tagName === "TEXTAREA"
         ? HTMLTextAreaElement.prototype
         : HTMLInputElement.prototype;
     const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
 
+    // Save previous value for React's value tracker
     const prev = el.value;
+
+    // Set value via native setter
     if (setter) {
       setter.call(el, value);
     } else {
       el.value = value;
     }
 
-    // React value tracker trick
+    // Reset React's internal value tracker so it detects the change
     const tracker = el._valueTracker;
     if (tracker) {
       tracker.setValue(prev);
     }
 
+    // Dispatch events that React listens to
     el.dispatchEvent(new Event("input", { bubbles: true }));
     el.dispatchEvent(new Event("change", { bubbles: true }));
-    el.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
-    el.dispatchEvent(new KeyboardEvent("keyup", { key: " ", bubbles: true }));
 
-    await sleep(80);
+    // Also fire keyboard events for extra React compatibility
+    el.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "a", bubbles: true })
+    );
+    el.dispatchEvent(new KeyboardEvent("keyup", { key: "a", bubbles: true }));
+
+    await sleep(100);
     el.dispatchEvent(new Event("blur", { bubbles: true }));
+    await sleep(100);
+
+    // Verify the value was set
+    if (el.value !== value) {
+      log("Value mismatch, retrying with fallback...");
+      el.focus();
+      await sleep(50);
+      // Try selecting all and typing
+      el.select?.();
+      document.execCommand("selectAll", false, null);
+      document.execCommand("insertText", false, value);
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    }
   }
 
   // ============================================
@@ -333,10 +450,11 @@
   async function setCondition(condition) {
     const target = CONDITION_MAP[condition] || "Used - Good";
 
-    // Find condition dropdown
+    // Find condition dropdown — try multiple approaches
     const btn =
       document.querySelector('[aria-label="Condition"]') ||
-      findClickableByText("Condition");
+      findClickableByText("Condition") ||
+      findClickableByText("Select condition");
 
     if (!btn) {
       log("Condition dropdown not found");
@@ -344,14 +462,25 @@
     }
 
     btn.click();
-    await sleep(600);
+    await sleep(1000); // FB dropdown animation
 
-    // Find the matching option
-    const options = document.querySelectorAll(
-      '[role="option"], [role="menuitem"], [role="listbox"] [role="option"]'
-    );
+    // Wait for options to appear
+    let options = null;
+    for (let i = 0; i < 10; i++) {
+      options = document.querySelectorAll(
+        '[role="option"], [role="menuitem"], [role="menuitemradio"], [role="listbox"] [role="option"]'
+      );
+      if (options.length > 0) break;
+      await sleep(300);
+    }
 
-    for (const opt of options) {
+    if (!options || options.length === 0) {
+      // Try broader search
+      options = document.querySelectorAll("[role='listbox'] > *");
+    }
+
+    // Find matching option
+    for (const opt of options || []) {
       const text = opt.textContent.trim();
       if (text === target || text.includes(target.split(" - ").pop())) {
         opt.click();
@@ -360,11 +489,15 @@
       }
     }
 
-    // Broader search
+    // Broader: search all spans
     for (const span of document.querySelectorAll("span")) {
       const text = span.textContent.trim();
       if (text === target) {
-        span.click();
+        const clickTarget =
+          span.closest("[role='option']") ||
+          span.closest("[role='menuitem']") ||
+          span;
+        clickTarget.click();
         log("Condition set (span):", text);
         return;
       }
@@ -374,28 +507,51 @@
   }
 
   // ============================================
-  // DOM helpers — NO obfuscated class selectors
+  // DOM helpers
   // ============================================
 
   function findField(label) {
     return (
       document.querySelector(`input[aria-label="${label}"]`) ||
       document.querySelector(`textarea[aria-label="${label}"]`) ||
-      document.querySelector(`[aria-label="${label}"][contenteditable]`) ||
+      document.querySelector(
+        `[aria-label="${label}"][contenteditable="true"]`
+      ) ||
       document.querySelector(`input[placeholder*="${label}"]`) ||
       document.querySelector(`textarea[placeholder*="${label}"]`) ||
       document.querySelector(`[aria-label="${label}"] input`) ||
-      document.querySelector(`[aria-label="${label}"] textarea`)
+      document.querySelector(`[aria-label="${label}"] textarea`) ||
+      // Also search by label text
+      findInputByLabelText(label)
     );
   }
 
+  function findInputByLabelText(text) {
+    const labels = document.querySelectorAll("label");
+    for (const label of labels) {
+      if (label.textContent.trim().toLowerCase().includes(text.toLowerCase())) {
+        const input =
+          label.querySelector("input") ||
+          label.querySelector("textarea") ||
+          label.querySelector('[contenteditable="true"]');
+        if (input) return input;
+
+        // Check for "for" attribute
+        if (label.htmlFor) {
+          return document.getElementById(label.htmlFor);
+        }
+      }
+    }
+    return null;
+  }
+
   function findClickableByText(text) {
-    // Search spans, labels, divs for exact or partial text
     const candidates = document.querySelectorAll(
-      'span, [role="button"], label, a'
+      'span, [role="button"], label, a, div[role="button"]'
     );
+
+    // Exact match on direct text content
     for (const el of candidates) {
-      // Only match direct text, not children's text
       const directText = Array.from(el.childNodes)
         .filter((n) => n.nodeType === Node.TEXT_NODE)
         .map((n) => n.textContent.trim())
@@ -405,7 +561,8 @@
         return el;
       }
     }
-    // Fallback: includes match
+
+    // Fallback: exact full text match on leaf elements
     for (const el of candidates) {
       if (
         el.textContent.trim().toLowerCase() === text.toLowerCase() &&
@@ -414,6 +571,17 @@
         return el;
       }
     }
+
+    // Fallback: includes match
+    for (const el of candidates) {
+      if (
+        el.children.length === 0 &&
+        el.textContent.trim().toLowerCase().includes(text.toLowerCase())
+      ) {
+        return el;
+      }
+    }
+
     return null;
   }
 
@@ -438,15 +606,15 @@
     overlay.id = "parts-fb-overlay";
     overlay.innerHTML = `
       <div class="pfb-header">
-        <span>🔧 Auto Parts Filler</span>
-        <button id="pfb-close">✕</button>
+        <span>Auto Parts Filler</span>
+        <button id="pfb-close">&times;</button>
       </div>
       <div class="pfb-body">
-        <div class="pfb-status" id="pfb-status">⏳ Loading form...</div>
+        <div class="pfb-status" id="pfb-status">Loading form...</div>
         <div class="pfb-info">
           <strong>${esc(data.title)}</strong><br/>
           $${parseFloat(data.price || 0).toFixed(2)}
-          ${data.photos?.length ? ` · ${data.photos.length} photo(s)` : ""}
+          ${data.photos?.length ? ` &middot; ${data.photos.length} photo(s)` : ""}
         </div>
       </div>
     `;
@@ -456,14 +624,16 @@
       overlay.remove();
     });
 
+    // Auto-remove after 2 minutes
     setTimeout(() => {
       if (overlay.parentElement) overlay.remove();
-    }, 60000);
+    }, 120000);
   }
 
   function updateOverlay(msg) {
     const el = document.getElementById("pfb-status");
     if (el) el.textContent = msg;
+    log("Status:", msg);
   }
 
   function esc(t) {
