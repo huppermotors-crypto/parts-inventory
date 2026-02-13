@@ -23,11 +23,20 @@ export function buildEbaySearchQuery(part: {
   return terms.join(" ");
 }
 
+export interface SearchOptions {
+  limit?: number;
+  minPrice?: number;
+}
+
 export async function searchEbayPrices(
   query: string,
-  limit: number = 8
+  options: SearchOptions = {}
 ): Promise<EbaySearchResponse> {
+  const { limit = 12, minPrice } = options;
   const params = new URLSearchParams({ q: query, limit: limit.toString() });
+  if (minPrice && minPrice > 0) {
+    params.set("minPrice", minPrice.toString());
+  }
   const response = await fetch(`/api/ebay/search?${params}`);
 
   if (!response.ok) {

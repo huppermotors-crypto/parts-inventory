@@ -62,7 +62,9 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q");
-  const limit = searchParams.get("limit") || "8";
+  const limit = searchParams.get("limit") || "12";
+  const minPrice = searchParams.get("minPrice");
+  const sort = searchParams.get("sort") || "BEST_MATCH";
 
   if (!q) {
     return NextResponse.json(
@@ -79,13 +81,24 @@ export async function GET(request: NextRequest) {
       ? "https://api.ebay.com"
       : "https://api.sandbox.ebay.com";
 
+    // Build filters
+    const filters = ["buyingOptions:{FIXED_PRICE}"];
+    if (minPrice) {
+      filters.push(`price:[${minPrice}]`);
+    }
+
     const params = new URLSearchParams({
       q,
       limit,
       category_ids: "6000", // eBay Motors > Parts & Accessories
-      filter: "buyingOptions:{FIXED_PRICE}",
-      sort: "price",
+      filter: filters.join(","),
+      sort: sort === "price" ? "price" : "",
     });
+
+    // Remove empty sort param (BEST_MATCH is default when no sort specified)
+    if (sort !== "price") {
+      params.delete("sort");
+    }
 
     const response = await fetch(
       `${apiBase}/buy/browse/v1/item_summary/search?${params}`,

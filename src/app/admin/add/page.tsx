@@ -62,6 +62,28 @@ export default function AddPartPage() {
   const [decoding, setDecoding] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Build vehicle prefix from year/make/model
+  const buildVehiclePrefix = (y: string, m: string, md: string) =>
+    [y, m, md].filter(Boolean).join(" ");
+
+  // Update name prefix when vehicle info changes
+  const updateNamePrefix = (newYear: string, newMake: string, newModel: string) => {
+    const oldPrefix = buildVehiclePrefix(year, make, model);
+    const newPrefix = buildVehiclePrefix(newYear, newMake, newModel);
+
+    if (oldPrefix && name.startsWith(oldPrefix)) {
+      // Replace old prefix with new one
+      const suffix = name.slice(oldPrefix.length);
+      setName(newPrefix + suffix);
+    } else if (!name.trim()) {
+      // Name is empty — set prefix with trailing space
+      setName(newPrefix ? newPrefix + " " : "");
+    } else {
+      // Name has custom content — prepend new prefix
+      setName(newPrefix ? newPrefix + " " + name : name);
+    }
+  };
+
   const handleDecode = async () => {
     if (!vin || vin.length !== 17) {
       toast({
@@ -75,9 +97,15 @@ export default function AddPartPage() {
     setDecoding(true);
     try {
       const result = await decodeVIN(vin);
-      if (result.year) setYear(result.year.toString());
-      if (result.make) setMake(result.make);
-      if (result.model) setModel(result.model);
+      const newYear = result.year?.toString() || "";
+      const newMake = result.make || "";
+      const newModel = result.model || "";
+
+      if (result.year) setYear(newYear);
+      if (result.make) setMake(newMake);
+      if (result.model) setModel(newModel);
+
+      updateNamePrefix(newYear, newMake, newModel);
 
       toast({
         title: "VIN Decoded",
@@ -267,7 +295,11 @@ export default function AddPartPage() {
                   type="number"
                   placeholder="2020"
                   value={year}
-                  onChange={(e) => setYear(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setYear(v);
+                    updateNamePrefix(v, make, model);
+                  }}
                   min={1900}
                   max={2030}
                 />
@@ -278,7 +310,11 @@ export default function AddPartPage() {
                   id="make"
                   placeholder="Toyota"
                   value={make}
-                  onChange={(e) => setMake(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setMake(v);
+                    updateNamePrefix(year, v, model);
+                  }}
                 />
               </div>
               <div className="space-y-2">
@@ -287,7 +323,11 @@ export default function AddPartPage() {
                   id="model"
                   placeholder="Camry"
                   value={model}
-                  onChange={(e) => setModel(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setModel(v);
+                    updateNamePrefix(year, make, v);
+                  }}
                 />
               </div>
             </div>

@@ -37,6 +37,7 @@ export function EbayPriceSearch({
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [customQuery, setCustomQuery] = useState("");
+  const [minPriceInput, setMinPriceInput] = useState("50");
   const [error, setError] = useState<string | null>(null);
 
   const autoQuery = buildEbaySearchQuery({ name: partName, make, model, year });
@@ -51,7 +52,8 @@ export function EbayPriceSearch({
       setSearched(true);
 
       try {
-        const data = await searchEbayPrices(q);
+        const minPrice = parseFloat(minPriceInput) || 0;
+        const data = await searchEbayPrices(q, { minPrice });
         setResults(data.items);
       } catch {
         setError("Could not fetch eBay prices. Try again.");
@@ -60,7 +62,7 @@ export function EbayPriceSearch({
         setLoading(false);
       }
     },
-    [customQuery, autoQuery]
+    [customQuery, autoQuery, minPriceInput]
   );
 
   const prices = results
@@ -70,8 +72,8 @@ export function EbayPriceSearch({
     prices.length > 0
       ? prices.reduce((a, b) => a + b, 0) / prices.length
       : null;
-  const minPrice = prices.length > 0 ? Math.min(...prices) : null;
-  const maxPrice = prices.length > 0 ? Math.max(...prices) : null;
+  const lowPrice = prices.length > 0 ? Math.min(...prices) : null;
+  const highPrice = prices.length > 0 ? Math.max(...prices) : null;
 
   return (
     <Card>
@@ -95,6 +97,17 @@ export function EbayPriceSearch({
             }}
             className="flex-1"
           />
+          <div className="flex items-center gap-1 shrink-0">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Min $</span>
+            <Input
+              type="number"
+              value={minPriceInput}
+              onChange={(e) => setMinPriceInput(e.target.value)}
+              className="w-20"
+              min={0}
+              step={10}
+            />
+          </div>
           <Button
             type="button"
             variant="outline"
@@ -121,21 +134,21 @@ export function EbayPriceSearch({
           <div className="flex gap-3 text-sm flex-wrap">
             <Badge variant="outline" className="gap-1">
               <DollarSign className="h-3 w-3" />
-              Avg: ${avgPrice!.toFixed(2)}
+              Avg: ${avgPrice!.toFixed(0)}
             </Badge>
-            <Badge variant="outline">Low: ${minPrice!.toFixed(2)}</Badge>
-            <Badge variant="outline">High: ${maxPrice!.toFixed(2)}</Badge>
+            <Badge variant="outline">Low: ${lowPrice!.toFixed(0)}</Badge>
+            <Badge variant="outline">High: ${highPrice!.toFixed(0)}</Badge>
           </div>
         )}
 
         {searched && results.length === 0 && !loading && !error && (
           <p className="text-sm text-muted-foreground">
-            No results found on eBay.
+            No results found on eBay. Try a lower min price or different search.
           </p>
         )}
 
         {results.length > 0 && (
-          <div className="space-y-2 max-h-64 overflow-y-auto">
+          <div className="space-y-2 max-h-72 overflow-y-auto">
             {results.map((item) => (
               <div
                 key={item.itemId}
@@ -159,7 +172,7 @@ export function EbayPriceSearch({
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="font-bold text-sm">
-                    {item.price !== null ? `$${item.price.toFixed(2)}` : "N/A"}
+                    {item.price !== null ? `$${item.price.toFixed(0)}` : "N/A"}
                   </span>
                   {onPriceSelect && item.price !== null && (
                     <Button
