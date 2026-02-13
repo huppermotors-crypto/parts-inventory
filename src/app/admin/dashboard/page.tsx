@@ -170,6 +170,8 @@ export default function DashboardPage() {
     const updates: Record<string, boolean> = { is_sold: !part.is_sold };
     if (!part.is_sold) {
       updates.is_published = false;
+    } else {
+      updates.is_published = true;
     }
     const { error } = await supabase
       .from("parts")
