@@ -6,8 +6,15 @@ import { Part } from "@/types/database";
 import { StorefrontHeader } from "@/components/storefront/header";
 import { PartCard } from "@/components/storefront/part-card";
 import { FiltersSidebar } from "@/components/storefront/filters-sidebar";
-import { Package, Loader2, SlidersHorizontal, X } from "lucide-react";
+import { Package, Loader2, SlidersHorizontal, X, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Sheet,
   SheetContent,
@@ -15,6 +22,8 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+
+type SortOption = "newest" | "price_asc" | "price_desc" | "name_asc";
 
 const supabase = createClient();
 
@@ -24,6 +33,10 @@ export default function StorefrontPage() {
   const [search, setSearch] = useState("");
   const [selectedMake, setSelectedMake] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCondition, setSelectedCondition] = useState<string | null>(null);
+  const [priceMin, setPriceMin] = useState("");
+  const [priceMax, setPriceMax] = useState("");
+  const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   const fetchParts = useCallback(async () => {
@@ -58,7 +71,7 @@ export default function StorefrontPage() {
   }, [parts]);
 
   const filteredParts = useMemo(() => {
-    return parts.filter((part) => {
+    const filtered = parts.filter((part) => {
       const q = search.toLowerCase();
       const matchesSearch =
         !q ||
@@ -70,13 +83,41 @@ export default function StorefrontPage() {
       const matchesMake = !selectedMake || part.make === selectedMake;
       const matchesCategory =
         !selectedCategory || part.category === selectedCategory;
+      const matchesCondition =
+        !selectedCondition || part.condition === selectedCondition;
 
-      return matchesSearch && matchesMake && matchesCategory;
+      const min = priceMin ? parseFloat(priceMin) : null;
+      const max = priceMax ? parseFloat(priceMax) : null;
+      const matchesPrice =
+        (min === null || part.price >= min) &&
+        (max === null || part.price <= max);
+
+      return matchesSearch && matchesMake && matchesCategory && matchesCondition && matchesPrice;
     });
-  }, [parts, search, selectedMake, selectedCategory]);
+
+    // Sort
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "price_asc":
+          return a.price - b.price;
+        case "price_desc":
+          return b.price - a.price;
+        case "name_asc":
+          return a.name.localeCompare(b.name);
+        case "newest":
+        default:
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+    });
+
+    return filtered;
+  }, [parts, search, selectedMake, selectedCategory, selectedCondition, priceMin, priceMax, sortBy]);
 
   const activeFiltersCount =
-    (selectedMake ? 1 : 0) + (selectedCategory ? 1 : 0);
+    (selectedMake ? 1 : 0) +
+    (selectedCategory ? 1 : 0) +
+    (selectedCondition ? 1 : 0) +
+    (priceMin || priceMax ? 1 : 0);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -91,8 +132,14 @@ export default function StorefrontPage() {
               categories={usedCategories}
               selectedMake={selectedMake}
               selectedCategory={selectedCategory}
+              selectedCondition={selectedCondition}
+              priceMin={priceMin}
+              priceMax={priceMax}
               onMakeChange={setSelectedMake}
               onCategoryChange={setSelectedCategory}
+              onConditionChange={setSelectedCondition}
+              onPriceMinChange={setPriceMin}
+              onPriceMaxChange={setPriceMax}
               totalCount={parts.length}
               filteredCount={filteredParts.length}
             />
@@ -100,11 +147,24 @@ export default function StorefrontPage() {
 
           {/* Main content */}
           <div className="flex-1 space-y-4">
-            {/* Mobile filter button */}
-            <div className="flex items-center justify-between lg:hidden">
-              <p className="text-sm text-muted-foreground">
+            {/* Mobile filter button + sort */}
+            <div className="flex items-center justify-between gap-2 lg:hidden">
+              <p className="text-sm text-muted-foreground shrink-0">
                 {filteredParts.length} part{filteredParts.length !== 1 ? "s" : ""}
               </p>
+              <div className="flex items-center gap-2">
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+                <SelectTrigger className="w-[140px] h-9 text-xs">
+                  <ArrowUpDown className="h-3 w-3 mr-1" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest</SelectItem>
+                  <SelectItem value="price_asc">Price: Low-High</SelectItem>
+                  <SelectItem value="price_desc">Price: High-Low</SelectItem>
+                  <SelectItem value="name_asc">Name: A-Z</SelectItem>
+                </SelectContent>
+              </Select>
               <Sheet
                 open={mobileFiltersOpen}
                 onOpenChange={setMobileFiltersOpen}
@@ -130,25 +190,40 @@ export default function StorefrontPage() {
                       categories={usedCategories}
                       selectedMake={selectedMake}
                       selectedCategory={selectedCategory}
-                      onMakeChange={(m) => {
-                        setSelectedMake(m);
-                      }}
-                      onCategoryChange={(c) => {
-                        setSelectedCategory(c);
-                      }}
+                      selectedCondition={selectedCondition}
+                      priceMin={priceMin}
+                      priceMax={priceMax}
+                      onMakeChange={setSelectedMake}
+                      onCategoryChange={setSelectedCategory}
+                      onConditionChange={setSelectedCondition}
+                      onPriceMinChange={setPriceMin}
+                      onPriceMaxChange={setPriceMax}
                       totalCount={parts.length}
                       filteredCount={filteredParts.length}
                     />
                   </div>
                 </SheetContent>
               </Sheet>
+              </div>
             </div>
 
-            {/* Results count for desktop */}
+            {/* Results count + sort for desktop */}
             <div className="hidden lg:flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
                 {filteredParts.length} part{filteredParts.length !== 1 ? "s" : ""} found
               </p>
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+                <SelectTrigger className="w-[180px] h-9">
+                  <ArrowUpDown className="h-4 w-4 mr-2" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest First</SelectItem>
+                  <SelectItem value="price_asc">Price: Low to High</SelectItem>
+                  <SelectItem value="price_desc">Price: High to Low</SelectItem>
+                  <SelectItem value="name_asc">Name: A to Z</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Grid */}
@@ -173,6 +248,9 @@ export default function StorefrontPage() {
                       setSearch("");
                       setSelectedMake(null);
                       setSelectedCategory(null);
+                      setSelectedCondition(null);
+                      setPriceMin("");
+                      setPriceMax("");
                     }}
                   >
                     <X className="h-4 w-4 mr-2" />

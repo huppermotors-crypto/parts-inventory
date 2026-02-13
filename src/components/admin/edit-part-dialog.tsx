@@ -25,7 +25,8 @@ import { useToast } from "@/hooks/use-toast";
 import { PART_CATEGORIES, PART_CONDITIONS } from "@/lib/constants";
 import { PhotoUploader, PhotoFile } from "@/components/admin/photo-uploader";
 import { EbayPriceSearch } from "@/components/admin/ebay-price-search";
-import { Loader2, Save, X, ImageIcon } from "lucide-react";
+import { rotateImage } from "@/lib/rotate-image";
+import { Loader2, Save, X, ImageIcon, RotateCw } from "lucide-react";
 import Image from "next/image";
 
 const supabase = createClient();
@@ -85,6 +86,44 @@ export function EditPartDialog({
       setExistingPhotos((prev) => prev.filter((_, i) => i !== index));
     },
     []
+  );
+
+  const [rotating, setRotating] = useState<number | null>(null);
+
+  const handleRotateExisting = useCallback(
+    async (index: number) => {
+      const url = existingPhotos[index];
+      setRotating(index);
+      try {
+        const rotatedBlob = await rotateImage(url);
+        const fileName = `${Date.now()}-rotated.jpg`;
+        const filePath = `parts/${fileName}`;
+        const { error: uploadError } = await supabase.storage
+          .from("part-photos")
+          .upload(filePath, rotatedBlob, { cacheControl: "3600", upsert: false });
+        if (uploadError) throw uploadError;
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("part-photos").getPublicUrl(filePath);
+
+        // Delete old file from storage
+        const oldMatch = url.match(/part-photos\/(.+)$/);
+        if (oldMatch) {
+          await supabase.storage.from("part-photos").remove([oldMatch[1]]);
+        }
+
+        setExistingPhotos((prev) =>
+          prev.map((u, i) => (i === index ? publicUrl : u))
+        );
+        toast({ title: "Photo rotated" });
+      } catch {
+        toast({ title: "Rotation failed", variant: "destructive" });
+      } finally {
+        setRotating(null);
+      }
+    },
+    [existingPhotos, toast]
   );
 
   const uploadNewPhotos = async (): Promise<string[]> => {
@@ -350,6 +389,20 @@ export function EditPartDialog({
                       fill
                       className="object-cover"
                     />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="icon"
+                      className="absolute top-1 left-1 h-7 w-7 sm:h-6 sm:w-6 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                      onClick={() => handleRotateExisting(index)}
+                      disabled={rotating === index}
+                    >
+                      {rotating === index ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <RotateCw className="h-3 w-3" />
+                      )}
+                    </Button>
                     <Button
                       type="button"
                       variant="destructive"

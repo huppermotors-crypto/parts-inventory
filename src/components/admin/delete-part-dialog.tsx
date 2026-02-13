@@ -19,7 +19,7 @@ interface DeletePartDialogProps {
   part: Part | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onDeleted: () => void;
+  onDeleted: (partId: string) => void;
 }
 
 const supabase = createClient();
@@ -61,7 +61,7 @@ export function DeletePartDialog({
         description: `"${part.name}" has been removed from inventory.`,
       });
 
-      onDeleted();
+      onDeleted(part.id);
       onOpenChange(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to delete part.";

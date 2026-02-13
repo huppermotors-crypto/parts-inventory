@@ -2,7 +2,8 @@
 
 import { useCallback, useState } from "react";
 import { compressImage, formatFileSize } from "@/lib/compress-image";
-import { ImagePlus, X, Loader2 } from "lucide-react";
+import { rotateImage } from "@/lib/rotate-image";
+import { ImagePlus, X, Loader2, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 
@@ -110,6 +111,31 @@ export function PhotoUploader({
     [photos, onChange]
   );
 
+  const handleRotate = useCallback(
+    async (index: number) => {
+      const photo = photos[index];
+      try {
+        const rotatedBlob = await rotateImage(photo.preview);
+        const rotatedFile = new File([rotatedBlob], photo.file.name, {
+          type: "image/jpeg",
+        });
+        URL.revokeObjectURL(photo.preview);
+        const newPreview = URL.createObjectURL(rotatedFile);
+        const updatedPhotos = [...photos];
+        updatedPhotos[index] = {
+          ...photo,
+          file: rotatedFile,
+          preview: newPreview,
+          compressedSize: rotatedFile.size,
+        };
+        onChange(updatedPhotos);
+      } catch (error) {
+        console.error("Rotation failed:", error);
+      }
+    },
+    [photos, onChange]
+  );
+
   return (
     <div className="space-y-4">
       {/* Drop zone */}
@@ -165,6 +191,15 @@ export function PhotoUploader({
                   className="object-cover"
                 />
               </div>
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                className="absolute top-1 left-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => handleRotate(index)}
+              >
+                <RotateCw className="h-3 w-3" />
+              </Button>
               <Button
                 type="button"
                 variant="destructive"

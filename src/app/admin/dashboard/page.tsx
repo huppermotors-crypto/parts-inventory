@@ -37,8 +37,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 import { EditPartDialog } from "@/components/admin/edit-part-dialog";
 import { DeletePartDialog } from "@/components/admin/delete-part-dialog";
+import { BulkPriceDialog } from "@/components/admin/bulk-price-dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   PlusCircle,
@@ -57,6 +60,14 @@ import {
   Facebook,
   BadgeDollarSign,
   Undo2,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  DollarSign,
+  TrendingUp,
+  BarChart3,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -71,6 +82,12 @@ const conditionColors: Record<string, string> = {
   for_parts: "bg-red-100 text-red-800",
 };
 
+type SortField = "name" | "price" | "created_at" | "make" | "category" | "condition";
+type SortDirection = "asc" | "desc";
+type StatusFilter = "all" | "live" | "hidden" | "sold";
+
+const PAGE_SIZE = 25;
+
 const supabase = createClient();
 
 export default function DashboardPage() {
@@ -79,7 +96,19 @@ export default function DashboardPage() {
   const [search, setSearch] = useState("");
   const [filterMake, setFilterMake] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<StatusFilter>("all");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
+
+  // Sort state
+  const [sortField, setSortField] = useState<SortField>("created_at");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkPriceOpen, setBulkPriceOpen] = useState(false);
 
   // Force grid view on mobile (table is unusable on small screens)
   useEffect(() => {
@@ -117,6 +146,30 @@ export default function DashboardPage() {
     fetchParts();
   }, [fetchParts]);
 
+  const { toast } = useToast();
+
+  // --- Stats ---
+  const stats = useMemo(() => {
+    const total = parts.length;
+    const live = parts.filter((p) => p.is_published && !p.is_sold).length;
+    const sold = parts.filter((p) => p.is_sold).length;
+    const inventoryValue = parts
+      .filter((p) => !p.is_sold)
+      .reduce((sum, p) => sum + p.price, 0);
+    const soldValue = parts
+      .filter((p) => p.is_sold)
+      .reduce((sum, p) => sum + p.price, 0);
+    return { total, live, sold, inventoryValue, soldValue };
+  }, [parts]);
+
+  // --- Status counts for tabs ---
+  const statusCounts = useMemo(() => ({
+    all: parts.length,
+    live: parts.filter((p) => p.is_published && !p.is_sold).length,
+    hidden: parts.filter((p) => !p.is_published && !p.is_sold).length,
+    sold: parts.filter((p) => p.is_sold).length,
+  }), [parts]);
+
   // Unique makes from data for the filter dropdown
   const uniqueMakes = useMemo(() => {
     const makes = parts
@@ -133,8 +186,14 @@ export default function DashboardPage() {
     return Array.from(new Set(cats)).sort();
   }, [parts]);
 
+  // --- Filtering ---
   const filteredParts = useMemo(() => {
     return parts.filter((part) => {
+      // Status filter
+      if (filterStatus === "live" && (!part.is_published || part.is_sold)) return false;
+      if (filterStatus === "hidden" && (part.is_published || part.is_sold)) return false;
+      if (filterStatus === "sold" && !part.is_sold) return false;
+
       // Text search
       const q = search.toLowerCase();
       const matchesSearch =
@@ -155,35 +214,252 @@ export default function DashboardPage() {
 
       return matchesSearch && matchesMake && matchesCategory;
     });
-  }, [parts, search, filterMake, filterCategory]);
+  }, [parts, search, filterMake, filterCategory, filterStatus]);
+
+  // --- Sorting ---
+  const sortedParts = useMemo(() => {
+    const sorted = [...filteredParts].sort((a, b) => {
+      const aVal: string | number | null = a[sortField] ?? null;
+      const bVal: string | number | null = b[sortField] ?? null;
+
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+
+      if (sortField === "price") {
+        return sortDirection === "asc"
+          ? (aVal as number) - (bVal as number)
+          : (bVal as number) - (aVal as number);
+      }
+
+      const aStr = String(aVal).toLowerCase();
+      const bStr = String(bVal).toLowerCase();
+      const cmp = aStr.localeCompare(bStr);
+      return sortDirection === "asc" ? cmp : -cmp;
+    });
+    return sorted;
+  }, [filteredParts, sortField, sortDirection]);
+
+  // --- Pagination ---
+  const totalPages = Math.max(1, Math.ceil(sortedParts.length / PAGE_SIZE));
+  const paginatedParts = sortedParts.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
+
+  // Reset page when filters/sort changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterMake, filterCategory, filterStatus, sortField, sortDirection]);
+
+  // Clear selection on filter changes
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [search, filterMake, filterCategory, filterStatus]);
 
   const activeFiltersCount =
-    (filterMake !== "all" ? 1 : 0) + (filterCategory !== "all" ? 1 : 0);
+    (filterMake !== "all" ? 1 : 0) +
+    (filterCategory !== "all" ? 1 : 0) +
+    (filterStatus !== "all" ? 1 : 0);
 
   const clearFilters = () => {
     setFilterMake("all");
     setFilterCategory("all");
+    setFilterStatus("all");
     setSearch("");
   };
 
-  const toggleSold = async (part: Part) => {
-    const updates: Record<string, boolean> = { is_sold: !part.is_sold };
-    if (!part.is_sold) {
-      updates.is_published = false;
+  // --- Sort handler ---
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
     } else {
-      updates.is_published = true;
-    }
-    const { error } = await supabase
-      .from("parts")
-      .update(updates)
-      .eq("id", part.id);
-
-    if (!error) {
-      fetchParts();
+      setSortField(field);
+      setSortDirection("asc");
     }
   };
 
-  const { toast } = useToast();
+  const renderSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />;
+    }
+    return sortDirection === "asc"
+      ? <ArrowUp className="h-3 w-3" />
+      : <ArrowDown className="h-3 w-3" />;
+  };
+
+  // --- Selection helpers ---
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === paginatedParts.length && paginatedParts.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(paginatedParts.map((p) => p.id)));
+    }
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  // --- Optimistic toggle sold ---
+  const toggleSold = async (part: Part) => {
+    const newIsSold = !part.is_sold;
+    const newIsPublished = newIsSold ? false : true;
+    const previousParts = [...parts];
+
+    setParts((prev) =>
+      prev.map((p) =>
+        p.id === part.id
+          ? { ...p, is_sold: newIsSold, is_published: newIsPublished }
+          : p
+      )
+    );
+
+    const { error } = await supabase
+      .from("parts")
+      .update({ is_sold: newIsSold, is_published: newIsPublished })
+      .eq("id", part.id);
+
+    if (error) {
+      setParts(previousParts);
+      toast({
+        title: "Error",
+        description: "Failed to update status. Reverted.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // --- Optimistic delete callback ---
+  const handlePartDeleted = (partId: string) => {
+    setParts((prev) => prev.filter((p) => p.id !== partId));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(partId);
+      return next;
+    });
+  };
+
+  // --- Bulk operations ---
+  const bulkMarkSold = async () => {
+    const ids = Array.from(selectedIds);
+    const previousParts = [...parts];
+
+    setParts((prev) =>
+      prev.map((p) =>
+        ids.includes(p.id) ? { ...p, is_sold: true, is_published: false } : p
+      )
+    );
+    clearSelection();
+
+    const { error } = await supabase
+      .from("parts")
+      .update({ is_sold: true, is_published: false })
+      .in("id", ids);
+
+    if (error) {
+      setParts(previousParts);
+      toast({ title: "Error", description: "Bulk sold failed. Reverted.", variant: "destructive" });
+    } else {
+      toast({ title: "Bulk Update", description: `${ids.length} parts marked as sold.` });
+    }
+  };
+
+  const bulkMarkAvailable = async () => {
+    const ids = Array.from(selectedIds);
+    const previousParts = [...parts];
+
+    setParts((prev) =>
+      prev.map((p) =>
+        ids.includes(p.id) ? { ...p, is_sold: false, is_published: true } : p
+      )
+    );
+    clearSelection();
+
+    const { error } = await supabase
+      .from("parts")
+      .update({ is_sold: false, is_published: true })
+      .in("id", ids);
+
+    if (error) {
+      setParts(previousParts);
+      toast({ title: "Error", description: "Bulk update failed. Reverted.", variant: "destructive" });
+    } else {
+      toast({ title: "Bulk Update", description: `${ids.length} parts marked available.` });
+    }
+  };
+
+  const bulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    const partsToDelete = parts.filter((p) => ids.includes(p.id));
+    const previousParts = [...parts];
+
+    setParts((prev) => prev.filter((p) => !ids.includes(p.id)));
+    clearSelection();
+
+    try {
+      const allPaths = partsToDelete.flatMap((p) =>
+        (p.photos || []).map((url) => {
+          const match = url.match(/part-photos\/(.+)$/);
+          return match ? match[1] : "";
+        }).filter(Boolean)
+      );
+      if (allPaths.length > 0) {
+        await supabase.storage.from("part-photos").remove(allPaths);
+      }
+
+      const { error } = await supabase.from("parts").delete().in("id", ids);
+      if (error) throw error;
+
+      toast({ title: "Bulk Delete", description: `${ids.length} parts deleted.` });
+    } catch {
+      setParts(previousParts);
+      toast({ title: "Error", description: "Bulk delete failed. Reverted.", variant: "destructive" });
+    }
+  };
+
+  const handleBulkPriceUpdate = async (mode: string, value: number) => {
+    const ids = Array.from(selectedIds);
+    const previousParts = [...parts];
+
+    const updatedParts = parts.map((p) => {
+      if (!ids.includes(p.id)) return p;
+      let newPrice = p.price;
+      switch (mode) {
+        case "set": newPrice = value; break;
+        case "increase": newPrice = p.price + value; break;
+        case "decrease": newPrice = Math.max(0, p.price - value); break;
+        case "percent_increase": newPrice = p.price * (1 + value / 100); break;
+      }
+      return { ...p, price: Math.round(newPrice * 100) / 100 };
+    });
+
+    setParts(updatedParts);
+    clearSelection();
+
+    try {
+      const updates = updatedParts
+        .filter((p) => ids.includes(p.id))
+        .map((p) =>
+          supabase.from("parts").update({ price: p.price }).eq("id", p.id)
+        );
+      const results = await Promise.all(updates);
+      const failed = results.some((r) => r.error);
+      if (failed) throw new Error("Some updates failed");
+
+      toast({ title: "Prices Updated", description: `${ids.length} parts updated.` });
+    } catch {
+      setParts(previousParts);
+      toast({ title: "Error", description: "Price update failed. Reverted.", variant: "destructive" });
+    }
+  };
 
   const postToFB = (part: Part) => {
     const partData = {
@@ -201,7 +477,6 @@ export default function DashboardPage() {
       serial_number: part.serial_number || "",
     };
 
-    // Write data to a hidden DOM element for the Chrome extension to pick up
     let el = document.getElementById("fb-post-part-data");
     if (!el) {
       el = document.createElement("div");
@@ -211,7 +486,6 @@ export default function DashboardPage() {
     }
     el.setAttribute("data-part", JSON.stringify(partData));
 
-    // Dispatch custom event for the extension
     window.dispatchEvent(
       new CustomEvent("fb-post-part", { detail: partData })
     );
@@ -230,17 +504,11 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground mt-1">
-            {parts.length} part{parts.length !== 1 ? "s" : ""} in inventory
-            {filteredParts.length !== parts.length && (
-              <span> &middot; {filteredParts.length} shown</span>
-            )}
-          </p>
         </div>
         <Link href="/admin/add">
           <Button>
@@ -249,6 +517,67 @@ export default function DashboardPage() {
           </Button>
         </Link>
       </div>
+
+      {/* Stats Cards */}
+      {!loading && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                <Package className="h-4 w-4" />
+                <span className="text-sm">Total</span>
+              </div>
+              <p className="text-2xl font-bold">{stats.total}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-green-600 mb-1">
+                <Eye className="h-4 w-4" />
+                <span className="text-sm">On Sale</span>
+              </div>
+              <p className="text-2xl font-bold text-green-600">{stats.live}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-amber-600 mb-1">
+                <BadgeDollarSign className="h-4 w-4" />
+                <span className="text-sm">Sold</span>
+              </div>
+              <p className="text-2xl font-bold text-amber-600">{stats.sold}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                <TrendingUp className="h-4 w-4" />
+                <span className="text-sm">Inventory</span>
+              </div>
+              <p className="text-2xl font-bold">{formatPrice(stats.inventoryValue)}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                <BarChart3 className="h-4 w-4" />
+                <span className="text-sm">Sold Value</span>
+              </div>
+              <p className="text-2xl font-bold">{formatPrice(stats.soldValue)}</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Status Tabs */}
+      <Tabs value={filterStatus} onValueChange={(v) => setFilterStatus(v as StatusFilter)}>
+        <TabsList>
+          <TabsTrigger value="all">All ({statusCounts.all})</TabsTrigger>
+          <TabsTrigger value="live">Live ({statusCounts.live})</TabsTrigger>
+          <TabsTrigger value="hidden">Hidden ({statusCounts.hidden})</TabsTrigger>
+          <TabsTrigger value="sold">Sold ({statusCounts.sold})</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {/* Filters bar */}
       <div className="flex flex-wrap items-center gap-3">
@@ -328,12 +657,45 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Bulk Action Bar */}
+      {selectedIds.size > 0 && (
+        <Card className="border-primary">
+          <CardContent className="py-3 px-4 flex flex-wrap items-center gap-3">
+            <span className="text-sm font-medium">
+              {selectedIds.size} selected
+            </span>
+            <Separator orientation="vertical" className="h-6" />
+            <Button variant="outline" size="sm" onClick={bulkMarkSold}>
+              <BadgeDollarSign className="h-4 w-4 mr-1" />
+              Mark Sold
+            </Button>
+            <Button variant="outline" size="sm" onClick={bulkMarkAvailable}>
+              <Undo2 className="h-4 w-4 mr-1" />
+              Mark Available
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setBulkPriceOpen(true)}>
+              <DollarSign className="h-4 w-4 mr-1" />
+              Change Price
+            </Button>
+            <Button variant="destructive" size="sm" onClick={bulkDelete}>
+              <Trash2 className="h-4 w-4 mr-1" />
+              Delete
+            </Button>
+            <div className="flex-1" />
+            <Button variant="ghost" size="sm" onClick={clearSelection}>
+              <X className="h-4 w-4 mr-1" />
+              Clear
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Content */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      ) : filteredParts.length === 0 ? (
+      ) : sortedParts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <Package className="h-12 w-12 text-muted-foreground mb-4" />
           <h3 className="text-lg font-medium">No parts found</h3>
@@ -363,19 +725,54 @@ export default function DashboardPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={paginatedParts.length > 0 && selectedIds.size === paginatedParts.length}
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Select all"
+                    />
+                  </TableHead>
                   <TableHead className="w-16">Photo</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Vehicle</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => handleSort("name")}>
+                    <div className="flex items-center gap-1">
+                      Name {renderSortIcon("name")}
+                    </div>
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => handleSort("category")}>
+                    <div className="flex items-center gap-1">
+                      Category {renderSortIcon("category")}
+                    </div>
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => handleSort("make")}>
+                    <div className="flex items-center gap-1">
+                      Vehicle {renderSortIcon("make")}
+                    </div>
+                  </TableHead>
                   <TableHead>Condition</TableHead>
-                  <TableHead className="text-right">Price</TableHead>
+                  <TableHead className="text-right cursor-pointer select-none" onClick={() => handleSort("price")}>
+                    <div className="flex items-center gap-1 justify-end">
+                      Price {renderSortIcon("price")}
+                    </div>
+                  </TableHead>
                   <TableHead className="w-20">Status</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => handleSort("created_at")}>
+                    <div className="flex items-center gap-1">
+                      Date {renderSortIcon("created_at")}
+                    </div>
+                  </TableHead>
                   <TableHead className="w-40">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredParts.map((part) => (
-                  <TableRow key={part.id}>
+                {paginatedParts.map((part) => (
+                  <TableRow key={part.id} className={selectedIds.has(part.id) ? "bg-muted/50" : ""}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedIds.has(part.id)}
+                        onCheckedChange={() => toggleSelect(part.id)}
+                        aria-label={`Select ${part.name}`}
+                      />
+                    </TableCell>
                     <TableCell>
                       {part.photos && part.photos.length > 0 ? (
                         <div className="relative h-10 w-10 rounded overflow-hidden">
@@ -446,6 +843,11 @@ export default function DashboardPage() {
                           Hidden
                         </Badge>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(part.created_at).toLocaleDateString()}
+                      </span>
                     </TableCell>
                     <TableCell>
                       <TooltipProvider delayDuration={300}>
@@ -531,7 +933,7 @@ export default function DashboardPage() {
       ) : (
         /* Grid View */
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredParts.map((part) => (
+          {paginatedParts.map((part) => (
             <Card key={part.id} className="overflow-hidden group">
               <div className="aspect-video relative bg-muted">
                 {part.photos && part.photos.length > 0 ? (
@@ -623,6 +1025,38 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Pagination */}
+      {!loading && totalPages > 1 && (
+        <div className="flex items-center justify-between px-2">
+          <p className="text-sm text-muted-foreground">
+            {(currentPage - 1) * PAGE_SIZE + 1}&ndash;{Math.min(currentPage * PAGE_SIZE, sortedParts.length)} of {sortedParts.length}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Previous
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              {currentPage} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Dialogs */}
       <EditPartDialog
         part={editPart}
@@ -634,7 +1068,13 @@ export default function DashboardPage() {
         part={deletePart}
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        onDeleted={fetchParts}
+        onDeleted={handlePartDeleted}
+      />
+      <BulkPriceDialog
+        open={bulkPriceOpen}
+        onOpenChange={setBulkPriceOpen}
+        count={selectedIds.size}
+        onApply={handleBulkPriceUpdate}
       />
     </div>
   );

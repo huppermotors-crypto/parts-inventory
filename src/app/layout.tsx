@@ -15,8 +15,15 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Auto Parts Inventory",
-  description: "Auto parts warehouse inventory and storefront",
+  title: {
+    default: "Auto Parts Inventory - Quality Used Auto Parts",
+    template: "%s | Auto Parts Inventory",
+  },
+  description: "Browse quality used auto parts. Find engines, transmissions, body panels, and more at great prices.",
+  openGraph: {
+    type: "website",
+    siteName: "Auto Parts Inventory",
+  },
 };
 
 export default function RootLayout({
