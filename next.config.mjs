@@ -12,6 +12,7 @@ const nextConfig = {
         hostname: "i.ebayimg.com",
       },
     ],
+    unoptimized: true,
   },
 };
 

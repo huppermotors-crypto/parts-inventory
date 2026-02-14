@@ -182,6 +182,7 @@ export function PartDetailClient({ initialPart }: PartDetailClientProps) {
                     src={photos[activePhoto]}
                     alt={`${part.name} photo ${activePhoto + 1}`}
                     fill
+                    sizes="(max-width: 1024px) 100vw, 50vw"
                     className="object-contain"
                     priority
                   />
@@ -237,6 +238,7 @@ export function PartDetailClient({ initialPart }: PartDetailClientProps) {
                       src={photo}
                       alt={`Thumbnail ${index + 1}`}
                       fill
+                      sizes="80px"
                       className="object-cover"
                     />
                   </button>
@@ -362,6 +364,7 @@ export function PartDetailClient({ initialPart }: PartDetailClientProps) {
                 src={photos[activePhoto]}
                 alt={`${part.name} photo ${activePhoto + 1}`}
                 fill
+                sizes="95vw"
                 className="object-contain"
               />
               {photos.length > 1 && (

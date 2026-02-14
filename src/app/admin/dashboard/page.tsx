@@ -780,6 +780,7 @@ export default function DashboardPage() {
                             src={part.photos[0]}
                             alt={part.name}
                             fill
+                            sizes="40px"
                             className="object-cover"
                           />
                         </div>
@@ -941,6 +942,7 @@ export default function DashboardPage() {
                     src={part.photos[0]}
                     alt={part.name}
                     fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     className="object-cover"
                   />
                 ) : (
