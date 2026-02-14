@@ -16,13 +16,14 @@ export function StorefrontHeader({ search, onSearchChange }: HeaderProps) {
       <div className="container mx-auto px-4 h-16 flex items-center gap-6">
         <Link href="/" className="flex items-center gap-2 shrink-0">
           <Image
-            src="/logo.png"
-            alt="HuppeR Auto Parts"
-            width={160}
-            height={40}
-            className="h-9 w-auto"
+            src="/icon.png"
+            alt=""
+            width={36}
+            height={36}
+            className="h-9 w-9"
             priority
           />
+          <span className="text-lg font-bold hidden sm:inline">HuppeR Auto Parts</span>
         </Link>
 
         <div className="relative flex-1 max-w-md">

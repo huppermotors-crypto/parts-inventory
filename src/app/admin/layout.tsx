@@ -62,17 +62,18 @@ export default function AdminLayout({
       <div className="p-4">
         <Link
           href="/admin/dashboard"
-          className="flex items-center"
+          className="flex items-center gap-2"
           onClick={() => setSidebarOpen(false)}
         >
           <Image
-            src="/logo.png"
-            alt="HuppeR Auto Parts"
-            width={200}
-            height={50}
-            className="h-10 w-auto"
+            src="/icon.png"
+            alt=""
+            width={40}
+            height={40}
+            className="h-9 w-9"
             priority
           />
+          <span className="text-base font-bold leading-tight">HuppeR<br/>Auto Parts</span>
         </Link>
       </div>
       <Separator />
@@ -129,14 +130,15 @@ export default function AdminLayout({
         >
           <Menu className="h-5 w-5" />
         </Button>
-        <Link href="/admin/dashboard" className="flex items-center">
+        <Link href="/admin/dashboard" className="flex items-center gap-2">
           <Image
-            src="/logo.png"
-            alt="HuppeR Auto Parts"
-            width={140}
-            height={35}
-            className="h-8 w-auto"
+            src="/icon.png"
+            alt=""
+            width={32}
+            height={32}
+            className="h-8 w-8"
           />
+          <span className="font-bold text-sm">HuppeR Auto Parts</span>
         </Link>
       </header>
 
