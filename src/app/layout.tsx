@@ -16,13 +16,13 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   title: {
-    default: "Auto Parts Inventory - Quality Used Auto Parts",
-    template: "%s | Auto Parts Inventory",
+    default: "HuppeR Auto Parts - Quality Used Auto Parts",
+    template: "%s | HuppeR Auto Parts",
   },
   description: "Browse quality used auto parts. Find engines, transmissions, body panels, and more at great prices.",
   openGraph: {
     type: "website",
-    siteName: "Auto Parts Inventory",
+    siteName: "HuppeR Auto Parts",
   },
 };
 

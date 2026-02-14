@@ -67,7 +67,13 @@ export default function StorefrontPage() {
 
   const uniqueMakes = useMemo(() => {
     const makes = parts.map((p) => p.make).filter((m): m is string => !!m);
-    return Array.from(new Set(makes)).sort();
+    // Deduplicate case-insensitively: keep the first-seen casing as canonical
+    const seen = new Map<string, string>();
+    for (const m of makes) {
+      const key = m.toLowerCase().trim();
+      if (!seen.has(key)) seen.set(key, m.trim());
+    }
+    return Array.from(seen.values()).sort((a, b) => a.localeCompare(b));
   }, [parts]);
 
   const usedCategories = useMemo(() => {
@@ -85,7 +91,7 @@ export default function StorefrontPage() {
         (part.model && part.model.toLowerCase().includes(q)) ||
         (part.description && part.description.toLowerCase().includes(q));
 
-      const matchesMake = !selectedMake || part.make === selectedMake;
+      const matchesMake = !selectedMake || (part.make && part.make.toLowerCase().trim() === selectedMake.toLowerCase().trim());
       const matchesCategory =
         !selectedCategory || part.category === selectedCategory;
       const matchesCondition =
@@ -359,7 +365,11 @@ export default function StorefrontPage() {
       {/* Footer */}
       <footer className="border-t mt-auto">
         <div className="container mx-auto px-4 py-6 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} Auto Parts Inventory. All rights reserved.</p>
+          <p>
+            &copy; {new Date().getFullYear()} HuppeR Auto Parts. All rights reserved.
+            {" | "}
+            <a href="/privacy" className="underline hover:text-foreground">Privacy Policy</a>
+          </p>
         </div>
       </footer>
     </div>

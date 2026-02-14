@@ -15,7 +15,7 @@ export function StorefrontHeader({ search, onSearchChange }: HeaderProps) {
       <div className="container mx-auto px-4 h-16 flex items-center gap-6">
         <Link href="/" className="flex items-center gap-2 shrink-0">
           <Package className="h-6 w-6" />
-          <span className="text-lg font-bold hidden sm:inline">Auto Parts</span>
+          <span className="text-lg font-bold hidden sm:inline">HuppeR Auto Parts</span>
         </Link>
 
         <div className="relative flex-1 max-w-md">

@@ -454,8 +454,10 @@ export function PartDetailClient({ initialPart }: PartDetailClientProps) {
       <footer className="border-t mt-auto">
         <div className="container mx-auto px-4 py-6 text-center text-sm text-muted-foreground">
           <p>
-            &copy; {new Date().getFullYear()} Auto Parts Inventory. All rights
+            &copy; {new Date().getFullYear()} HuppeR Auto Parts. All rights
             reserved.
+            {" | "}
+            <a href="/privacy" className="underline hover:text-foreground">Privacy Policy</a>
           </p>
         </div>
       </footer>
