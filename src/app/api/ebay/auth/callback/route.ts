@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
 
   if (!code) {
     return NextResponse.json(
-      { error: "No authorization code provided" },
+      { error: "Authorization failed" },
       { status: 400 }
     );
   }
@@ -15,16 +15,17 @@ export async function GET(request: NextRequest) {
     const ebay = getEbayClient();
     const tokenResponse = await ebay.OAuth2.getToken(code);
 
+    // Log token server-side only — never expose to client
+    console.log("eBay refresh_token obtained. Add to EBAY_REFRESH_TOKEN env var:");
+    console.log(tokenResponse.refresh_token);
+
     return NextResponse.json({
-      message: "eBay authorization successful!",
-      refresh_token: tokenResponse.refresh_token,
-      instructions:
-        "Add this refresh_token as EBAY_REFRESH_TOKEN in your environment variables.",
+      message: "eBay authorization successful! Check server logs for the refresh token.",
     });
   } catch (error) {
     console.error("eBay OAuth callback error:", error);
     return NextResponse.json(
-      { error: "Failed to exchange authorization code" },
+      { error: "Authorization failed. Please try again." },
       { status: 500 }
     );
   }

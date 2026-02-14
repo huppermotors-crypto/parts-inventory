@@ -66,9 +66,9 @@ export async function GET(request: NextRequest) {
   const minPrice = searchParams.get("minPrice");
   const sort = searchParams.get("sort") || "BEST_MATCH";
 
-  if (!q) {
+  if (!q || q.length > 200) {
     return NextResponse.json(
-      { error: "Missing search query" },
+      { error: "Invalid search query" },
       { status: 400 }
     );
   }

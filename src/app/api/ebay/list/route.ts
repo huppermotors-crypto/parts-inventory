@@ -13,11 +13,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { partId } = await request.json();
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
 
-  if (!partId) {
+  const { partId } = body;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!partId || typeof partId !== "string" || !uuidRegex.test(partId)) {
     return NextResponse.json(
-      { error: "Missing partId" },
+      { error: "Invalid part ID" },
       { status: 400 }
     );
   }
@@ -130,12 +137,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: unknown) {
     console.error("eBay listing error:", error);
-
-    let message = "Failed to create eBay listing";
-    if (error instanceof Error) {
-      message = error.message;
-    }
-
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to create eBay listing. Please try again." },
+      { status: 500 }
+    );
   }
 }

@@ -86,10 +86,11 @@ export default function AddPartPage() {
   };
 
   const handleDecode = async () => {
-    if (!vin || vin.length !== 17) {
+    const vinPattern = /^[A-HJ-NPR-Z0-9]{17}$/i;
+    if (!vin || !vinPattern.test(vin)) {
       toast({
         title: "Invalid VIN",
-        description: "VIN code must be exactly 17 characters.",
+        description: "VIN must be exactly 17 alphanumeric characters (no I, O, or Q).",
         variant: "destructive",
       });
       return;

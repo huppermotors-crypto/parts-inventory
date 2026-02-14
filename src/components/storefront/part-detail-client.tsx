@@ -157,10 +157,10 @@ export function PartDetailClient({ initialPart }: PartDetailClientProps) {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Hidden data for Chrome Extension scraper */}
-      <script
+      <div
         id="part-data"
-        type="application/json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(partData) }}
+        data-part={JSON.stringify(partData)}
+        style={{ display: "none" }}
       />
       {/* Simple header */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
