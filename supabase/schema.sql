@@ -78,26 +78,26 @@ CREATE POLICY "Public can view published parts"
 CREATE POLICY "Admin can view all parts"
   ON parts FOR SELECT
   TO authenticated
-  USING (auth.jwt() ->> 'email' = 'hupper.motors@gmail.com');
+  USING (auth.jwt() ->> 'email' = 'nvn9586@gmail.com');
 
 -- Admin can insert parts
 CREATE POLICY "Admin can insert parts"
   ON parts FOR INSERT
   TO authenticated
-  WITH CHECK (auth.jwt() ->> 'email' = 'hupper.motors@gmail.com');
+  WITH CHECK (auth.jwt() ->> 'email' = 'nvn9586@gmail.com');
 
 -- Admin can update parts
 CREATE POLICY "Admin can update parts"
   ON parts FOR UPDATE
   TO authenticated
-  USING (auth.jwt() ->> 'email' = 'hupper.motors@gmail.com')
-  WITH CHECK (auth.jwt() ->> 'email' = 'hupper.motors@gmail.com');
+  USING (auth.jwt() ->> 'email' = 'nvn9586@gmail.com')
+  WITH CHECK (auth.jwt() ->> 'email' = 'nvn9586@gmail.com');
 
 -- Admin can delete parts
 CREATE POLICY "Admin can delete parts"
   ON parts FOR DELETE
   TO authenticated
-  USING (auth.jwt() ->> 'email' = 'hupper.motors@gmail.com');
+  USING (auth.jwt() ->> 'email' = 'nvn9586@gmail.com');
 
 -- ============================================
 -- Storage bucket for part photos
@@ -124,7 +124,7 @@ CREATE POLICY "Admin can upload part photos"
   TO authenticated
   WITH CHECK (
     bucket_id = 'part-photos' AND
-    auth.jwt() ->> 'email' = 'hupper.motors@gmail.com'
+    auth.jwt() ->> 'email' = 'nvn9586@gmail.com'
   );
 
 CREATE POLICY "Admin can update part photos"
@@ -132,7 +132,7 @@ CREATE POLICY "Admin can update part photos"
   TO authenticated
   USING (
     bucket_id = 'part-photos' AND
-    auth.jwt() ->> 'email' = 'hupper.motors@gmail.com'
+    auth.jwt() ->> 'email' = 'nvn9586@gmail.com'
   );
 
 CREATE POLICY "Admin can delete part photos"
@@ -140,5 +140,5 @@ CREATE POLICY "Admin can delete part photos"
   TO authenticated
   USING (
     bucket_id = 'part-photos' AND
-    auth.jwt() ->> 'email' = 'hupper.motors@gmail.com'
+    auth.jwt() ->> 'email' = 'nvn9586@gmail.com'
   );
