@@ -163,13 +163,6 @@
       findField("Add a description");
     if (descInput) {
       let desc = data.description || "";
-      if (data.make || data.model || data.year) {
-        const vehicle = [data.year, data.make, data.model]
-          .filter(Boolean)
-          .join(" ");
-        desc = `${vehicle}\n\n${desc}`;
-      }
-      if (data.vin) desc += `\n\nVIN: ${data.vin}`;
       if (data.serial_number) desc += `\nS/N: ${data.serial_number}`;
       await setInputValue(descInput, desc.trim());
       await sleep(600);

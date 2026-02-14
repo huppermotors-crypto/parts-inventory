@@ -79,30 +79,39 @@ export default function AddPartPage() {
   useEffect(() => {
     getNextStockNumber().then(setStockNumber).catch(() => {});
 
-    supabase
-      .from("parts")
-      .select("vin, year, make, model")
-      .not("vin", "is", null)
-      .order("created_at", { ascending: false })
-      .limit(20)
-      .then(({ data }: { data: RecentVin[] | null }) => {
-        if (!data) return;
-        const seen = new Set<string>();
-        const unique: RecentVin[] = [];
-        for (const row of data) {
-          if (row.vin && !seen.has(row.vin)) {
-            seen.add(row.vin);
-            unique.push({
-              vin: row.vin,
-              year: row.year,
-              make: row.make,
-              model: row.model,
-            });
-            if (unique.length >= 3) break;
-          }
+    const loadRecentVins = async () => {
+      const { data, error } = await supabase
+        .from("parts")
+        .select("vin, year, make, model")
+        .not("vin", "is", null)
+        .neq("vin", "")
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (error || !data) {
+        console.error("Failed to load recent VINs:", error);
+        return;
+      }
+
+      const seen = new Set<string>();
+      const unique: RecentVin[] = [];
+      for (const row of data) {
+        const v = (row.vin as string)?.trim();
+        if (v && !seen.has(v)) {
+          seen.add(v);
+          unique.push({
+            vin: v,
+            year: row.year as number | null,
+            make: row.make as string | null,
+            model: row.model as string | null,
+          });
+          if (unique.length >= 3) break;
         }
-        setRecentVins(unique);
-      });
+      }
+      setRecentVins(unique);
+    };
+
+    loadRecentVins();
   }, []);
 
   // Generate Facebook keywords from part name
