@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { decodeVIN } from "@/lib/nhtsa";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -37,7 +38,16 @@ import {
   Car,
   Tag,
   ImageIcon,
+  Hash,
+  History,
 } from "lucide-react";
+
+interface RecentVin {
+  vin: string;
+  year: number | null;
+  make: string | null;
+  model: string | null;
+}
 
 const supabase = createClient();
 
@@ -62,6 +72,69 @@ export default function AddPartPage() {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [decoding, setDecoding] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [stockNumber, setStockNumber] = useState<string | null>(null);
+  const [recentVins, setRecentVins] = useState<RecentVin[]>([]);
+
+  // Load stock number and recent VINs on mount
+  useEffect(() => {
+    getNextStockNumber().then(setStockNumber).catch(() => {});
+
+    supabase
+      .from("parts")
+      .select("vin, year, make, model")
+      .not("vin", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(20)
+      .then(({ data }: { data: RecentVin[] | null }) => {
+        if (!data) return;
+        const seen = new Set<string>();
+        const unique: RecentVin[] = [];
+        for (const row of data) {
+          if (row.vin && !seen.has(row.vin)) {
+            seen.add(row.vin);
+            unique.push({
+              vin: row.vin,
+              year: row.year,
+              make: row.make,
+              model: row.model,
+            });
+            if (unique.length >= 3) break;
+          }
+        }
+        setRecentVins(unique);
+      });
+  }, []);
+
+  // Generate Facebook keywords from part name
+  const generateKeywords = useCallback(
+    (partName: string) => {
+      const stopWords = new Set([
+        "the", "a", "an", "and", "or", "for", "of", "to", "in", "on", "at",
+        "is", "it", "with", "from", "by", "as", "be", "was", "are",
+      ]);
+      const words = partName
+        .replace(/[^a-zA-Z0-9\s]/g, "")
+        .split(/\s+/)
+        .filter((w) => w.length > 1 && !stopWords.has(w.toLowerCase()))
+        .map((w) => w.toLowerCase());
+
+      // Unique keywords: "part" + key words from name (up to 5 total)
+      const keywords = new Set<string>(["part"]);
+      for (const w of words) {
+        keywords.add(w);
+        if (keywords.size >= 5) break;
+      }
+
+      // Add category keyword if not "other"
+      if (category !== "other") {
+        const catLabel = PART_CATEGORIES.find((c) => c.value === category)?.label;
+        if (catLabel) keywords.add(catLabel.toLowerCase().split(/\s|&/)[0]);
+      }
+
+      return Array.from(keywords).join(" ");
+    },
+    [category]
+  );
 
   // Build vehicle prefix from year/make/model
   const buildVehiclePrefix = (y: string, m: string, md: string) =>
@@ -132,6 +205,21 @@ export default function AddPartPage() {
     });
   };
 
+  const handleRecentVinSelect = (rv: RecentVin) => {
+    setVin(rv.vin);
+    const newYear = rv.year?.toString() || "";
+    const newMake = rv.make || "";
+    const newModel = rv.model || "";
+    setYear(newYear);
+    setMake(newMake);
+    setModel(newModel);
+    updateNamePrefix(newYear, newMake, newModel);
+    toast({
+      title: "VIN Selected",
+      description: `${rv.year || ""} ${rv.make || ""} ${rv.model || ""}`.trim(),
+    });
+  };
+
   const uploadPhotos = async (): Promise<string[]> => {
     const urls: string[] = [];
 
@@ -183,18 +271,25 @@ export default function AddPartPage() {
         photoUrls = await uploadPhotos();
       }
 
-      // Get next stock number
-      const stockNumber = await getNextStockNumber();
+      // Get stock number (use pre-loaded or fetch fresh)
+      const finalStockNumber = stockNumber || (await getNextStockNumber());
+
+      // Auto-append Facebook keywords to description
+      const keywords = generateKeywords(name);
+      const descText = description.trim();
+      const finalDescription = descText
+        ? `${descText}\n\n${keywords}`
+        : keywords;
 
       // Insert part
       const { error } = await supabase.from("parts").insert({
-        stock_number: stockNumber,
+        stock_number: finalStockNumber,
         vin: vin || null,
         year: year ? parseInt(year, 10) : null,
         make: make || null,
         model: model || null,
         name: name.trim(),
-        description: description.trim() || null,
+        description: finalDescription || null,
         serial_number: serialNumber.trim() || null,
         price: parseFloat(price) || 0,
         condition,
@@ -226,11 +321,22 @@ export default function AddPartPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Add New Part</h1>
-        <p className="text-muted-foreground mt-1">
-          Add a new auto part to your inventory
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Add New Part</h1>
+          <p className="text-muted-foreground mt-1">
+            Add a new auto part to your inventory
+          </p>
+        </div>
+        {stockNumber && (
+          <div className="flex items-center gap-2 bg-muted rounded-lg px-4 py-2">
+            <Hash className="h-4 w-4 text-muted-foreground" />
+            <div>
+              <p className="text-xs text-muted-foreground">Stock #</p>
+              <p className="text-lg font-mono font-bold">{stockNumber}</p>
+            </div>
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -289,6 +395,33 @@ export default function AddPartPage() {
                 </p>
               )}
             </div>
+
+            {/* Recent VINs picker */}
+            {recentVins.length > 0 && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <History className="h-3 w-3" />
+                  Recent VINs
+                </Label>
+                <div className="flex flex-wrap gap-2">
+                  {recentVins.map((rv) => (
+                    <button
+                      key={rv.vin}
+                      type="button"
+                      onClick={() => handleRecentVinSelect(rv)}
+                      className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted transition-colors text-left"
+                    >
+                      <Badge variant="secondary" className="font-mono text-[10px] px-1.5">
+                        {rv.vin.slice(-6)}
+                      </Badge>
+                      <span className="text-muted-foreground">
+                        {[rv.year, rv.make, rv.model].filter(Boolean).join(" ") || rv.vin}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <Separator />
 
@@ -371,6 +504,11 @@ export default function AddPartPage() {
                 onChange={(e) => setDescription(e.target.value)}
                 rows={4}
               />
+              {name.trim() && (
+                <p className="text-xs text-muted-foreground">
+                  FB keywords (auto-added): <span className="font-medium">{generateKeywords(name)}</span>
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
