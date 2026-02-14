@@ -16,13 +16,14 @@ export interface Part {
   photos: string[];
   is_published: boolean;
   is_sold: boolean;
+  fb_posted_at: string | null;
   ebay_listing_id: string | null;
   ebay_offer_id: string | null;
   ebay_listing_url: string | null;
   ebay_listed_at: string | null;
 }
 
-export type PartInsert = Omit<Part, "id" | "created_at" | "updated_at" | "stock_number" | "ebay_listing_id" | "ebay_offer_id" | "ebay_listing_url" | "ebay_listed_at">;
+export type PartInsert = Omit<Part, "id" | "created_at" | "updated_at" | "stock_number" | "fb_posted_at" | "ebay_listing_id" | "ebay_offer_id" | "ebay_listing_url" | "ebay_listed_at">;
 export type PartUpdate = Partial<PartInsert>;
 
 export interface NHTSADecodeResult {

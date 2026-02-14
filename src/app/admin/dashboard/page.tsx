@@ -461,7 +461,7 @@ export default function DashboardPage() {
     }
   };
 
-  const postToFB = (part: Part) => {
+  const postToFB = async (part: Part) => {
     const partData = {
       id: part.id,
       title: part.name,
@@ -490,9 +490,34 @@ export default function DashboardPage() {
       new CustomEvent("fb-post-part", { detail: partData })
     );
 
+    // Mark as posted to FB
+    const now = new Date().toISOString();
+    setParts((prev) =>
+      prev.map((p) => (p.id === part.id ? { ...p, fb_posted_at: now } : p))
+    );
+    await supabase
+      .from("parts")
+      .update({ fb_posted_at: now })
+      .eq("id", part.id);
+
     toast({
       title: "Posting to FB Marketplace",
       description: `"${part.name}" — extension will open Facebook and fill the form.`,
+    });
+  };
+
+  const resetFBStatus = async (part: Part) => {
+    setParts((prev) =>
+      prev.map((p) => (p.id === part.id ? { ...p, fb_posted_at: null } : p))
+    );
+    await supabase
+      .from("parts")
+      .update({ fb_posted_at: null })
+      .eq("id", part.id);
+
+    toast({
+      title: "FB Status Reset",
+      description: `"${part.name}" — removed from Facebook.`,
     });
   };
 
@@ -842,22 +867,30 @@ export default function DashboardPage() {
                       {formatPrice(part.price)}
                     </TableCell>
                     <TableCell>
-                      {part.is_sold ? (
-                        <Badge variant="secondary" className="bg-amber-100 text-amber-800">
-                          <BadgeDollarSign className="h-3 w-3 mr-1" />
-                          Sold
-                        </Badge>
-                      ) : part.is_published ? (
-                        <Badge variant="default" className="bg-green-600">
-                          <Eye className="h-3 w-3 mr-1" />
-                          Live
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary">
-                          <EyeOff className="h-3 w-3 mr-1" />
-                          Hidden
-                        </Badge>
-                      )}
+                      <div className="flex flex-col gap-1">
+                        {part.is_sold ? (
+                          <Badge variant="secondary" className="bg-amber-100 text-amber-800">
+                            <BadgeDollarSign className="h-3 w-3 mr-1" />
+                            Sold
+                          </Badge>
+                        ) : part.is_published ? (
+                          <Badge variant="default" className="bg-green-600">
+                            <Eye className="h-3 w-3 mr-1" />
+                            Live
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">
+                            <EyeOff className="h-3 w-3 mr-1" />
+                            Hidden
+                          </Badge>
+                        )}
+                        {part.fb_posted_at && (
+                          <Badge variant="outline" className="text-blue-600 border-blue-300 text-[10px]">
+                            <Facebook className="h-2.5 w-2.5 mr-0.5" />
+                            FB
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <span className="text-xs text-muted-foreground">
@@ -872,13 +905,25 @@ export default function DashboardPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                onClick={() => postToFB(part)}
+                                className={`h-8 w-8 ${
+                                  part.fb_posted_at
+                                    ? "text-green-600 hover:text-red-600 hover:bg-red-50"
+                                    : "text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                }`}
+                                onClick={() =>
+                                  part.fb_posted_at
+                                    ? resetFBStatus(part)
+                                    : postToFB(part)
+                                }
                               >
                                 <Facebook className="h-4 w-4" />
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent>Post to FB</TooltipContent>
+                            <TooltipContent>
+                              {part.fb_posted_at
+                                ? `On FB (${new Date(part.fb_posted_at).toLocaleDateString()}) — click to reset`
+                                : "Post to FB"}
+                            </TooltipContent>
                           </Tooltip>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -976,6 +1021,12 @@ export default function DashboardPage() {
                       Hidden
                     </Badge>
                   ) : null}
+                  {part.fb_posted_at && (
+                    <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">
+                      <Facebook className="h-2.5 w-2.5 mr-0.5" />
+                      FB
+                    </Badge>
+                  )}
                   <Badge variant="secondary" className="text-xs bg-white/80 text-black">
                     {getCategoryLabel(part.category)}
                   </Badge>

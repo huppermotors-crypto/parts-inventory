@@ -23,7 +23,15 @@ import {
   Tablet,
   BarChart3,
   ExternalLink,
+  Clock,
 } from "lucide-react";
+
+function countryFlag(code: string | null): string {
+  if (!code || code.length !== 2) return "";
+  const offset = 0x1F1E6 - 65;
+  const c = code.toUpperCase();
+  return String.fromCodePoint(c.charCodeAt(0) + offset, c.charCodeAt(1) + offset);
+}
 
 type PageView = {
   id: number;
@@ -576,7 +584,7 @@ export default function AnalyticsPage() {
                     <div key={c.country} className="space-y-1">
                       <div className="flex items-center justify-between text-sm">
                         <span>
-                          {c.code ? `${c.code} ` : ""}
+                          {c.code ? `${countryFlag(c.code)} ` : ""}
                           {c.country}
                         </span>
                         <span className="text-muted-foreground">
@@ -595,6 +603,69 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Recent Visitors */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-medium flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Recent Visitors
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Time</TableHead>
+                      <TableHead>Page</TableHead>
+                      <TableHead>Country</TableHead>
+                      <TableHead>Device</TableHead>
+                      <TableHead>Browser</TableHead>
+                      <TableHead>Referrer</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {views.slice(0, 50).map((v) => (
+                      <TableRow key={v.id}>
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                          {new Date(v.created_at).toLocaleString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </TableCell>
+                        <TableCell>
+                          <div className="min-w-0">
+                            <span className="text-sm truncate block max-w-[200px]" title={v.page_title || v.page_path}>
+                              {v.page_title || (v.page_path === "/" ? "Home" : v.page_path)}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm whitespace-nowrap">
+                          {v.country_code ? `${countryFlag(v.country_code)} ` : ""}
+                          {v.country || "—"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1 text-sm capitalize">
+                            {deviceIcon(v.device_type || "desktop")}
+                            {v.device_type || "—"}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {v.browser || "—"}{v.os ? ` / ${v.os}` : ""}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {v.referrer || "Direct"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
         </>
       )}
     </div>

@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Camera } from "lucide-react";
+import { Camera, Loader2 } from "lucide-react";
 
 interface VinScannerProps {
   open: boolean;
@@ -18,15 +17,32 @@ interface VinScannerProps {
 
 export function VinScanner({ open, onOpenChange, onScan }: VinScannerProps) {
   const [error, setError] = useState<string | null>(null);
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const [loading, setLoading] = useState(false);
+  const scannerRef = useRef<unknown>(null);
   const readerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
 
+    let cancelled = false;
+
     const startScanner = async () => {
       try {
         setError(null);
+        setLoading(true);
+
+        // Dynamic import to avoid SSR issues
+        const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import(
+          "html5-qrcode"
+        );
+
+        if (cancelled) return;
+
+        // Responsive qrbox sizing
+        const containerWidth = readerRef.current?.clientWidth || 300;
+        const qrboxWidth = Math.min(containerWidth - 40, 350);
+        const qrboxHeight = Math.min(Math.round(qrboxWidth * 0.43), 150);
+
         const scanner = new Html5Qrcode("vin-reader", {
           formatsToSupport: [
             Html5QrcodeSupportedFormats.CODE_39,
@@ -43,11 +59,10 @@ export function VinScanner({ open, onOpenChange, onScan }: VinScannerProps) {
           { facingMode: "environment" },
           {
             fps: 10,
-            qrbox: { width: 350, height: 150 },
-            aspectRatio: 2,
+            qrbox: { width: qrboxWidth, height: qrboxHeight },
+            aspectRatio: window.innerWidth < 640 ? 1.5 : 2,
           },
-          (decodedText) => {
-            // VIN codes are 17 characters
+          (decodedText: string) => {
             const cleaned = decodedText.replace(/[^A-HJ-NPR-Z0-9]/gi, "");
             if (cleaned.length === 17) {
               onScan(cleaned.toUpperCase());
@@ -56,21 +71,35 @@ export function VinScanner({ open, onOpenChange, onScan }: VinScannerProps) {
             }
           },
           () => {
-            // Ignore scan failures (happens on every frame without a match)
+            // Ignore scan failures
           }
         );
+        setLoading(false);
       } catch (err) {
+        if (cancelled) return;
+        setLoading(false);
         console.error("Scanner error:", err);
-        setError(
-          "Could not access camera. Please make sure camera permissions are granted."
-        );
+        const message =
+          err instanceof Error ? err.message : String(err);
+        if (message.includes("NotAllowed") || message.includes("Permission")) {
+          setError(
+            "Camera access denied. Please grant camera permissions in your browser settings."
+          );
+        } else if (message.includes("NotFound") || message.includes("no camera")) {
+          setError("No camera found on this device.");
+        } else {
+          setError(
+            `Could not start camera: ${message.slice(0, 100)}`
+          );
+        }
       }
     };
 
-    // Small delay to let the dialog render the div
-    const timeout = setTimeout(startScanner, 300);
+    // Delay to let dialog render
+    const timeout = setTimeout(startScanner, 400);
 
     return () => {
+      cancelled = true;
       clearTimeout(timeout);
       handleStop();
     };
@@ -78,15 +107,19 @@ export function VinScanner({ open, onOpenChange, onScan }: VinScannerProps) {
   }, [open]);
 
   const handleStop = () => {
-    if (scannerRef.current) {
-      scannerRef.current
+    const scanner = scannerRef.current as {
+      stop: () => Promise<void>;
+      clear: () => void;
+    } | null;
+    if (scanner) {
+      scanner
         .stop()
         .then(() => {
-          scannerRef.current?.clear();
+          scanner.clear();
           scannerRef.current = null;
         })
         .catch(() => {
-          // Ignore stop errors
+          scannerRef.current = null;
         });
     }
   };
@@ -99,7 +132,7 @@ export function VinScanner({ open, onOpenChange, onScan }: VinScannerProps) {
         onOpenChange(val);
       }}
     >
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-w-[95vw]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Camera className="h-5 w-5" />
@@ -110,8 +143,14 @@ export function VinScanner({ open, onOpenChange, onScan }: VinScannerProps) {
           <div
             id="vin-reader"
             ref={readerRef}
-            className="w-full rounded-lg overflow-hidden"
+            className="w-full rounded-lg overflow-hidden min-h-[200px]"
           />
+          {loading && (
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Starting camera...
+            </div>
+          )}
           {error && (
             <div className="text-sm text-destructive bg-destructive/10 rounded-md p-3">
               {error}

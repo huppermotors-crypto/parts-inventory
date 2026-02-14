@@ -35,6 +35,9 @@ CREATE TABLE parts (
   is_published BOOLEAN DEFAULT TRUE,
   is_sold BOOLEAN DEFAULT FALSE,
 
+  -- Facebook Marketplace
+  fb_posted_at TIMESTAMPTZ,
+
   -- eBay integration
   ebay_listing_id VARCHAR(100),
   ebay_offer_id VARCHAR(100),
