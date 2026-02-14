@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { createClient } from "@/lib/supabase/client";
 import { Part } from "@/types/database";
 import { getCategoryLabel, getConditionLabel } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog";
+import { EditPartDialog } from "@/components/admin/edit-part-dialog";
 import {
   ArrowLeft,
   Mail,
@@ -22,6 +24,7 @@ import {
   Hash,
   Calendar,
   X,
+  Pencil,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -43,9 +46,21 @@ interface PartDetailClientProps {
 }
 
 export function PartDetailClient({ initialPart }: PartDetailClientProps) {
-  const [part] = useState<Part | null>(initialPart);
+  const [part, setPart] = useState<Part | null>(initialPart);
   const [activePhoto, setActivePhoto] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+
+  // Check if user is authenticated (admin)
+  useEffect(() => {
+    async function checkAuth() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsAdmin(!!user);
+    }
+    checkAuth();
+  }, []);
 
   const photos = part?.photos || [];
   const hasPhotos = photos.length > 0;
@@ -158,6 +173,17 @@ export function PartDetailClient({ initialPart }: PartDetailClientProps) {
             Back to Catalog
           </Link>
           <div className="flex-1" />
+          {isAdmin && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => setEditOpen(true)}
+            >
+              <Pencil className="h-4 w-4" />
+              Edit
+            </Button>
+          )}
           <Link href="/" className="flex items-center gap-2">
             <Package className="h-5 w-5" />
             <span className="text-sm font-bold hidden sm:inline">Auto Parts</span>
@@ -405,6 +431,24 @@ export function PartDetailClient({ initialPart }: PartDetailClientProps) {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Admin Edit Dialog */}
+      {isAdmin && part && (
+        <EditPartDialog
+          part={part}
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          onSaved={async () => {
+            const supabase = createClient();
+            const { data } = await supabase
+              .from("parts")
+              .select("*")
+              .eq("id", part.id)
+              .single();
+            if (data) setPart(data);
+          }}
+        />
+      )}
 
       {/* Footer */}
       <footer className="border-t mt-auto">

@@ -732,7 +732,7 @@ export default function DashboardPage() {
                       aria-label="Select all"
                     />
                   </TableHead>
-                  <TableHead className="w-[68px]">Photo</TableHead>
+                  <TableHead className="w-[92px]">Photo</TableHead>
                   <TableHead className="w-16">#</TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => handleSort("name")}>
                     <div className="flex items-center gap-1">
@@ -776,18 +776,20 @@ export default function DashboardPage() {
                     </TableCell>
                     <TableCell>
                       {part.photos && part.photos.length > 0 ? (
-                        <div className="relative h-[60px] w-[60px] rounded overflow-hidden">
-                          <Image
-                            src={part.photos[0]}
-                            alt={part.name}
-                            fill
-                            sizes="60px"
-                            className="object-cover"
-                          />
-                        </div>
+                        <Link href={`/parts/${part.id}`} target="_blank">
+                          <div className="relative h-[84px] w-[84px] rounded overflow-hidden">
+                            <Image
+                              src={part.photos[0]}
+                              alt={part.name}
+                              fill
+                              sizes="84px"
+                              className="object-cover"
+                            />
+                          </div>
+                        </Link>
                       ) : (
-                        <div className="h-[60px] w-[60px] rounded bg-muted flex items-center justify-center">
-                          <Package className="h-5 w-5 text-muted-foreground" />
+                        <div className="h-[84px] w-[84px] rounded bg-muted flex items-center justify-center">
+                          <Package className="h-6 w-6 text-muted-foreground" />
                         </div>
                       )}
                     </TableCell>
@@ -798,7 +800,13 @@ export default function DashboardPage() {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <span className="font-medium">{part.name}</span>
+                        <Link
+                          href={`/parts/${part.id}`}
+                          target="_blank"
+                          className="font-medium hover:text-primary hover:underline transition-colors"
+                        >
+                          {part.name}
+                        </Link>
                         {part.serial_number && (
                           <p className="text-xs text-muted-foreground font-mono">
                             S/N: {part.serial_number}

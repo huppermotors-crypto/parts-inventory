@@ -6,8 +6,12 @@ import { Part } from "@/types/database";
 import { StorefrontHeader } from "@/components/storefront/header";
 import { PartCard } from "@/components/storefront/part-card";
 import { FiltersSidebar } from "@/components/storefront/filters-sidebar";
-import { Package, Loader2, SlidersHorizontal, X, ArrowUpDown } from "lucide-react";
+import { getCategoryLabel, getConditionLabel } from "@/lib/constants";
+import { Package, Loader2, SlidersHorizontal, X, ArrowUpDown, LayoutGrid, List } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -37,6 +41,7 @@ export default function StorefrontPage() {
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   const fetchParts = useCallback(async () => {
@@ -207,23 +212,43 @@ export default function StorefrontPage() {
               </div>
             </div>
 
-            {/* Results count + sort for desktop */}
+            {/* Results count + sort + view toggle for desktop */}
             <div className="hidden lg:flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
                 {filteredParts.length} part{filteredParts.length !== 1 ? "s" : ""} found
               </p>
-              <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-                <SelectTrigger className="w-[180px] h-9">
-                  <ArrowUpDown className="h-4 w-4 mr-2" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="newest">Newest First</SelectItem>
-                  <SelectItem value="price_asc">Price: Low to High</SelectItem>
-                  <SelectItem value="price_desc">Price: High to Low</SelectItem>
-                  <SelectItem value="name_asc">Name: A to Z</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+                  <SelectTrigger className="w-[180px] h-9">
+                    <ArrowUpDown className="h-4 w-4 mr-2" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="newest">Newest First</SelectItem>
+                    <SelectItem value="price_asc">Price: Low to High</SelectItem>
+                    <SelectItem value="price_desc">Price: High to Low</SelectItem>
+                    <SelectItem value="name_asc">Name: A to Z</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="flex border rounded-md">
+                  <Button
+                    variant={viewMode === "grid" ? "secondary" : "ghost"}
+                    size="icon"
+                    className="h-9 w-9 rounded-r-none"
+                    onClick={() => setViewMode("grid")}
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === "list" ? "secondary" : "ghost"}
+                    size="icon"
+                    className="h-9 w-9 rounded-l-none"
+                    onClick={() => setViewMode("list")}
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
             </div>
 
             {/* Grid */}
@@ -258,11 +283,73 @@ export default function StorefrontPage() {
                   </Button>
                 )}
               </div>
-            ) : (
+            ) : viewMode === "grid" ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredParts.map((part) => (
                   <PartCard key={part.id} part={part} />
                 ))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filteredParts.map((part) => {
+                  const vehicle = [part.year, part.make, part.model].filter(Boolean).join(" ");
+                  const formatPrice = (p: number) =>
+                    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(p);
+                  return (
+                    <Link key={part.id} href={`/parts/${part.id}`}>
+                      <div className="flex items-center gap-4 p-3 rounded-lg border hover:shadow-md transition-shadow">
+                        <div className="relative h-20 w-20 rounded-lg overflow-hidden bg-muted shrink-0">
+                          {part.photos && part.photos.length > 0 ? (
+                            <Image
+                              src={part.photos[0]}
+                              alt={part.name}
+                              fill
+                              sizes="80px"
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="flex items-center justify-center h-full">
+                              <Package className="h-8 w-8 text-muted-foreground/50" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold truncate">{part.name}</h3>
+                          {vehicle && (
+                            <p className="text-sm text-muted-foreground">{vehicle}</p>
+                          )}
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="outline" className="text-xs">
+                              {getCategoryLabel(part.category).split(" / ")[0]}
+                            </Badge>
+                            <Badge
+                              variant="secondary"
+                              className={`text-xs ${
+                                ({
+                                  new: "bg-green-100 text-green-800",
+                                  like_new: "bg-emerald-100 text-emerald-800",
+                                  excellent: "bg-blue-100 text-blue-800",
+                                  good: "bg-sky-100 text-sky-800",
+                                  fair: "bg-yellow-100 text-yellow-800",
+                                  used: "bg-orange-100 text-orange-800",
+                                  for_parts: "bg-red-100 text-red-800",
+                                } as Record<string, string>)[part.condition] || ""
+                              }`}
+                            >
+                              {getConditionLabel(part.condition)}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className="text-lg font-bold">{formatPrice(part.price)}</span>
+                          {part.photos && part.photos.length > 1 && (
+                            <p className="text-xs text-muted-foreground">{part.photos.length} photos</p>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </div>
