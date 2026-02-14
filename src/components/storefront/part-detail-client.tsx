@@ -29,7 +29,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 
-const CONTACT_EMAIL = "my-email@example.com";
+const CONTACT_EMAIL = "hupper.motors@gmail.com";
 
 const conditionColors: Record<string, string> = {
   new: "bg-green-100 text-green-800",
