@@ -8,8 +8,32 @@
 
   console.log("[FB Extension] Admin content script loaded");
 
+  // Send message to background with retry (MV3 service worker may be asleep)
+  function sendToBackground(message, retries = 3) {
+    return new Promise((resolve, reject) => {
+      function attempt(n) {
+        chrome.runtime.sendMessage(message, (response) => {
+          if (chrome.runtime.lastError) {
+            console.warn(
+              `[FB Extension] Attempt ${4 - n}/3 failed:`,
+              chrome.runtime.lastError.message
+            );
+            if (n > 1) {
+              setTimeout(() => attempt(n - 1), 500);
+            } else {
+              reject(new Error(chrome.runtime.lastError.message));
+            }
+            return;
+          }
+          resolve(response);
+        });
+      }
+      attempt(retries);
+    });
+  }
+
   // Listen for custom event from the dashboard "Post to FB" button
-  window.addEventListener("fb-post-part", (event) => {
+  window.addEventListener("fb-post-part", async (event) => {
     const partData = event.detail;
     if (!partData || !partData.title) {
       console.warn("[FB Extension] No part data in event");
@@ -18,60 +42,21 @@
 
     console.log("[FB Extension] Received part data:", partData.title);
 
-    // Send to background script for processing
-    chrome.runtime.sendMessage(
-      {
+    try {
+      const response = await sendToBackground({
         action: "DIRECT_POST",
         data: partData,
-      },
-      (response) => {
-        if (chrome.runtime.lastError) {
-          console.error("[FB Extension] Error:", chrome.runtime.lastError.message);
-          showNotification("❌ Extension error. Make sure the extension is installed and enabled.", "error");
-          return;
-        }
-        console.log("[FB Extension] Background response:", response);
-        showNotification("✅ Opening Facebook Marketplace...", "success");
-      }
-    );
-  });
-
-  // Also watch for data attribute changes (fallback)
-  const observer = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-      if (mutation.type === "attributes" && mutation.attributeName === "data-part") {
-        const el = mutation.target;
-        const data = el.getAttribute("data-part");
-        if (data) {
-          try {
-            const partData = JSON.parse(data);
-            // Clear it so it doesn't fire again
-            el.removeAttribute("data-part");
-
-            chrome.runtime.sendMessage({
-              action: "DIRECT_POST",
-              data: partData,
-            });
-          } catch (e) {
-            console.error("[FB Extension] Failed to parse part data:", e);
-          }
-        }
-      }
+      });
+      console.log("[FB Extension] Background response:", response);
+      showNotification("✅ Opening Facebook Marketplace...", "success");
+    } catch (err) {
+      console.error("[FB Extension] Error:", err.message);
+      showNotification(
+        "❌ Extension error: " + err.message + ". Try reloading the page.",
+        "error"
+      );
     }
   });
-
-  // Observe the body for the hidden element
-  const checkForElement = () => {
-    const el = document.getElementById("fb-post-part-data");
-    if (el) {
-      observer.observe(el, { attributes: true });
-    }
-  };
-
-  // Check now and periodically (SPA might add it later)
-  checkForElement();
-  const bodyObserver = new MutationObserver(() => checkForElement());
-  bodyObserver.observe(document.body, { childList: true, subtree: true });
 
   // Visual notification on the page
   function showNotification(message, type) {
@@ -94,6 +79,7 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
       transition: opacity 0.3s, transform 0.3s;
       transform: translateY(0);
+      max-width: 400px;
       ${type === "success"
         ? "background: #1877f2; color: white;"
         : "background: #fef2f2; color: #dc2626; border: 1px solid #fecaca;"
@@ -106,6 +92,6 @@
       el.style.opacity = "0";
       el.style.transform = "translateY(-10px)";
       setTimeout(() => el.remove(), 300);
-    }, 3000);
+    }, 4000);
   }
 })();
