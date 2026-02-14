@@ -2,6 +2,7 @@ export interface Part {
   id: string;
   created_at: string;
   updated_at: string;
+  stock_number: string | null;
   vin: string | null;
   year: number | null;
   make: string | null;
@@ -21,7 +22,7 @@ export interface Part {
   ebay_listed_at: string | null;
 }
 
-export type PartInsert = Omit<Part, "id" | "created_at" | "updated_at" | "ebay_listing_id" | "ebay_offer_id" | "ebay_listing_url" | "ebay_listed_at">;
+export type PartInsert = Omit<Part, "id" | "created_at" | "updated_at" | "stock_number" | "ebay_listing_id" | "ebay_offer_id" | "ebay_listing_url" | "ebay_listed_at">;
 export type PartUpdate = Partial<PartInsert>;
 
 export interface NHTSADecodeResult {

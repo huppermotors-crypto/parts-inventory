@@ -28,6 +28,7 @@ import { PhotoUploader, PhotoFile } from "@/components/admin/photo-uploader";
 import { VinScanner } from "@/components/admin/vin-scanner";
 import { EbayPriceSearch } from "@/components/admin/ebay-price-search";
 import { PART_CATEGORIES, PART_CONDITIONS } from "@/lib/constants";
+import { getNextStockNumber } from "@/lib/stock-number";
 import {
   ScanBarcode,
   Search,
@@ -181,8 +182,12 @@ export default function AddPartPage() {
         photoUrls = await uploadPhotos();
       }
 
+      // Get next stock number
+      const stockNumber = await getNextStockNumber();
+
       // Insert part
       const { error } = await supabase.from("parts").insert({
+        stock_number: stockNumber,
         vin: vin || null,
         year: year ? parseInt(year, 10) : null,
         make: make || null,

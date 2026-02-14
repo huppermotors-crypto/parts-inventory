@@ -287,6 +287,15 @@ export function PartDetailClient({ initialPart }: PartDetailClientProps) {
               </div>
             )}
 
+            {part.stock_number && (
+              <div className="flex items-center gap-3 text-sm">
+                <Hash className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span>
+                  Stock #: <span className="font-mono">{part.stock_number}</span>
+                </span>
+              </div>
+            )}
+
             {part.serial_number && (
               <div className="flex items-center gap-3 text-sm">
                 <Tag className="h-4 w-4 text-muted-foreground shrink-0" />

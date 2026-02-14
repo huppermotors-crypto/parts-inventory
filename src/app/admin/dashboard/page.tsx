@@ -732,7 +732,8 @@ export default function DashboardPage() {
                       aria-label="Select all"
                     />
                   </TableHead>
-                  <TableHead className="w-16">Photo</TableHead>
+                  <TableHead className="w-[68px]">Photo</TableHead>
+                  <TableHead className="w-16">#</TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => handleSort("name")}>
                     <div className="flex items-center gap-1">
                       Name {renderSortIcon("name")}
@@ -775,20 +776,25 @@ export default function DashboardPage() {
                     </TableCell>
                     <TableCell>
                       {part.photos && part.photos.length > 0 ? (
-                        <div className="relative h-10 w-10 rounded overflow-hidden">
+                        <div className="relative h-[60px] w-[60px] rounded overflow-hidden">
                           <Image
                             src={part.photos[0]}
                             alt={part.name}
                             fill
-                            sizes="40px"
+                            sizes="60px"
                             className="object-cover"
                           />
                         </div>
                       ) : (
-                        <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
-                          <Package className="h-4 w-4 text-muted-foreground" />
+                        <div className="h-[60px] w-[60px] rounded bg-muted flex items-center justify-center">
+                          <Package className="h-5 w-5 text-muted-foreground" />
                         </div>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {part.stock_number || "—"}
+                      </span>
                     </TableCell>
                     <TableCell>
                       <div>
@@ -1007,6 +1013,9 @@ export default function DashboardPage() {
                 </div>
               </div>
               <CardContent className="p-4">
+                {part.stock_number && (
+                  <span className="font-mono text-xs text-muted-foreground">#{part.stock_number}</span>
+                )}
                 <h3 className="font-medium truncate">{part.name}</h3>
                 <p className="text-sm text-muted-foreground">
                   {[part.year, part.make, part.model].filter(Boolean).join(" ") ||
