@@ -409,17 +409,21 @@ export default function AnalyticsPage() {
                     {topPages.map((page) => (
                       <TableRow key={page.path}>
                         <TableCell>
-                          <div className="flex items-center gap-1.5 min-w-0">
+                          <div className="min-w-0">
                             <a
                               href={page.path}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-sm truncate hover:underline"
-                              title={page.title || page.path}
+                              className="text-sm font-medium hover:underline flex items-center gap-1.5"
                             >
-                              {page.path}
+                              <span className="truncate">
+                                {page.title || (page.path === "/" ? "Home" : page.path)}
+                              </span>
+                              <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" />
                             </a>
-                            <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" />
+                            <span className="text-xs text-muted-foreground truncate block">
+                              {page.path}
+                            </span>
                           </div>
                         </TableCell>
                         <TableCell className="text-right font-medium">

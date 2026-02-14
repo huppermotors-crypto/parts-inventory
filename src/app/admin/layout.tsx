@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -9,7 +10,6 @@ import {
   PlusCircle,
   BarChart3,
   LogOut,
-  Package,
   ExternalLink,
   Menu,
 } from "lucide-react";
@@ -59,14 +59,20 @@ export default function AdminLayout({
 
   const sidebarContent = (
     <>
-      <div className="p-6">
+      <div className="p-4">
         <Link
           href="/admin/dashboard"
-          className="flex items-center gap-2"
+          className="flex items-center"
           onClick={() => setSidebarOpen(false)}
         >
-          <Package className="h-6 w-6" />
-          <span className="text-lg font-bold">Parts Admin</span>
+          <Image
+            src="/logo.png"
+            alt="HuppeR Auto Parts"
+            width={200}
+            height={50}
+            className="h-10 w-auto"
+            priority
+          />
         </Link>
       </div>
       <Separator />
@@ -123,9 +129,14 @@ export default function AdminLayout({
         >
           <Menu className="h-5 w-5" />
         </Button>
-        <Link href="/admin/dashboard" className="flex items-center gap-2">
-          <Package className="h-5 w-5" />
-          <span className="font-semibold">Parts Admin</span>
+        <Link href="/admin/dashboard" className="flex items-center">
+          <Image
+            src="/logo.png"
+            alt="HuppeR Auto Parts"
+            width={140}
+            height={35}
+            className="h-8 w-auto"
+          />
         </Link>
       </header>
 

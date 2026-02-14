@@ -86,25 +86,44 @@ async function lookupCountry(
     return { country: cached.country, countryCode: cached.countryCode };
   }
 
-  try {
-    const res = await fetch(
-      `http://ip-api.com/json/${ip}?fields=country,countryCode`,
-      { signal: AbortSignal.timeout(2000) }
-    );
-    if (res.ok) {
-      const geo = await res.json();
-      const result = {
-        country: (geo.country as string) || null,
-        countryCode: (geo.countryCode as string) || null,
-      };
-      geoCache.set(ip, {
-        ...result,
-        expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+  // Try ipapi.co first (HTTPS, works from cloud), fallback to ip-api.com
+  const endpoints = [
+    {
+      url: `https://ipapi.co/${ip}/json/`,
+      parse: (geo: Record<string, string>) => ({
+        country: geo.country_name || null,
+        countryCode: geo.country_code || null,
+      }),
+    },
+    {
+      url: `http://ip-api.com/json/${ip}?fields=country,countryCode`,
+      parse: (geo: Record<string, string>) => ({
+        country: geo.country || null,
+        countryCode: geo.countryCode || null,
+      }),
+    },
+  ];
+
+  for (const endpoint of endpoints) {
+    try {
+      const res = await fetch(endpoint.url, {
+        signal: AbortSignal.timeout(3000),
       });
-      return result;
+      if (res.ok) {
+        const geo = await res.json();
+        if (geo.error || geo.status === "fail") continue;
+        const result = endpoint.parse(geo);
+        if (result.country) {
+          geoCache.set(ip, {
+            ...result,
+            expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+          });
+          return result;
+        }
+      }
+    } catch {
+      continue;
     }
-  } catch {
-    /* silent */
   }
 
   return { country: null, countryCode: null };
