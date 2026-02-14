@@ -52,38 +52,64 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-xl font-semibold mt-8 mb-3">2. Information We Collect</h2>
             <p className="leading-relaxed mb-3">
-              We collect minimal, anonymous data to understand how the site is used:
+              We collect the following data to understand how the site is used and to improve our services:
             </p>
             <ul className="list-disc pl-6 space-y-2">
               <li>
                 <strong>Page views:</strong> Which pages are visited and when.
               </li>
               <li>
+                <strong>IP address:</strong> Your IP address is stored for analytics and security purposes.
+              </li>
+              <li>
                 <strong>Device &amp; browser info:</strong> Device type (mobile/desktop), browser name,
                 and operating system — extracted from the User-Agent header.
               </li>
               <li>
-                <strong>Approximate location:</strong> Country determined from your IP address.
+                <strong>Location:</strong> Country determined from your IP address.
               </li>
               <li>
                 <strong>Referrer:</strong> The website that directed you here (if any).
+              </li>
+              <li>
+                <strong>Visitor identifier:</strong> A random anonymous ID stored in a cookie to
+                distinguish unique visitors (see Section 3 below).
               </li>
             </ul>
             <p className="leading-relaxed mt-3">
               <strong>We do NOT collect:</strong> names, email addresses, phone numbers, payment
               information, or any other personally identifiable information through this website.
-              Your IP address is hashed (one-way encryption) with a daily rotating salt before storage —
-              the original IP is never saved.
             </p>
           </section>
 
           {/* 3 */}
           <section>
             <h2 className="text-xl font-semibold mt-8 mb-3">3. Cookies &amp; Tracking</h2>
-            <p className="leading-relaxed">
-              This website does <strong>not use cookies</strong>. We do not use any third-party analytics
-              services (such as Google Analytics). Our analytics are self-hosted, privacy-focused, and
-              collect only the anonymous data described above.
+            <p className="leading-relaxed mb-3">
+              This website uses <strong>one cookie</strong> for analytics purposes:
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 pr-4 font-semibold">Cookie</th>
+                    <th className="text-left py-2 pr-4 font-semibold">Purpose</th>
+                    <th className="text-left py-2 font-semibold">Duration</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b">
+                    <td className="py-2 pr-4 font-mono text-xs">_hpr_vid</td>
+                    <td className="py-2 pr-4">Anonymous visitor identifier — a random ID used to
+                      count unique visitors. Contains no personal information.</td>
+                    <td className="py-2 whitespace-nowrap">1 year</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p className="leading-relaxed mt-3">
+              We do not use any third-party analytics services (such as Google Analytics).
+              Our analytics are entirely self-hosted and privacy-focused.
             </p>
           </section>
 
@@ -102,7 +128,8 @@ export default function PrivacyPolicyPage() {
             <h2 className="text-xl font-semibold mt-8 mb-3">5. Data Security</h2>
             <p className="leading-relaxed">
               The site is served over HTTPS. Analytics data is stored in a secure database with
-              row-level security. IP addresses are hashed before storage and cannot be reversed.
+              row-level security. IP addresses are stored for analytics and security purposes and
+              are accessible only to the site administrator.
             </p>
           </section>
 

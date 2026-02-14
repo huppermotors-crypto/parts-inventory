@@ -155,6 +155,8 @@ CREATE TABLE page_views (
   page_path VARCHAR(500) NOT NULL,
   page_title VARCHAR(500),
   visitor_hash VARCHAR(64) NOT NULL,
+  visitor_id VARCHAR(36),
+  ip_address VARCHAR(45),
   referrer VARCHAR(1000),
   device_type VARCHAR(20),
   browser VARCHAR(50),

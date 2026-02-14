@@ -164,6 +164,10 @@ export async function POST(request: NextRequest) {
     const path = typeof body.path === "string" ? body.path.slice(0, 500) : "";
     const title = typeof body.title === "string" ? body.title.slice(0, 500) : "";
     const referrer = typeof body.referrer === "string" ? body.referrer : "";
+    const visitorId =
+      typeof body.visitor_id === "string" && body.visitor_id.length <= 36
+        ? body.visitor_id
+        : null;
 
     if (!path) return NextResponse.json({ ok: true });
 
@@ -194,7 +198,9 @@ export async function POST(request: NextRequest) {
     await adminClient.from("page_views").insert({
       page_path: path,
       page_title: title || null,
+      ip_address: ip !== "unknown" ? ip : null,
       visitor_hash: visitorHash,
+      visitor_id: visitorId,
       referrer: referrerDomain,
       device_type,
       browser,

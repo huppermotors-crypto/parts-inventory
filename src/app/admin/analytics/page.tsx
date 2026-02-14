@@ -39,6 +39,8 @@ type PageView = {
   page_path: string;
   page_title: string | null;
   visitor_hash: string;
+  visitor_id: string | null;
+  ip_address: string | null;
   referrer: string | null;
   device_type: string | null;
   browser: string | null;
@@ -105,7 +107,7 @@ export default function AnalyticsPage() {
   // --- Stats ---
   const stats = useMemo(() => {
     const totalViews = views.length;
-    const uniqueVisitors = new Set(views.map((v) => v.visitor_hash)).size;
+    const uniqueVisitors = new Set(views.map((v) => v.visitor_id || v.visitor_hash)).size;
 
     // Top page
     const pageCounts = new Map<string, number>();
@@ -619,6 +621,7 @@ export default function AnalyticsPage() {
                     <TableRow>
                       <TableHead>Time</TableHead>
                       <TableHead>Page</TableHead>
+                      <TableHead>IP</TableHead>
                       <TableHead>Country</TableHead>
                       <TableHead>Device</TableHead>
                       <TableHead>Browser</TableHead>
@@ -642,6 +645,9 @@ export default function AnalyticsPage() {
                               {v.page_title || (v.page_path === "/" ? "Home" : v.page_path)}
                             </span>
                           </div>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground font-mono whitespace-nowrap">
+                          {v.ip_address || "—"}
                         </TableCell>
                         <TableCell className="text-sm whitespace-nowrap">
                           {v.country_code ? `${countryFlag(v.country_code)} ` : ""}
