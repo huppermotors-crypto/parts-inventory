@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   LayoutDashboard,
   PlusCircle,
+  BarChart3,
   LogOut,
   Package,
   ExternalLink,
@@ -32,6 +33,11 @@ const navItems = [
     label: "Add Part",
     href: "/admin/add",
     icon: PlusCircle,
+  },
+  {
+    label: "Analytics",
+    href: "/admin/analytics",
+    icon: BarChart3,
   },
 ];
 

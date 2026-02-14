@@ -142,3 +142,31 @@ CREATE POLICY "Admin can delete part photos"
     bucket_id = 'part-photos' AND
     auth.jwt() ->> 'email' = 'nvn9586@gmail.com'
   );
+
+-- ============================================
+-- Analytics: page_views table
+-- ============================================
+CREATE TABLE page_views (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  page_path VARCHAR(500) NOT NULL,
+  page_title VARCHAR(500),
+  visitor_hash VARCHAR(64) NOT NULL,
+  referrer VARCHAR(1000),
+  device_type VARCHAR(20),
+  browser VARCHAR(50),
+  os VARCHAR(50),
+  country VARCHAR(100),
+  country_code CHAR(2)
+);
+
+CREATE INDEX idx_pv_created ON page_views (created_at DESC);
+CREATE INDEX idx_pv_path ON page_views (page_path);
+CREATE INDEX idx_pv_country ON page_views (country_code);
+
+ALTER TABLE page_views ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admin can view analytics"
+  ON page_views FOR SELECT
+  TO authenticated
+  USING (auth.jwt() ->> 'email' = 'nvn9586@gmail.com');
