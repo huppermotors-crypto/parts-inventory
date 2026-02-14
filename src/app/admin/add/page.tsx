@@ -373,7 +373,7 @@ export default function AddPartPage() {
                     setVin(e.target.value.toUpperCase().slice(0, 17))
                   }
                   maxLength={17}
-                  className="font-mono flex-1 min-w-0"
+                  className="font-mono flex-1 min-w-0 uppercase"
                 />
                 <Button
                   type="button"
