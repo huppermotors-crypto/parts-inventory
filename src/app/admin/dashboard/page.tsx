@@ -477,15 +477,6 @@ export default function DashboardPage() {
       serial_number: part.serial_number || "",
     };
 
-    let el = document.getElementById("fb-post-part-data");
-    if (!el) {
-      el = document.createElement("div");
-      el.id = "fb-post-part-data";
-      el.style.display = "none";
-      document.body.appendChild(el);
-    }
-    el.setAttribute("data-part", JSON.stringify(partData));
-
     window.dispatchEvent(
       new CustomEvent("fb-post-part", { detail: partData })
     );
