@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   PlusCircle,
   BarChart3,
+  Search,
   LogOut,
   ExternalLink,
   Menu,
@@ -33,6 +34,11 @@ const navItems = [
     label: "Add Part",
     href: "/admin/add",
     icon: PlusCircle,
+  },
+  {
+    label: "Lookup",
+    href: "/admin/lookup",
+    icon: Search,
   },
   {
     label: "Analytics",
