@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -40,26 +40,22 @@ export default function LookupPage() {
   const [models, setModels] = useState<string[]>([]);
   const [years, setYears] = useState<number[]>([]);
 
-  // VIN search
-  const [vinInput, setVinInput] = useState("");
-  const [vinDecoded, setVinDecoded] = useState<{ year: number | null; make: string | null; model: string | null } | null>(null);
-  const [vinDecoding, setVinDecoding] = useState(false);
-  const [vinError, setVinError] = useState("");
+  // VIN search — list of VINs from inventory
+  const [vinList, setVinList] = useState<Array<{ vin: string; year: number | null; make: string | null; model: string | null; count: number }>>([]);
+  const [selectedVin, setSelectedVin] = useState("");
+  const [vinFilter, setVinFilter] = useState("");
 
   // Results
   const [parts, setParts] = useState<Part[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
-  const vinRef = useRef<HTMLInputElement>(null);
-
-  // Load filter options
+  // Load filter options + VIN list
   useEffect(() => {
     async function loadOptions() {
       const { data } = await supabase
         .from("parts")
-        .select("year, make, model")
-        .not("make", "is", null);
+        .select("year, make, model, vin");
 
       if (!data) return;
 
@@ -67,6 +63,23 @@ export default function LookupPage() {
       const rawMakes: string[] = data.map((p: { make: string | null }) => p.make).filter((m: string | null): m is string => m !== null);
       setYears(Array.from(new Set(rawYears)).sort((a, b) => b - a));
       setMakes(Array.from(new Set(rawMakes)).sort());
+
+      // Build VIN list
+      const vinMap = new Map<string, { vin: string; year: number | null; make: string | null; model: string | null; count: number }>();
+      for (const p of data as Array<{ vin: string | null; year: number | null; make: string | null; model: string | null }>) {
+        if (!p.vin) continue;
+        const existing = vinMap.get(p.vin);
+        if (existing) {
+          existing.count++;
+        } else {
+          vinMap.set(p.vin, { vin: p.vin, year: p.year, make: p.make, model: p.model, count: 1 });
+        }
+      }
+      setVinList(Array.from(vinMap.values()).sort((a, b) => {
+        const aVeh = [a.year, a.make, a.model].filter(Boolean).join(" ");
+        const bVeh = [b.year, b.make, b.model].filter(Boolean).join(" ");
+        return aVeh.localeCompare(bVeh);
+      }));
     }
     loadOptions();
   }, []);
@@ -107,69 +120,19 @@ export default function LookupPage() {
     setLoading(false);
   }
 
-  async function decodeVin(vin: string) {
-    const clean = vin.replace(/[^A-Z0-9]/gi, "").toUpperCase();
-    if (clean.length !== 17) {
-      setVinError("VIN must be exactly 17 characters");
-      return;
-    }
-    setVinError("");
-    setVinDecoding(true);
-    try {
-      const res = await fetch(
-        `https://vpic.nhtsa.dot.gov/api/vehicles/decodevin/${clean}?format=json`
-      );
-      const json = await res.json();
-      const results = json.Results as Array<{ Variable: string; Value: string }>;
-      const get = (v: string) => results.find((r) => r.Variable === v)?.Value || null;
-      const year = get("Model Year");
-      const make = get("Make");
-      const model = get("Model");
-      setVinDecoded({
-        year: year ? parseInt(year) : null,
-        make: make || null,
-        model: model || null,
-      });
-    } catch {
-      setVinError("Could not decode VIN");
-    }
-    setVinDecoding(false);
-  }
-
-  async function searchByVin() {
-    const clean = vinInput.replace(/[^A-Z0-9]/gi, "").toUpperCase();
-    if (!clean) return;
+  async function searchByVin(vin: string) {
+    if (!vin) return;
+    setSelectedVin(vin);
     setLoading(true);
     setSearched(true);
 
-    // Search by exact VIN match on parts
-    const { data: byVin } = await supabase
+    const { data } = await supabase
       .from("parts")
       .select("*")
-      .ilike("vin", clean)
+      .eq("vin", vin)
       .order("created_at", { ascending: false });
 
-    // Also search by decoded vehicle
-    let byVehicle: Part[] = [];
-    if (vinDecoded?.make && vinDecoded?.model) {
-      let q = supabase.from("parts").select("*");
-      if (vinDecoded.year) q = q.eq("year", vinDecoded.year);
-      q = q.ilike("make", vinDecoded.make);
-      q = q.ilike("model", `%${vinDecoded.model}%`);
-      const { data } = await q.order("created_at", { ascending: false });
-      byVehicle = data || [];
-    }
-
-    // Merge, dedup by id
-    const all = [...(byVin || []), ...byVehicle];
-    const seen = new Set<string>();
-    const merged = all.filter((p) => {
-      if (seen.has(p.id)) return false;
-      seen.add(p.id);
-      return true;
-    });
-
-    setParts(merged);
+    setParts(data || []);
     setLoading(false);
   }
 
@@ -180,9 +143,8 @@ export default function LookupPage() {
   }
 
   function clearVin() {
-    setVinInput("");
-    setVinDecoded(null);
-    setVinError("");
+    setSelectedVin("");
+    setVinFilter("");
     setParts([]);
     setSearched(false);
   }
@@ -299,65 +261,54 @@ export default function LookupPage() {
       {mode === "vin" && (
         <Card>
           <CardContent className="pt-4 space-y-3">
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground font-medium">VIN Number</label>
-              <div className="flex gap-2">
-                <Input
-                  ref={vinRef}
-                  placeholder="Enter 17-character VIN"
-                  value={vinInput}
-                  maxLength={17}
-                  className="font-mono uppercase"
-                  onChange={(e) => {
-                    const v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-                    setVinInput(v);
-                    setVinDecoded(null);
-                    setVinError("");
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && vinInput.length === 17) {
-                      decodeVin(vinInput);
-                    }
-                  }}
-                />
-                <Button
-                  variant="outline"
-                  onClick={() => decodeVin(vinInput)}
-                  disabled={vinInput.length !== 17 || vinDecoding}
-                  className="gap-2 whitespace-nowrap"
-                >
-                  {vinDecoding ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
-                  Decode
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">{vinInput.length}/17 characters</p>
-              {vinError && <p className="text-xs text-destructive">{vinError}</p>}
-            </div>
-
-            {vinDecoded && (
-              <div className="rounded-md bg-muted px-3 py-2 text-sm">
-                <span className="text-muted-foreground">Decoded: </span>
-                <span className="font-medium">
-                  {[vinDecoded.year, vinDecoded.make, vinDecoded.model].filter(Boolean).join(" ") || "Unknown vehicle"}
-                </span>
-              </div>
+            {vinList.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-2">
+                No VINs found in inventory. Add parts with VIN numbers first.
+              </p>
+            ) : (
+              <>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground font-medium">
+                    Filter VINs ({vinList.length} donor cars)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Type to filter..."
+                    value={vinFilter}
+                    onChange={(e) => setVinFilter(e.target.value.toUpperCase())}
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm font-mono"
+                  />
+                </div>
+                <div className="space-y-1 max-h-64 overflow-y-auto pr-1">
+                  {vinList
+                    .filter((v) => !vinFilter || v.vin.includes(vinFilter) ||
+                      [v.make, v.model].some(s => s?.toUpperCase().includes(vinFilter)))
+                    .map((v) => (
+                      <button
+                        key={v.vin}
+                        onClick={() => searchByVin(v.vin)}
+                        className={`w-full text-left rounded-md px-3 py-2 text-sm transition-colors border ${
+                          selectedVin === v.vin
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-background hover:bg-muted border-input"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-mono text-xs">{v.vin}</span>
+                          <Badge variant={selectedVin === v.vin ? "secondary" : "outline"} className="text-xs shrink-0">
+                            {v.count} {v.count === 1 ? "part" : "parts"}
+                          </Badge>
+                        </div>
+                        {(v.year || v.make || v.model) && (
+                          <p className={`text-xs mt-0.5 ${selectedVin === v.vin ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                            {[v.year, v.make, v.model].filter(Boolean).join(" ")}
+                          </p>
+                        )}
+                      </button>
+                    ))}
+                </div>
+              </>
             )}
-
-            <div className="flex gap-2">
-              <Button
-                onClick={searchByVin}
-                disabled={!vinInput || loading}
-                className="gap-2"
-              >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                Search Parts
-              </Button>
-              {vinInput && (
-                <Button variant="ghost" size="icon" onClick={clearVin}>
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
           </CardContent>
         </Card>
       )}
