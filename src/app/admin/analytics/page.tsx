@@ -30,7 +30,7 @@ import dynamic from "next/dynamic";
 
 const VisitorMap = dynamic(
   () => import("@/components/admin/visitor-map").then((m) => m.VisitorMap),
-  { ssr: false, loading: () => <div className="h-64 bg-sky-50 animate-pulse rounded-b-lg" /> }
+  { ssr: false, loading: () => <div className="h-64 bg-slate-100 animate-pulse rounded-b-lg" /> }
 );
 
 function CountryBadge({ code }: { code: string | null }) {
@@ -535,9 +535,7 @@ export default function AnalyticsPage() {
                   No location data yet
                 </p>
               ) : (
-                <div className="bg-sky-50">
-                  <VisitorMap countryCodeMap={countryCodeMap} maxViews={maxCountryViews} />
-                </div>
+                <VisitorMap countryCodeMap={countryCodeMap} maxViews={maxCountryViews} />
               )}
             </CardContent>
           </Card>

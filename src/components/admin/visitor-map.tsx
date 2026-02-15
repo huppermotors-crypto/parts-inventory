@@ -2,7 +2,7 @@
 
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 
-const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
+const GEO_URL = "/countries-110m.json";
 
 // Numeric ISO → ISO-2 mapping
 const numToIso2: Record<string, string> = {
@@ -35,11 +35,11 @@ interface Props {
 export function VisitorMap({ countryCodeMap, maxViews }: Props) {
   function getFill(geoId: string): string {
     const iso2 = numToIso2[geoId];
-    if (!iso2) return "#dde5f0";
+    if (!iso2) return "#cbd5e1";
     const count = countryCodeMap.get(iso2);
-    if (!count) return "#dde5f0";
+    if (!count) return "#cbd5e1";
     const intensity = Math.min(1, count / Math.max(1, maxViews));
-    const lightness = Math.round(88 - intensity * 55);
+    const lightness = Math.round(75 - intensity * 45);
     return `hsl(221, 83%, ${lightness}%)`;
   }
 
@@ -50,7 +50,7 @@ export function VisitorMap({ countryCodeMap, maxViews }: Props) {
   }
 
   return (
-    <div>
+    <div className="bg-slate-100 rounded-b-lg overflow-hidden">
       <ComposableMap
         projectionConfig={{ scale: 155, center: [0, 10] }}
         style={{ width: "100%", height: "auto" }}
@@ -62,8 +62,8 @@ export function VisitorMap({ countryCodeMap, maxViews }: Props) {
                 key={geo.rsmKey}
                 geography={geo}
                 fill={getFill(String(geo.id))}
-                stroke="#fff"
-                strokeWidth={0.4}
+                stroke="#94a3b8"
+                strokeWidth={0.3}
                 style={{
                   default: { outline: "none" },
                   hover: { fill: "hsl(221, 83%, 38%)", outline: "none", cursor: "pointer" },
