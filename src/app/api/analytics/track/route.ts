@@ -19,7 +19,13 @@ const RATE_MAX = 30;
 // In-memory geo cache (24h TTL)
 const geoCache = new Map<
   string,
-  { country: string | null; countryCode: string | null; expiresAt: number }
+  {
+    country: string | null;
+    countryCode: string | null;
+    city: string | null;
+    region: string | null;
+    expiresAt: number;
+  }
 >();
 
 function getDailySalt(): string {
@@ -78,28 +84,40 @@ function parseDevice(ua: string) {
   return { device_type, browser, os };
 }
 
-async function lookupCountry(
-  ip: string
-): Promise<{ country: string | null; countryCode: string | null }> {
+async function lookupGeo(ip: string): Promise<{
+  country: string | null;
+  countryCode: string | null;
+  city: string | null;
+  region: string | null;
+}> {
   const cached = geoCache.get(ip);
   if (cached && Date.now() < cached.expiresAt) {
-    return { country: cached.country, countryCode: cached.countryCode };
+    return {
+      country: cached.country,
+      countryCode: cached.countryCode,
+      city: cached.city,
+      region: cached.region,
+    };
   }
 
-  // Try ipapi.co first (HTTPS, works from cloud), fallback to ip-api.com
+  // Try ipapi.co first (HTTPS, works from cloud)
   const endpoints = [
     {
       url: `https://ipapi.co/${ip}/json/`,
       parse: (geo: Record<string, string>) => ({
         country: geo.country_name || null,
         countryCode: geo.country_code || null,
+        city: geo.city || null,
+        region: geo.region || null,
       }),
     },
     {
-      url: `http://ip-api.com/json/${ip}?fields=country,countryCode`,
+      url: `http://ip-api.com/json/${ip}?fields=country,countryCode,city,regionName`,
       parse: (geo: Record<string, string>) => ({
         country: geo.country || null,
         countryCode: geo.countryCode || null,
+        city: geo.city || null,
+        region: geo.regionName || null,
       }),
     },
   ];
@@ -126,7 +144,7 @@ async function lookupCountry(
     }
   }
 
-  return { country: null, countryCode: null };
+  return { country: null, countryCode: null, city: null, region: null };
 }
 
 // Periodic cleanup (every 5 min)
@@ -189,11 +207,21 @@ export async function POST(request: NextRequest) {
     // Geo lookup (cached, non-blocking timeout)
     let country: string | null = null;
     let countryCode: string | null = null;
+    let city: string | null = null;
+    let region: string | null = null;
     if (ip !== "unknown" && ip !== "127.0.0.1" && ip !== "::1") {
-      const geo = await lookupCountry(ip);
+      const geo = await lookupGeo(ip);
       country = geo.country;
       countryCode = geo.countryCode;
+      city = geo.city;
+      region = geo.region;
     }
+
+    // Treat own domain as direct (no referrer)
+    const ownDomains = ["parts-inventory.onrender.com", "localhost"];
+    const cleanReferrer = referrerDomain && !ownDomains.some(d => referrerDomain.includes(d))
+      ? referrerDomain
+      : null;
 
     await adminClient.from("page_views").insert({
       page_path: path,
@@ -201,12 +229,14 @@ export async function POST(request: NextRequest) {
       ip_address: ip !== "unknown" ? ip : null,
       visitor_hash: visitorHash,
       visitor_id: visitorId,
-      referrer: referrerDomain,
+      referrer: cleanReferrer,
       device_type,
       browser,
       os,
       country,
       country_code: countryCode,
+      city,
+      region,
     });
 
     return NextResponse.json({ ok: true });

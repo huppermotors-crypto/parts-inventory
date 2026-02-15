@@ -24,13 +24,32 @@ import {
   BarChart3,
   ExternalLink,
   Clock,
+  MapPin,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 
-function countryFlag(code: string | null): string {
-  if (!code || code.length !== 2) return "";
-  const offset = 0x1F1E6 - 65;
-  const c = code.toUpperCase();
-  return String.fromCodePoint(c.charCodeAt(0) + offset, c.charCodeAt(1) + offset);
+const ComposableMap = dynamic(
+  () => import("react-simple-maps").then((m) => m.ComposableMap),
+  { ssr: false }
+);
+const Geographies = dynamic(
+  () => import("react-simple-maps").then((m) => m.Geographies),
+  { ssr: false }
+);
+const Geography = dynamic(
+  () => import("react-simple-maps").then((m) => m.Geography),
+  { ssr: false }
+);
+
+const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
+
+function CountryBadge({ code }: { code: string | null }) {
+  if (!code) return null;
+  return (
+    <span className="inline-flex items-center justify-center text-[10px] font-bold bg-muted rounded px-1 py-0.5 leading-none font-mono mr-1">
+      {code.toUpperCase()}
+    </span>
+  );
 }
 
 type PageView = {
@@ -47,6 +66,8 @@ type PageView = {
   os: string | null;
   country: string | null;
   country_code: string | null;
+  city: string | null;
+  region: string | null;
 };
 
 type Period = "today" | "7d" | "30d" | "all";
@@ -218,13 +239,17 @@ export default function AnalyticsPage() {
       .sort((a, b) => b.count - a.count);
   }, [views]);
 
+  const SELF_DOMAINS = ["onrender.com", "vercel.app", "localhost"];
+
   // --- Referrers ---
   const referrers = useMemo(() => {
     const counts = new Map<string, number>();
     let directCount = 0;
     for (const v of views) {
-      if (v.referrer) {
-        counts.set(v.referrer, (counts.get(v.referrer) || 0) + 1);
+      const ref = v.referrer;
+      const isSelf = ref && SELF_DOMAINS.some(d => ref.includes(d));
+      if (ref && !isSelf) {
+        counts.set(ref, (counts.get(ref) || 0) + 1);
       } else {
         directCount++;
       }
@@ -261,6 +286,64 @@ export default function AnalyticsPage() {
       }))
       .sort((a, b) => b.count - a.count);
   }, [views]);
+
+  // Map ISO-2 country codes to counts for the map
+  const countryCodeMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const v of views) {
+      if (v.country_code) {
+        const code = v.country_code.toUpperCase();
+        map.set(code, (map.get(code) || 0) + 1);
+      }
+    }
+    return map;
+  }, [views]);
+
+  const maxCountryViews = useMemo(
+    () => Math.max(1, ...Array.from(countryCodeMap.values())),
+    [countryCodeMap]
+  );
+
+  // Numeric ISO code → ISO-2 mapping for world-atlas TopoJSON
+  const numToIso2: Record<string, string> = {
+    "004":"AF","008":"AL","012":"DZ","024":"AO","032":"AR","036":"AU","040":"AT",
+    "050":"BD","056":"BE","064":"BT","068":"BO","070":"BA","072":"BW","076":"BR",
+    "100":"BG","104":"MM","112":"BY","116":"KH","120":"CM","124":"CA","140":"CF",
+    "144":"LK","148":"TD","152":"CL","156":"CN","170":"CO","178":"CG","180":"CD",
+    "188":"CR","191":"HR","192":"CU","196":"CY","203":"CZ","208":"DK","214":"DO",
+    "218":"EC","818":"EG","222":"SV","231":"ET","233":"EE","246":"FI","250":"FR",
+    "268":"GE","276":"DE","288":"GH","300":"GR","320":"GT","332":"HT","340":"HN",
+    "348":"HU","352":"IS","356":"IN","360":"ID","364":"IR","368":"IQ","372":"IE",
+    "376":"IL","380":"IT","388":"JM","392":"JP","398":"KZ","400":"JO","404":"KE",
+    "410":"KR","414":"KW","418":"LA","422":"LB","428":"LV","434":"LY","440":"LT",
+    "442":"LU","458":"MY","466":"ML","484":"MX","496":"MN","498":"MD","504":"MA",
+    "508":"MZ","512":"OM","516":"NA","524":"NP","528":"NL","554":"NZ","558":"NI",
+    "562":"NE","566":"NG","578":"NO","586":"PK","591":"PA","600":"PY","604":"PE",
+    "608":"PH","616":"PL","620":"PT","634":"QA","642":"RO","643":"RU","682":"SA",
+    "686":"SN","688":"RS","702":"SG","703":"SK","704":"VN","705":"SI","706":"SO",
+    "710":"ZA","724":"ES","729":"SD","752":"SE","756":"CH","760":"SY","764":"TH",
+    "780":"TT","784":"AE","788":"TN","792":"TR","800":"UG","804":"UA","826":"GB",
+    "834":"TZ","840":"US","854":"BF","858":"UY","860":"UZ","862":"VE","887":"YE",
+    "894":"ZM",
+  };
+
+  function getCountryFill(geoId: string): string {
+    const iso2 = numToIso2[geoId];
+    if (!iso2) return "hsl(220, 10%, 94%)";
+    const count = countryCodeMap.get(iso2);
+    if (!count) return "hsl(220, 10%, 94%)";
+    const intensity = Math.min(1, count / maxCountryViews);
+    const lightness = Math.round(88 - intensity * 55);
+    return `hsl(221, 83%, ${lightness}%)`;
+  }
+
+  function getCountryTooltip(geoId: string, geoName: string): string {
+    const iso2 = numToIso2[geoId];
+    if (!iso2) return geoName;
+    const count = countryCodeMap.get(iso2);
+    if (!count) return geoName;
+    return `${geoName}: ${count.toLocaleString()} views`;
+  }
 
   const deviceIcon = (type: string) => {
     switch (type) {
@@ -489,6 +572,62 @@ export default function AnalyticsPage() {
             </Card>
           </div>
 
+          {/* Visitor Map */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-medium flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                Visitor Map
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 overflow-hidden rounded-b-lg">
+              {countryCodeMap.size === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  No location data yet
+                </p>
+              ) : (
+                <div className="bg-sky-50 dark:bg-slate-900">
+                  <ComposableMap
+                    projectionConfig={{ scale: 155, center: [0, 10] }}
+                    style={{ width: "100%", height: "auto" }}
+                  >
+                    <Geographies geography={GEO_URL}>
+                      {({ geographies }: { geographies: Array<{ rsmKey: string; id: string; properties: { name: string } }> }) =>
+                        geographies.map((geo) => (
+                          <Geography
+                            key={geo.rsmKey}
+                            geography={geo}
+                            fill={getCountryFill(geo.id)}
+                            stroke="#fff"
+                            strokeWidth={0.4}
+                            style={{
+                              default: { outline: "none" },
+                              hover: { fill: "hsl(221, 83%, 40%)", outline: "none", cursor: "pointer" },
+                              pressed: { outline: "none" },
+                            }}
+                          >
+                            <title>{getCountryTooltip(geo.id, geo.properties.name)}</title>
+                          </Geography>
+                        ))
+                      }
+                    </Geographies>
+                  </ComposableMap>
+                  <div className="flex items-center justify-end gap-2 px-4 py-2 text-xs text-muted-foreground">
+                    <span>Few</span>
+                    {[88, 72, 56, 40, 33].map((l) => (
+                      <div
+                        key={l}
+                        className="w-4 h-3 rounded-sm"
+                        style={{ background: `hsl(221, 83%, ${l}%)` }}
+                      />
+                    ))}
+                    <span>Many</span>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Devices & Countries */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Devices */}
@@ -585,8 +724,8 @@ export default function AnalyticsPage() {
                   countries.slice(0, 10).map((c) => (
                     <div key={c.country} className="space-y-1">
                       <div className="flex items-center justify-between text-sm">
-                        <span>
-                          {c.code ? `${countryFlag(c.code)} ` : ""}
+                        <span className="flex items-center">
+                          <CountryBadge code={c.code} />
                           {c.country}
                         </span>
                         <span className="text-muted-foreground">
@@ -619,12 +758,11 @@ export default function AnalyticsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Time</TableHead>
+                      <TableHead className="whitespace-nowrap">Time</TableHead>
                       <TableHead>Page</TableHead>
-                      <TableHead>IP</TableHead>
-                      <TableHead>Country</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead className="font-mono text-xs">IP</TableHead>
                       <TableHead>Device</TableHead>
-                      <TableHead>Browser</TableHead>
                       <TableHead>Referrer</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -639,31 +777,43 @@ export default function AnalyticsPage() {
                             minute: "2-digit",
                           })}
                         </TableCell>
-                        <TableCell>
-                          <div className="min-w-0">
-                            <span className="text-sm truncate block max-w-[200px]" title={v.page_title || v.page_path}>
-                              {v.page_title || (v.page_path === "/" ? "Home" : v.page_path)}
-                            </span>
+                        <TableCell className="max-w-[180px]">
+                          <span className="text-sm truncate block" title={v.page_title || v.page_path}>
+                            {v.page_title || (v.page_path === "/" ? "Home" : v.page_path)}
+                          </span>
+                          <span className="text-xs text-muted-foreground truncate block">{v.page_path}</span>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <div className="flex items-center gap-1">
+                            <CountryBadge code={v.country_code} />
+                            <div>
+                              {v.city ? (
+                                <span className="text-sm">{v.city}{v.region ? `, ${v.region}` : ""}</span>
+                              ) : (
+                                <span className="text-sm">{v.country || "—"}</span>
+                              )}
+                              {v.city && v.country && (
+                                <span className="text-xs text-muted-foreground block">{v.country}</span>
+                              )}
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground font-mono whitespace-nowrap">
                           {v.ip_address || "—"}
                         </TableCell>
-                        <TableCell className="text-sm whitespace-nowrap">
-                          {v.country_code ? `${countryFlag(v.country_code)} ` : ""}
-                          {v.country || "—"}
-                        </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-1 text-sm capitalize">
+                          <div className="flex items-center gap-1 text-xs capitalize">
                             {deviceIcon(v.device_type || "desktop")}
-                            {v.device_type || "—"}
+                            <span>{v.device_type || "?"}</span>
+                            {v.browser && <span className="text-muted-foreground">· {v.browser}</span>}
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm">
-                          {v.browser || "—"}{v.os ? ` / ${v.os}` : ""}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {v.referrer || "Direct"}
+                        <TableCell className="text-xs text-muted-foreground">
+                          {(() => {
+                            const ref = v.referrer;
+                            const isSelf = ref && SELF_DOMAINS.some(d => ref.includes(d));
+                            return isSelf || !ref ? "Direct" : ref;
+                          })()}
                         </TableCell>
                       </TableRow>
                     ))}

@@ -162,7 +162,9 @@ CREATE TABLE page_views (
   browser VARCHAR(50),
   os VARCHAR(50),
   country VARCHAR(100),
-  country_code CHAR(2)
+  country_code CHAR(2),
+  city VARCHAR(100),
+  region VARCHAR(100)
 );
 
 CREATE INDEX idx_pv_created ON page_views (created_at DESC);
