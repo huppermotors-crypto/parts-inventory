@@ -7,6 +7,7 @@ import { StorefrontHeader } from "@/components/storefront/header";
 import { PartCard } from "@/components/storefront/part-card";
 import { FiltersSidebar } from "@/components/storefront/filters-sidebar";
 import { getCategoryLabel, getConditionLabel } from "@/lib/constants";
+import { conditionColors, formatPrice, formatVehicle } from "@/lib/utils";
 import { Package, Loader2, SlidersHorizontal, X, ArrowUpDown, LayoutGrid, List } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -48,7 +49,7 @@ export default function StorefrontPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("parts")
-      .select("*")
+      .select("id, name, price, year, make, model, condition, category, photos, created_at")
       .eq("is_published", true)
       .eq("is_sold", false)
       .order("created_at", { ascending: false });
@@ -298,9 +299,7 @@ export default function StorefrontPage() {
             ) : (
               <div className="space-y-2">
                 {filteredParts.map((part) => {
-                  const vehicle = [part.year, part.make, part.model].filter(Boolean).join(" ");
-                  const formatPrice = (p: number) =>
-                    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(p);
+                  const vehicle = formatVehicle(part.year, part.make, part.model);
                   return (
                     <Link key={part.id} href={`/parts/${part.id}`}>
                       <div className="flex items-center gap-4 p-3 rounded-lg border hover:shadow-md transition-shadow">
@@ -330,17 +329,7 @@ export default function StorefrontPage() {
                             </Badge>
                             <Badge
                               variant="secondary"
-                              className={`text-xs ${
-                                ({
-                                  new: "bg-green-100 text-green-800",
-                                  like_new: "bg-emerald-100 text-emerald-800",
-                                  excellent: "bg-blue-100 text-blue-800",
-                                  good: "bg-sky-100 text-sky-800",
-                                  fair: "bg-yellow-100 text-yellow-800",
-                                  used: "bg-orange-100 text-orange-800",
-                                  for_parts: "bg-red-100 text-red-800",
-                                } as Record<string, string>)[part.condition] || ""
-                              }`}
+                              className={`text-xs ${conditionColors[part.condition] || ""}`}
                             >
                               {getConditionLabel(part.condition)}
                             </Badge>

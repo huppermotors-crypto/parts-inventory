@@ -51,6 +51,9 @@ CREATE INDEX idx_parts_model ON parts (model);
 CREATE INDEX idx_parts_created_at ON parts (created_at DESC);
 CREATE INDEX idx_parts_is_published ON parts (is_published);
 CREATE INDEX idx_parts_stock_number ON parts (stock_number);
+CREATE INDEX idx_parts_category ON parts (category);
+CREATE INDEX idx_parts_published_sold ON parts (is_published, is_sold);
+CREATE INDEX idx_parts_price ON parts (price);
 
 -- Auto-update updated_at trigger
 CREATE OR REPLACE FUNCTION update_updated_at_column()

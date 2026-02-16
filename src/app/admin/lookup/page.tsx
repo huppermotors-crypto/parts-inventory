@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { formatVehicle } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,8 +77,8 @@ export default function LookupPage() {
         }
       }
       setVinList(Array.from(vinMap.values()).sort((a, b) => {
-        const aVeh = [a.year, a.make, a.model].filter(Boolean).join(" ");
-        const bVeh = [b.year, b.make, b.model].filter(Boolean).join(" ");
+        const aVeh = formatVehicle(a.year, a.make, a.model);
+        const bVeh = formatVehicle(b.year, b.make, b.model);
         return aVeh.localeCompare(bVeh);
       }));
     }
@@ -110,7 +111,7 @@ export default function LookupPage() {
     setLoading(true);
     setSearched(true);
 
-    let query = supabase.from("parts").select("*").order("created_at", { ascending: false });
+    let query = supabase.from("parts").select("id, name, price, year, make, model, category, photos, stock_number, vin, is_sold, is_published, created_at").order("created_at", { ascending: false });
     if (filter.year) query = query.eq("year", parseInt(filter.year));
     if (filter.make) query = query.ilike("make", filter.make);
     if (filter.model) query = query.ilike("model", `%${filter.model}%`);
@@ -128,7 +129,7 @@ export default function LookupPage() {
 
     const { data } = await supabase
       .from("parts")
-      .select("*")
+      .select("id, name, price, year, make, model, category, photos, stock_number, vin, is_sold, is_published, created_at")
       .eq("vin", vin)
       .order("created_at", { ascending: false });
 
@@ -301,7 +302,7 @@ export default function LookupPage() {
                         </div>
                         {(v.year || v.make || v.model) && (
                           <p className={`text-xs mt-0.5 ${selectedVin === v.vin ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                            {[v.year, v.make, v.model].filter(Boolean).join(" ")}
+                            {formatVehicle(v.year, v.make, v.model)}
                           </p>
                         )}
                       </button>
@@ -365,7 +366,7 @@ export default function LookupPage() {
                             <div className="min-w-0">
                               <p className="font-medium text-sm truncate">{part.name}</p>
                               <p className="text-xs text-muted-foreground">
-                                {[part.year, part.make, part.model].filter(Boolean).join(" ") || "No vehicle info"}
+                                {formatVehicle(part.year, part.make, part.model) || "No vehicle info"}
                               </p>
                               {part.stock_number && (
                                 <p className="text-xs text-muted-foreground">#{part.stock_number}</p>

@@ -1,5 +1,7 @@
+import { memo } from "react";
 import { Part } from "@/types/database";
 import { getCategoryLabel, getConditionLabel } from "@/lib/constants";
+import { conditionColors, formatPrice, formatVehicle } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Package } from "lucide-react";
@@ -10,24 +12,8 @@ interface PartCardProps {
   part: Part;
 }
 
-const conditionColors: Record<string, string> = {
-  new: "bg-green-100 text-green-800",
-  like_new: "bg-emerald-100 text-emerald-800",
-  excellent: "bg-blue-100 text-blue-800",
-  good: "bg-sky-100 text-sky-800",
-  fair: "bg-yellow-100 text-yellow-800",
-  used: "bg-orange-100 text-orange-800",
-  for_parts: "bg-red-100 text-red-800",
-};
-
-export function PartCard({ part }: PartCardProps) {
-  const formatPrice = (price: number) =>
-    new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price);
-
-  const vehicle = [part.year, part.make, part.model].filter(Boolean).join(" ");
+export const PartCard = memo(function PartCard({ part }: PartCardProps) {
+  const vehicle = formatVehicle(part.year, part.make, part.model);
 
   return (
     <Link href={`/parts/${part.id}`}>
@@ -81,4 +67,4 @@ export function PartCard({ part }: PartCardProps) {
       </Card>
     </Link>
   );
-}
+});

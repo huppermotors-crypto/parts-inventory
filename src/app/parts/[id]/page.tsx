@@ -1,19 +1,25 @@
 import { Metadata } from "next";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { PartDetailClient } from "@/components/storefront/part-detail-client";
+import { getConditionLabel } from "@/lib/constants";
 
 interface Props {
   params: { id: string };
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+async function getPart(id: string) {
   const supabase = createServerSupabaseClient();
-  const { data: part } = await supabase
+  const { data } = await supabase
     .from("parts")
     .select("*")
-    .eq("id", params.id)
+    .eq("id", id)
     .eq("is_published", true)
     .single();
+  return data;
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const part = await getPart(params.id);
 
   if (!part) {
     return { title: "Part Not Found" };
@@ -46,13 +52,49 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function PartDetailPage({ params }: Props) {
-  const supabase = createServerSupabaseClient();
-  const { data: part } = await supabase
-    .from("parts")
-    .select("*")
-    .eq("id", params.id)
-    .eq("is_published", true)
-    .single();
+  const part = await getPart(params.id);
 
-  return <PartDetailClient initialPart={part} />;
+  const jsonLd = part
+    ? {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        name: part.name,
+        description: part.description || undefined,
+        image: part.photos?.length ? part.photos : undefined,
+        sku: part.stock_number || undefined,
+        offers: {
+          "@type": "Offer",
+          price: part.price,
+          priceCurrency: "USD",
+          availability: part.is_sold
+            ? "https://schema.org/SoldOut"
+            : "https://schema.org/InStock",
+          itemCondition: part.condition === "new"
+            ? "https://schema.org/NewCondition"
+            : "https://schema.org/UsedCondition",
+        },
+        brand: part.make ? { "@type": "Brand", name: part.make } : undefined,
+        itemCondition: getConditionLabel(part.condition),
+        vehicle: part.year || part.make || part.model
+          ? {
+              "@type": "Vehicle",
+              vehicleModelDate: part.year?.toString(),
+              manufacturer: part.make || undefined,
+              model: part.model || undefined,
+            }
+          : undefined,
+      }
+    : null;
+
+  return (
+    <>
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
+      <PartDetailClient initialPart={part} />
+    </>
+  );
 }

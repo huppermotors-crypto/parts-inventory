@@ -92,7 +92,7 @@ export default function AnalyticsPage() {
     setLoading(true);
     let query = supabase
       .from("page_views")
-      .select("*")
+      .select("page_path, page_title, visitor_hash, visitor_id, ip_address, referrer, device_type, browser, os, country, country_code, city, region, created_at")
       .order("created_at", { ascending: false });
 
     const start = getPeriodStart(period);

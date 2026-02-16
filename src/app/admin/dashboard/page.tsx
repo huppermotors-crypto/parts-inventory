@@ -8,6 +8,7 @@ import {
   getCategoryLabel,
   getConditionLabel,
 } from "@/lib/constants";
+import { conditionColors, formatPrice, formatVehicle } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -72,15 +73,6 @@ import {
 import Link from "next/link";
 import Image from "next/image";
 
-const conditionColors: Record<string, string> = {
-  new: "bg-green-100 text-green-800",
-  like_new: "bg-emerald-100 text-emerald-800",
-  excellent: "bg-blue-100 text-blue-800",
-  good: "bg-sky-100 text-sky-800",
-  fair: "bg-yellow-100 text-yellow-800",
-  used: "bg-orange-100 text-orange-800",
-  for_parts: "bg-red-100 text-red-800",
-};
 
 type SortField = "name" | "price" | "created_at" | "make" | "category" | "condition";
 type SortDirection = "asc" | "desc";
@@ -510,12 +502,6 @@ export default function DashboardPage() {
     });
   };
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price);
-  };
 
   return (
     <div className="space-y-4">
@@ -1065,8 +1051,7 @@ export default function DashboardPage() {
                 )}
                 <h3 className="font-medium truncate">{part.name}</h3>
                 <p className="text-sm text-muted-foreground">
-                  {[part.year, part.make, part.model].filter(Boolean).join(" ") ||
-                    "No vehicle info"}
+                  {formatVehicle(part.year, part.make, part.model) || "No vehicle info"}
                 </p>
                 <div className="flex items-center justify-between mt-2">
                   <span className="font-bold">{formatPrice(part.price)}</span>
