@@ -155,16 +155,34 @@ export default function AddPartPage() {
     const newPrefix = buildVehiclePrefix(newYear, newMake, newModel);
 
     if (oldPrefix && name.startsWith(oldPrefix)) {
-      // Replace old prefix with new one
       const suffix = name.slice(oldPrefix.length);
       setName(newPrefix + suffix);
     } else if (!name.trim()) {
-      // Name is empty — set prefix with trailing space
       setName(newPrefix ? newPrefix + " " : "");
     } else {
-      // Name has custom content — prepend new prefix
       setName(newPrefix ? newPrefix + " " + name : name);
     }
+  };
+
+  // Update description "Parts for ..." line when vehicle info changes
+  const updateDescriptionPrefix = (newYear: string, newMake: string, newModel: string) => {
+    const oldVehicle = buildVehiclePrefix(year, make, model);
+    const newVehicle = buildVehiclePrefix(newYear, newMake, newModel);
+    const oldLine = oldVehicle ? `Parts for ${oldVehicle}` : "";
+    const newLine = newVehicle ? `Parts for ${newVehicle}` : "";
+
+    setDescription((prev) => {
+      if (!prev.trim()) {
+        // Empty — set new line
+        return newLine;
+      }
+      if (oldLine && prev.startsWith(oldLine)) {
+        // Replace old vehicle line with new one
+        return newLine + prev.slice(oldLine.length);
+      }
+      // Custom content user typed — don't overwrite
+      return prev;
+    });
   };
 
   const handleDecode = async () => {
@@ -190,12 +208,7 @@ export default function AddPartPage() {
       if (result.model) setModel(newModel);
 
       updateNamePrefix(newYear, newMake, newModel);
-
-      // Auto-fill description with vehicle info if currently empty
-      if (!description.trim() && (newYear || newMake || newModel)) {
-        const vehicleStr = [newYear, newMake, newModel].filter(Boolean).join(" ");
-        setDescription(`Parts for ${vehicleStr}`);
-      }
+      updateDescriptionPrefix(newYear, newMake, newModel);
 
       toast({
         title: "VIN Decoded",
@@ -229,6 +242,7 @@ export default function AddPartPage() {
     setMake(newMake);
     setModel(newModel);
     updateNamePrefix(newYear, newMake, newModel);
+    updateDescriptionPrefix(newYear, newMake, newModel);
     toast({
       title: "VIN Selected",
       description: `${rv.year || ""} ${rv.make || ""} ${rv.model || ""}`.trim(),
@@ -453,6 +467,7 @@ export default function AddPartPage() {
                     const v = e.target.value;
                     setYear(v);
                     updateNamePrefix(v, make, model);
+                    updateDescriptionPrefix(v, make, model);
                   }}
                   min={1900}
                   max={2030}
@@ -468,6 +483,7 @@ export default function AddPartPage() {
                     const v = e.target.value;
                     setMake(v);
                     updateNamePrefix(year, v, model);
+                    updateDescriptionPrefix(year, v, model);
                   }}
                 />
               </div>
@@ -481,6 +497,7 @@ export default function AddPartPage() {
                     const v = e.target.value;
                     setModel(v);
                     updateNamePrefix(year, make, v);
+                    updateDescriptionPrefix(year, make, v);
                   }}
                 />
               </div>
