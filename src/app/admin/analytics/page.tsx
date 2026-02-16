@@ -25,7 +25,12 @@ import {
   ExternalLink,
   Clock,
   MapPin,
+  ChevronLeft,
+  ChevronRight,
+  AlertTriangle,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import dynamic from "next/dynamic";
 
 const VisitorMap = dynamic(
@@ -87,6 +92,9 @@ export default function AnalyticsPage() {
   const [views, setViews] = useState<PageView[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<Period>("7d");
+  const [recentPage, setRecentPage] = useState(1);
+  const [dataTruncated, setDataTruncated] = useState(false);
+  const { toast } = useToast();
 
   const fetchViews = useCallback(async () => {
     setLoading(true);
@@ -100,16 +108,20 @@ export default function AnalyticsPage() {
       query = query.gte("created_at", start.toISOString());
     }
 
-    const { data, error } = await query.limit(10000);
+    const DATA_LIMIT = 50000;
+    const { data, error } = await query.limit(DATA_LIMIT);
 
     if (error) {
       console.error("Error fetching analytics:", error);
+      toast({ title: "Error", description: "Failed to load analytics data.", variant: "destructive" });
       setViews([]);
     } else {
       setViews(data || []);
+      setDataTruncated((data?.length || 0) >= DATA_LIMIT);
     }
+    setRecentPage(1);
     setLoading(false);
-  }, [period]);
+  }, [period, toast]);
 
   useEffect(() => {
     fetchViews();
@@ -657,6 +669,14 @@ export default function AnalyticsPage() {
             </Card>
           </div>
 
+          {/* Data truncation warning */}
+          {dataTruncated && (
+            <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              Data limit reached. Showing first 50,000 records. Use a shorter time period for complete data.
+            </div>
+          )}
+
           {/* Recent Visitors */}
           <Card>
             <CardHeader className="pb-2">
@@ -679,7 +699,7 @@ export default function AnalyticsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {views.slice(0, 50).map((v) => (
+                    {views.slice((recentPage - 1) * 50, recentPage * 50).map((v) => (
                       <TableRow key={v.id}>
                         <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                           {new Date(v.created_at).toLocaleString("en-US", {
@@ -732,6 +752,37 @@ export default function AnalyticsPage() {
                   </TableBody>
                 </Table>
               </div>
+              {/* Pagination */}
+              {views.length > 50 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    {(recentPage - 1) * 50 + 1}&ndash;{Math.min(recentPage * 50, views.length)} of {views.length.toLocaleString()}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setRecentPage((p) => Math.max(1, p - 1))}
+                      disabled={recentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Prev
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      {recentPage} / {Math.ceil(views.length / 50)}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setRecentPage((p) => Math.min(Math.ceil(views.length / 50), p + 1))}
+                      disabled={recentPage >= Math.ceil(views.length / 50)}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </>

@@ -12,7 +12,7 @@ CREATE TABLE parts (
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
 
   -- Inventory
-  stock_number VARCHAR(10),
+  stock_number VARCHAR(10) UNIQUE,
 
   -- Vehicle info (from VIN decode)
   vin VARCHAR(17),

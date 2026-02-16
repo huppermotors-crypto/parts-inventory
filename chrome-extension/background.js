@@ -3,7 +3,39 @@
 // Coordinates scraping → download images → open FB tab
 // ============================================
 
+// Allowed origins for message validation
+const ALLOWED_ORIGINS = [
+  "facebook.com",
+  "www.facebook.com",
+  "localhost",
+  "onrender.com",
+  "vercel.app",
+];
+
+function isTrustedSender(sender) {
+  // Messages from our own extension (popup, content scripts)
+  if (sender.id === chrome.runtime.id) return true;
+  // Messages from allowed host permissions
+  if (sender.url) {
+    try {
+      const hostname = new URL(sender.url).hostname;
+      return ALLOWED_ORIGINS.some(
+        (origin) => hostname === origin || hostname.endsWith("." + origin)
+      );
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (!isTrustedSender(sender)) {
+    console.warn("[BG] Blocked message from untrusted sender:", sender.url);
+    sendResponse({ error: "Untrusted sender" });
+    return;
+  }
+
   if (message.action === "SCRAPE_AND_POST") {
     handleScrapeAndPost(sender.tab?.id);
     sendResponse({ status: "started" });
@@ -41,13 +73,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // Fetch image from content script (CORS workaround — background has no origin restrictions)
   if (message.action === "FETCH_IMAGE") {
-    fetch(message.url)
+    const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+    const FETCH_TIMEOUT_MS = 15000; // 15 seconds
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+    fetch(message.url, { signal: controller.signal })
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         const contentType = r.headers.get("content-type") || "image/jpeg";
         return r.arrayBuffer().then((buf) => ({ buf, contentType }));
       })
       .then(({ buf, contentType }) => {
+        clearTimeout(timeoutId);
+        if (buf.byteLength > MAX_IMAGE_SIZE) {
+          throw new Error(`Image too large: ${(buf.byteLength / 1024 / 1024).toFixed(1)}MB (max ${MAX_IMAGE_SIZE / 1024 / 1024}MB)`);
+        }
         // Convert ArrayBuffer to base64 in chunks (avoid stack overflow on large images)
         const bytes = new Uint8Array(buf);
         let binary = "";
@@ -61,8 +103,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ data: btoa(binary), type: contentType });
       })
       .catch((err) => {
-        console.error("[BG] FETCH_IMAGE error:", err);
-        sendResponse({ error: err.message });
+        clearTimeout(timeoutId);
+        const msg = err.name === "AbortError" ? "Image fetch timed out" : err.message;
+        console.error("[BG] FETCH_IMAGE error:", msg);
+        sendResponse({ error: msg });
       });
     return true; // async
   }

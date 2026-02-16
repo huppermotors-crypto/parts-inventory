@@ -119,6 +119,8 @@ export default function DashboardPage() {
   const [deletePart, setDeletePart] = useState<Part | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
+  const { toast } = useToast();
+
   const fetchParts = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -128,17 +130,16 @@ export default function DashboardPage() {
 
     if (error) {
       console.error("Error fetching parts:", error);
+      toast({ title: "Error", description: "Failed to load parts. Try refreshing.", variant: "destructive" });
     } else {
       setParts(data || []);
     }
     setLoading(false);
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     fetchParts();
   }, [fetchParts]);
-
-  const { toast } = useToast();
 
   // --- Stats ---
   const stats = useMemo(() => {
@@ -435,14 +436,19 @@ export default function DashboardPage() {
     clearSelection();
 
     try {
-      const updates = updatedParts
-        .filter((p) => ids.includes(p.id))
-        .map((p) =>
-          supabase.from("parts").update({ price: p.price }).eq("id", p.id)
+      // Batch updates in groups of 10 to reduce DB round-trips
+      const toUpdate = updatedParts.filter((p) => ids.includes(p.id));
+      const BATCH_SIZE = 10;
+      for (let i = 0; i < toUpdate.length; i += BATCH_SIZE) {
+        const batch = toUpdate.slice(i, i + BATCH_SIZE);
+        const results = await Promise.all(
+          batch.map((p) =>
+            supabase.from("parts").update({ price: p.price }).eq("id", p.id)
+          )
         );
-      const results = await Promise.all(updates);
-      const failed = results.some((r) => r.error);
-      if (failed) throw new Error("Some updates failed");
+        const failed = results.some((r) => r.error);
+        if (failed) throw new Error("Some updates failed");
+      }
 
       toast({ title: "Prices Updated", description: `${ids.length} parts updated.` });
     } catch {
