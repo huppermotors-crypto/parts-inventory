@@ -84,7 +84,7 @@ const conditionColors: Record<string, string> = {
 
 type SortField = "name" | "price" | "created_at" | "make" | "category" | "condition";
 type SortDirection = "asc" | "desc";
-type StatusFilter = "all" | "live" | "hidden" | "sold";
+type StatusFilter = "all" | "live" | "sold";
 
 const PAGE_SIZE = 25;
 
@@ -166,7 +166,6 @@ export default function DashboardPage() {
   const statusCounts = useMemo(() => ({
     all: parts.length,
     live: parts.filter((p) => p.is_published && !p.is_sold).length,
-    hidden: parts.filter((p) => !p.is_published && !p.is_sold).length,
     sold: parts.filter((p) => p.is_sold).length,
   }), [parts]);
 
@@ -191,7 +190,6 @@ export default function DashboardPage() {
     return parts.filter((part) => {
       // Status filter
       if (filterStatus === "live" && (!part.is_published || part.is_sold)) return false;
-      if (filterStatus === "hidden" && (part.is_published || part.is_sold)) return false;
       if (filterStatus === "sold" && !part.is_sold) return false;
 
       // Text search
@@ -590,7 +588,6 @@ export default function DashboardPage() {
         <TabsList>
           <TabsTrigger value="all">All ({statusCounts.all})</TabsTrigger>
           <TabsTrigger value="live">Live ({statusCounts.live})</TabsTrigger>
-          <TabsTrigger value="hidden">Hidden ({statusCounts.hidden})</TabsTrigger>
           <TabsTrigger value="sold">Sold ({statusCounts.sold})</TabsTrigger>
         </TabsList>
       </Tabs>
