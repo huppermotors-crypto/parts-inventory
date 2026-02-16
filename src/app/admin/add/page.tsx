@@ -191,6 +191,12 @@ export default function AddPartPage() {
 
       updateNamePrefix(newYear, newMake, newModel);
 
+      // Auto-fill description with vehicle info if currently empty
+      if (!description.trim() && (newYear || newMake || newModel)) {
+        const vehicleStr = [newYear, newMake, newModel].filter(Boolean).join(" ");
+        setDescription(`Parts for ${vehicleStr}`);
+      }
+
       toast({
         title: "VIN Decoded",
         description: `${result.year} ${result.make} ${result.model}`,

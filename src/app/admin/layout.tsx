@@ -13,6 +13,7 @@ import {
   LogOut,
   ExternalLink,
   Menu,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -111,6 +112,14 @@ export default function AdminLayout({
           <ExternalLink className="h-4 w-4" />
           View Storefront
         </Link>
+        <a
+          href="/extension.zip"
+          download="AutoParts-Extension.zip"
+          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors min-h-[44px]"
+        >
+          <Download className="h-4 w-4" />
+          Chrome Extension
+        </a>
         <Button
           variant="ghost"
           className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground min-h-[44px]"

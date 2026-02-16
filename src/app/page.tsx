@@ -368,6 +368,8 @@ export default function StorefrontPage() {
           <p>
             &copy; {new Date().getFullYear()} HuppeR Auto Parts. All rights reserved.
             {" | "}
+            <a href="/shipping" className="underline hover:text-foreground">Shipping &amp; Payment</a>
+            {" | "}
             <a href="/privacy" className="underline hover:text-foreground">Privacy Policy</a>
           </p>
         </div>

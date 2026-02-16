@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "description": "Scrape product data from your inventory site and cross-post to Facebook Marketplace",
   "icons": {
+    "16": "icons/icon48.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
@@ -22,6 +23,7 @@
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
+      "16": "icons/icon48.png",
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     }

@@ -506,25 +506,19 @@
   // ============================================
 
   async function setCategory() {
-    const CATEGORY_KEYWORDS = [
-      "Car Parts & Accessories",
-      "Car Parts",
-      "Auto Parts",
-      "Vehicle Parts",
-      "Parts & Accessories",
-    ];
+    // FB uses a two-step category picker:
+    // Step 1: Click category button → top-level list appears
+    // Step 2: Click "Vehicles & Auto Parts" or "Auto Parts & Accessories"
+    // Step 3: Sub-panel appears → click "Car Parts & Accessories"
 
-    // Find the category dropdown — look for a <label> or <span> that says "Category"
-    // followed by a clickable element (select trigger, combobox, etc.)
+    // Find the category dropdown button
     let btn = document.querySelector('[aria-label="Category"]');
 
     if (!btn) {
-      // Look for a label "Category" and find the nearest interactive element
       const labels = document.querySelectorAll("label, span");
       for (const label of labels) {
         const text = label.textContent.trim();
         if (text === "Category" || text === "Select a category") {
-          // Find the closest parent that's clickable, or a sibling select/button
           btn =
             label.closest('[role="button"]') ||
             label.closest('[role="combobox"]') ||
@@ -546,48 +540,79 @@
     btn.click();
     await sleep(1500);
 
-    // Wait for category list/popup to appear and find matching option
-    for (let attempt = 0; attempt < 15; attempt++) {
-      // Search through all visible options, menu items, list items
-      const candidates = document.querySelectorAll(
-        '[role="option"], [role="menuitem"], [role="menuitemradio"], [role="listbox"] > *, [role="dialog"] [role="option"]'
-      );
+    // Step 1: Click the top-level "Auto Parts & Accessories" or "Vehicles & Auto Parts"
+    const STEP1_KEYWORDS = [
+      "Auto Parts & Accessories",
+      "Vehicles & Auto Parts",
+      "Vehicle Parts & Accessories",
+      "Parts & Accessories",
+    ];
 
-      for (const opt of candidates) {
-        const text = opt.textContent.trim();
-        for (const keyword of CATEGORY_KEYWORDS) {
-          if (text === keyword || text.includes(keyword)) {
-            opt.click();
-            log("Category set:", text);
-            return;
-          }
-        }
+    let step1Done = false;
+    for (let attempt = 0; attempt < 20; attempt++) {
+      if (clickSpanByExactText(STEP1_KEYWORDS)) {
+        log("Step 1: clicked top-level category");
+        step1Done = true;
+        await sleep(1200);
+        break;
       }
-
-      // Also search all spans (FB often wraps option text in spans)
-      const spans = document.querySelectorAll("span");
-      for (const span of spans) {
-        const text = span.textContent.trim();
-        for (const keyword of CATEGORY_KEYWORDS) {
-          if (text === keyword) {
-            const clickTarget =
-              span.closest("[role='option']") ||
-              span.closest("[role='menuitem']") ||
-              span.closest("[role='listitem']") ||
-              span.closest("li") ||
-              span.closest("[role='button']") ||
-              span;
-            clickTarget.click();
-            log("Category set (span):", text);
-            return;
-          }
-        }
-      }
-
-      await sleep(500);
+      await sleep(400);
     }
 
-    log("Could not find matching category — leaving for manual selection");
+    if (!step1Done) {
+      log("Step 1 not found — trying direct match for Car Parts");
+    }
+
+    // Step 2: Click the sub-category "Car Parts & Accessories"
+    const STEP2_KEYWORDS = [
+      "Car Parts & Accessories",
+      "Car Parts",
+      "Auto Parts",
+    ];
+
+    for (let attempt = 0; attempt < 20; attempt++) {
+      if (clickSpanByExactText(STEP2_KEYWORDS)) {
+        log("Step 2: category set to Car Parts & Accessories");
+        return;
+      }
+      await sleep(400);
+    }
+
+    log("Could not set category — leaving for manual selection");
+  }
+
+  // Helper: find a span/option/menuitem with exact text and click its nearest interactive parent
+  function clickSpanByExactText(keywords) {
+    const candidates = document.querySelectorAll(
+      '[role="option"], [role="menuitem"], [role="menuitemradio"], [role="listitem"], li'
+    );
+    for (const el of candidates) {
+      const text = el.textContent.trim();
+      for (const kw of keywords) {
+        if (text === kw || text.startsWith(kw)) {
+          el.click();
+          return true;
+        }
+      }
+    }
+    // Fallback: search spans for exact text
+    for (const span of document.querySelectorAll("span")) {
+      const text = span.textContent.trim();
+      for (const kw of keywords) {
+        if (text === kw) {
+          const clickTarget =
+            span.closest("[role='option']") ||
+            span.closest("[role='menuitem']") ||
+            span.closest("[role='listitem']") ||
+            span.closest("li") ||
+            span.closest("[role='button']") ||
+            span;
+          clickTarget.click();
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   // ============================================
