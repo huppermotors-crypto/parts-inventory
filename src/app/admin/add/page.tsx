@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { decodeVIN } from "@/lib/nhtsa";
@@ -114,36 +114,6 @@ export default function AddPartPage() {
     loadRecentVins();
   }, []);
 
-  // Generate Facebook keywords from part name
-  const generateKeywords = useCallback(
-    (partName: string) => {
-      const stopWords = new Set([
-        "the", "a", "an", "and", "or", "for", "of", "to", "in", "on", "at",
-        "is", "it", "with", "from", "by", "as", "be", "was", "are",
-      ]);
-      const words = partName
-        .replace(/[^a-zA-Z0-9\s]/g, "")
-        .split(/\s+/)
-        .filter((w) => w.length > 1 && !stopWords.has(w.toLowerCase()))
-        .map((w) => w.toLowerCase());
-
-      // Unique keywords: "part" + key words from name (up to 5 total)
-      const keywords = new Set<string>(["part"]);
-      for (const w of words) {
-        keywords.add(w);
-        if (keywords.size >= 5) break;
-      }
-
-      // Add category keyword if not "other"
-      if (category !== "other") {
-        const catLabel = PART_CATEGORIES.find((c) => c.value === category)?.label;
-        if (catLabel) keywords.add(catLabel.toLowerCase().split(/\s|&/)[0]);
-      }
-
-      return Array.from(keywords).join(" ");
-    },
-    [category]
-  );
 
   // Build vehicle prefix from year/make/model
   const buildVehiclePrefix = (y: string, m: string, md: string) =>
@@ -303,13 +273,6 @@ export default function AddPartPage() {
       // Get stock number (use pre-loaded or fetch fresh)
       const finalStockNumber = stockNumber || (await getNextStockNumber());
 
-      // Auto-append Facebook keywords to description
-      const keywords = generateKeywords(name);
-      const descText = description.trim();
-      const finalDescription = descText
-        ? `${descText}\n\n${keywords}`
-        : keywords;
-
       // Insert part
       const { error } = await supabase.from("parts").insert({
         stock_number: finalStockNumber,
@@ -318,7 +281,7 @@ export default function AddPartPage() {
         make: make || null,
         model: model || null,
         name: name.trim(),
-        description: finalDescription || null,
+        description: description.trim() || null,
         serial_number: serialNumber.trim() || null,
         price: parseFloat(price) || 0,
         condition,
@@ -536,11 +499,6 @@ export default function AddPartPage() {
                 onChange={(e) => setDescription(e.target.value)}
                 rows={4}
               />
-              {name.trim() && (
-                <p className="text-xs text-muted-foreground">
-                  FB keywords (auto-added): <span className="font-medium">{generateKeywords(name)}</span>
-                </p>
-              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
