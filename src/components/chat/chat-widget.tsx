@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, X, Send, User, Bot, Headset } from "lucide-react";
+import { MessageCircle, X, Send, User } from "lucide-react";
 import { getVisitorId } from "@/lib/visitor-id";
 
 interface ChatMessage {
@@ -82,6 +82,14 @@ export function ChatWidget() {
       inputRef.current.focus();
     }
   }, [isOpen]);
+
+  // Listen for "open-chat" event from part detail page
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    const handler = () => setIsOpen(true);
+    window.addEventListener("open-chat", handler);
+    return () => window.removeEventListener("open-chat", handler);
+  }, []);
 
   // Polling for new messages
   // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -189,15 +197,25 @@ export function ChatWidget() {
     }
   };
 
-  const roleIcon = (role: string) => {
-    if (role === "user") return <User className="h-4 w-4" />;
-    if (role === "operator") return <Headset className="h-4 w-4" />;
-    return <Bot className="h-4 w-4" />;
+  const roleAvatar = (role: string) => {
+    if (role === "user") {
+      return (
+        <div className="mt-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+          <User className="h-4 w-4" />
+        </div>
+      );
+    }
+    // John S. avatar for both assistant and operator
+    return (
+      <div className="mt-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white text-xs font-bold">
+        JS
+      </div>
+    );
   };
 
   const roleBg = (role: string) => {
     if (role === "user") return "bg-blue-600 text-white ml-auto";
-    if (role === "operator") return "bg-green-600 text-white";
+    if (role === "operator") return "bg-emerald-50 text-gray-900 border border-emerald-200";
     return "bg-gray-100 text-gray-900";
   };
 
@@ -222,8 +240,13 @@ export function ChatWidget() {
           {/* Header */}
           <div className="flex items-center justify-between bg-blue-600 px-4 py-3 text-white">
             <div className="flex items-center gap-2">
-              <MessageCircle className="h-5 w-5" />
-              <span className="font-semibold">HuppeR Support</span>
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
+                JS
+              </div>
+              <div>
+                <span className="font-semibold text-sm">John S.</span>
+                <p className="text-[10px] text-white/70 leading-none">HuppeR Motors Support</p>
+              </div>
             </div>
             <button
               onClick={() => setIsOpen(false)}
@@ -238,10 +261,12 @@ export function ChatWidget() {
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
-                <Bot className="h-10 w-10 mb-2 text-gray-400" />
-                <p className="text-sm font-medium">Hi! How can I help you?</p>
-                <p className="text-xs mt-1">
-                  Ask about parts, compatibility, pricing...
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-white text-lg font-bold mb-3">
+                  JS
+                </div>
+                <p className="text-sm font-medium text-gray-700">Hey! I&apos;m John</p>
+                <p className="text-xs mt-1 text-gray-400">
+                  Ask me about parts, compatibility, pricing...
                 </p>
               </div>
             )}
@@ -250,9 +275,7 @@ export function ChatWidget() {
                 key={msg.id || `msg-${i}`}
                 className={`flex items-start gap-2 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
               >
-                <div className="mt-1 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-600">
-                  {roleIcon(msg.role)}
-                </div>
+                {roleAvatar(msg.role)}
                 <div
                   className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${roleBg(msg.role)}`}
                 >
@@ -262,8 +285,8 @@ export function ChatWidget() {
             ))}
             {sending && (
               <div className="flex items-start gap-2">
-                <div className="mt-1 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-600">
-                  <Bot className="h-4 w-4" />
+                <div className="mt-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white text-xs font-bold">
+                  JS
                 </div>
                 <div className="rounded-2xl bg-gray-100 px-3 py-2 text-sm text-gray-500">
                   <span className="inline-flex gap-1">

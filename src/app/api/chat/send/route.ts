@@ -26,6 +26,9 @@ function isRateLimited(key: string): boolean {
   return false;
 }
 
+// Track consecutive AI failures per session for auto-escalation
+const failureMap = new Map<string, number>();
+
 // Cleanup every 5 min
 setInterval(() => {
   const now = Date.now();
@@ -121,31 +124,44 @@ export async function POST(request: NextRequest) {
 
     // Ask Gemini
     let aiReply: string;
+    let isAiFailure = false;
     try {
       aiReply = await askGemini(messages, partContext);
     } catch (err) {
       console.error("Gemini error:", err);
-      aiReply =
-        "I'm having trouble responding right now. Please try again or contact us at hupper.motors@gmail.com";
+      aiReply = "Please hold on, I'm working on your request...";
+      isAiFailure = true;
     }
 
-    // Check for escalation
-    const needsEscalation = aiReply.includes("[ESCALATE]");
-    const cleanReply = needsEscalation
-      ? aiReply
-          .replace("[ESCALATE]", "")
-          .trim() ||
-        "I'm connecting you with our team. They'll respond shortly. You can also reach us at hupper.motors@gmail.com"
-      : aiReply;
+    // Check if Gemini returned a fallback message (API error)
+    if (aiReply.startsWith("Please hold on")) {
+      isAiFailure = true;
+    }
 
-    const replyRole = needsEscalation ? "assistant" : "assistant";
+    // Track consecutive failures — auto-escalate after 3
+    let needsEscalation = aiReply.includes("[ESCALATE]");
+    if (isAiFailure) {
+      const failures = (failureMap.get(currentSessionId) || 0) + 1;
+      failureMap.set(currentSessionId, failures);
+      if (failures >= 3) {
+        needsEscalation = true;
+        aiReply = "[ESCALATE] AI unable to respond after multiple attempts";
+        failureMap.delete(currentSessionId);
+      }
+    } else {
+      failureMap.delete(currentSessionId);
+    }
+
+    const cleanReply = needsEscalation
+      ? "Connecting you with a manager — they'll jump in shortly! Stay in the chat."
+      : aiReply;
 
     // Save AI reply
     const { data: savedReply } = await adminClient
       .from("chat_messages")
       .insert({
         session_id: currentSessionId,
-        role: replyRole,
+        role: "assistant",
         content: cleanReply,
       })
       .select("role, content, created_at")
@@ -169,7 +185,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       sessionId: currentSessionId,
-      reply: savedReply || { role: replyRole, content: cleanReply, created_at: new Date().toISOString() },
+      reply: savedReply || { role: "assistant", content: cleanReply, created_at: new Date().toISOString() },
     });
   } catch (err) {
     console.error("Chat send error:", err);

@@ -26,6 +26,7 @@ import {
   Calendar,
   X,
   Pencil,
+  MessageCircle,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -350,16 +351,23 @@ export function PartDetailClient({ initialPart }: PartDetailClientProps) {
 
             {/* Buy Button */}
             <div className="space-y-3">
+              <Button
+                size="lg"
+                className="w-full text-base gap-2"
+                onClick={() => {
+                  // Open chat widget by dispatching custom event
+                  window.dispatchEvent(new CustomEvent("open-chat"));
+                }}
+              >
+                <MessageCircle className="h-5 w-5" />
+                Chat with Us
+              </Button>
               <a href={getMailtoLink()}>
-                <Button size="lg" className="w-full text-base gap-2">
+                <Button size="lg" variant="outline" className="w-full text-base gap-2">
                   <Mail className="h-5 w-5" />
-                  I&apos;m Interested — Contact Seller
+                  Contact via Email
                 </Button>
               </a>
-              <p className="text-xs text-muted-foreground text-center">
-                Clicking the button will open your email client with a
-                pre-filled message.
-              </p>
             </div>
           </div>
         </div>
