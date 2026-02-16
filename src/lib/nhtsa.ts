@@ -1,4 +1,5 @@
 import { NHTSADecodeResult } from "@/types/database";
+import { normalizeMakeModel } from "@/lib/utils";
 
 const NHTSA_API_BASE = "https://vpic.nhtsa.dot.gov/api/vehicles";
 
@@ -22,7 +23,7 @@ export async function decodeVIN(vin: string): Promise<NHTSADecodeResult> {
 
   return {
     year: result.ModelYear ? parseInt(result.ModelYear, 10) : null,
-    make: result.Make || null,
-    model: result.Model || null,
+    make: result.Make ? normalizeMakeModel(result.Make) : null,
+    model: result.Model ? normalizeMakeModel(result.Model) : null,
   };
 }

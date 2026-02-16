@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Part } from "@/types/database";
+import { normalizeMakeModel } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -198,8 +199,8 @@ export function EditPartDialog({
         .update({
           vin: vin || null,
           year: year ? parseInt(year, 10) : null,
-          make: make || null,
-          model: model || null,
+          make: make ? normalizeMakeModel(make) : null,
+          model: model ? normalizeMakeModel(model) : null,
           name: name.trim(),
           description: description.trim() || null,
           serial_number: serialNumber.trim() || null,

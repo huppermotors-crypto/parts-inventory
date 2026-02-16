@@ -29,3 +29,23 @@ export function formatVehicle(
 ): string {
   return [year, make, model].filter(Boolean).join(" ");
 }
+
+/**
+ * Normalize make/model to consistent Title Case.
+ * "FORD" → "Ford", "BMW" → "BMW", "CADILLAC" → "Cadillac"
+ * Short all-caps words (≤3 chars) stay uppercase (BMW, GMC, etc.)
+ */
+export function normalizeMakeModel(value: string): string {
+  if (!value) return value;
+  return value
+    .trim()
+    .split(/\s+/)
+    .map((word) => {
+      if (word.length <= 3 && word === word.toUpperCase()) return word;
+      if (word === word.toUpperCase()) {
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      }
+      return word;
+    })
+    .join(" ");
+}

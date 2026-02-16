@@ -8,7 +8,7 @@ import {
   getCategoryLabel,
   getConditionLabel,
 } from "@/lib/constants";
-import { conditionColors, formatPrice, formatVehicle } from "@/lib/utils";
+import { conditionColors, formatPrice, formatVehicle, normalizeMakeModel } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -162,12 +162,18 @@ export default function DashboardPage() {
     sold: parts.filter((p) => p.is_sold).length,
   }), [parts]);
 
-  // Unique makes from data for the filter dropdown
+  // Unique makes from data for the filter dropdown (case-insensitive dedup, normalized display)
   const uniqueMakes = useMemo(() => {
-    const makes = parts
-      .map((p) => p.make)
-      .filter((m): m is string => !!m);
-    return Array.from(new Set(makes)).sort();
+    const seen = new Map<string, string>(); // lowercase → normalized display
+    for (const p of parts) {
+      if (p.make) {
+        const key = p.make.toLowerCase();
+        if (!seen.has(key)) {
+          seen.set(key, normalizeMakeModel(p.make));
+        }
+      }
+    }
+    return Array.from(seen.values()).sort();
   }, [parts]);
 
   // Unique categories from data for the filter dropdown
@@ -195,9 +201,9 @@ export default function DashboardPage() {
         (part.serial_number && part.serial_number.toLowerCase().includes(q)) ||
         (part.vin && part.vin.toLowerCase().includes(q));
 
-      // Make filter
+      // Make filter (case-insensitive)
       const matchesMake =
-        filterMake === "all" || part.make === filterMake;
+        filterMake === "all" || (part.make && part.make.toLowerCase() === filterMake.toLowerCase());
 
       // Category filter
       const matchesCategory =

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { decodeVIN } from "@/lib/nhtsa";
@@ -30,6 +30,7 @@ import { VinScanner } from "@/components/admin/vin-scanner";
 import { EbayPriceSearch } from "@/components/admin/ebay-price-search";
 import { PART_CATEGORIES, PART_CONDITIONS } from "@/lib/constants";
 import { getNextStockNumber } from "@/lib/stock-number";
+import { normalizeMakeModel } from "@/lib/utils";
 import {
   ScanBarcode,
   Search,
@@ -79,79 +80,121 @@ export default function AddPartPage() {
   useEffect(() => {
     getNextStockNumber().then(setStockNumber).catch(() => {});
 
+    const VIN_CACHE_KEY = "vin-decode-cache";
+
+    function getVinCache(): Record<string, RecentVin> {
+      try { return JSON.parse(localStorage.getItem(VIN_CACHE_KEY) || "{}"); } catch { return {}; }
+    }
+
+    function setVinCache(cache: Record<string, RecentVin>) {
+      try { localStorage.setItem(VIN_CACHE_KEY, JSON.stringify(cache)); } catch {}
+    }
+
     const loadRecentVins = async () => {
+      // Load distinct VINs from DB (just vin field — ignore user-edited make/model)
       const { data, error } = await supabase
         .from("parts")
-        .select("vin, year, make, model")
+        .select("vin")
         .not("vin", "is", null)
         .neq("vin", "")
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(50);
 
-      if (error || !data) {
-        console.error("Failed to load recent VINs:", error);
-        return;
-      }
+      if (error || !data) return;
 
       const seen = new Set<string>();
-      const unique: RecentVin[] = [];
+      const uniqueVins: string[] = [];
       for (const row of data) {
         const v = (row.vin as string)?.trim();
-        if (v && !seen.has(v)) {
+        if (v && v.length === 17 && !seen.has(v)) {
           seen.add(v);
-          unique.push({
-            vin: v,
-            year: row.year as number | null,
-            make: row.make as string | null,
-            model: row.model as string | null,
-          });
-          if (unique.length >= 3) break;
+          uniqueVins.push(v);
+          if (uniqueVins.length >= 5) break;
         }
       }
-      setRecentVins(unique);
+
+      // Decode each VIN via NHTSA (with localStorage cache)
+      const cache = getVinCache();
+      const results: RecentVin[] = [];
+
+      for (const vinCode of uniqueVins) {
+        if (cache[vinCode]) {
+          results.push(cache[vinCode]);
+          continue;
+        }
+        try {
+          const decoded = await decodeVIN(vinCode);
+          const entry: RecentVin = {
+            vin: vinCode,
+            year: decoded.year,
+            make: decoded.make,
+            model: decoded.model,
+          };
+          cache[vinCode] = entry;
+          results.push(entry);
+        } catch {
+          results.push({ vin: vinCode, year: null, make: null, model: null });
+        }
+      }
+
+      setVinCache(cache);
+      setRecentVins(results);
     };
 
     loadRecentVins();
   }, []);
 
 
+  // Track last auto-generated description to detect manual user edits
+  const lastAutoDesc = useRef("");
+
   // Build vehicle prefix from year/make/model
   const buildVehiclePrefix = (y: string, m: string, md: string) =>
     [y, m, md].filter(Boolean).join(" ");
 
-  // Update name prefix when vehicle info changes
-  const updateNamePrefix = (newYear: string, newMake: string, newModel: string) => {
+  // Update name prefix when vehicle info changes — returns new name
+  const updateNamePrefix = (newYear: string, newMake: string, newModel: string): string => {
     const oldPrefix = buildVehiclePrefix(year, make, model);
     const newPrefix = buildVehiclePrefix(newYear, newMake, newModel);
 
+    let newName: string;
     if (oldPrefix && name.startsWith(oldPrefix)) {
       const suffix = name.slice(oldPrefix.length);
-      setName(newPrefix + suffix);
+      newName = newPrefix + suffix;
     } else if (!name.trim()) {
-      setName(newPrefix ? newPrefix + " " : "");
+      newName = newPrefix ? newPrefix + " " : "";
     } else {
-      setName(newPrefix ? newPrefix + " " + name : name);
+      newName = newPrefix ? newPrefix + " " + name : name;
     }
+    setName(newName);
+    return newName;
   };
 
-  // Update description "Parts for ..." line when vehicle info changes
-  const updateDescriptionPrefix = (newYear: string, newMake: string, newModel: string) => {
-    const oldVehicle = buildVehiclePrefix(year, make, model);
-    const newVehicle = buildVehiclePrefix(newYear, newMake, newModel);
-    const oldLine = oldVehicle ? `Parts for ${oldVehicle}` : "";
-    const newLine = newVehicle ? `Parts for ${newVehicle}` : "";
+  // Build auto-description from current fields (no duplicate info)
+  const buildAutoDescription = (n: string, s: string, y: string, m: string, md: string): string => {
+    const lines: string[] = [];
+    const vehicle = buildVehiclePrefix(y, m, md);
 
+    if (n.trim()) lines.push(n.trim());
+    if (s.trim()) lines.push(`S/N: ${s.trim()}`);
+    // Only add "Parts for" line if vehicle info is NOT already in the name
+    if (vehicle && (!n || !n.toLowerCase().includes(vehicle.toLowerCase()))) {
+      lines.push(`Parts for ${vehicle}`);
+    }
+    return lines.join("\n");
+  };
+
+  // Update description if it was auto-generated (don't overwrite user edits)
+  const updateAutoDescription = (n?: string, s?: string, y?: string, m?: string, md?: string) => {
+    const newDesc = buildAutoDescription(
+      n ?? name, s ?? serialNumber, y ?? year, m ?? make, md ?? model
+    );
     setDescription((prev) => {
-      if (!prev.trim()) {
-        // Empty — set new line
-        return newLine;
+      if (!prev.trim() || prev === lastAutoDesc.current) {
+        lastAutoDesc.current = newDesc;
+        return newDesc;
       }
-      if (oldLine && prev.startsWith(oldLine)) {
-        // Replace old vehicle line with new one
-        return newLine + prev.slice(oldLine.length);
-      }
-      // Custom content user typed — don't overwrite
-      return prev;
+      return prev; // user typed custom content — don't overwrite
     });
   };
 
@@ -177,8 +220,8 @@ export default function AddPartPage() {
       if (result.make) setMake(newMake);
       if (result.model) setModel(newModel);
 
-      updateNamePrefix(newYear, newMake, newModel);
-      updateDescriptionPrefix(newYear, newMake, newModel);
+      const newName = updateNamePrefix(newYear, newMake, newModel);
+      updateAutoDescription(newName, serialNumber, newYear, newMake, newModel);
 
       toast({
         title: "VIN Decoded",
@@ -211,8 +254,8 @@ export default function AddPartPage() {
     setYear(newYear);
     setMake(newMake);
     setModel(newModel);
-    updateNamePrefix(newYear, newMake, newModel);
-    updateDescriptionPrefix(newYear, newMake, newModel);
+    const newName = updateNamePrefix(newYear, newMake, newModel);
+    updateAutoDescription(newName, serialNumber, newYear, newMake, newModel);
     toast({
       title: "VIN Selected",
       description: `${rv.year || ""} ${rv.make || ""} ${rv.model || ""}`.trim(),
@@ -278,8 +321,8 @@ export default function AddPartPage() {
         stock_number: finalStockNumber,
         vin: vin || null,
         year: year ? parseInt(year, 10) : null,
-        make: make || null,
-        model: model || null,
+        make: make ? normalizeMakeModel(make) : null,
+        model: model ? normalizeMakeModel(model) : null,
         name: name.trim(),
         description: description.trim() || null,
         serial_number: serialNumber.trim() || null,
@@ -429,8 +472,8 @@ export default function AddPartPage() {
                   onChange={(e) => {
                     const v = e.target.value;
                     setYear(v);
-                    updateNamePrefix(v, make, model);
-                    updateDescriptionPrefix(v, make, model);
+                    const newName = updateNamePrefix(v, make, model);
+                    updateAutoDescription(newName, serialNumber, v, make, model);
                   }}
                   min={1900}
                   max={2030}
@@ -445,8 +488,8 @@ export default function AddPartPage() {
                   onChange={(e) => {
                     const v = e.target.value;
                     setMake(v);
-                    updateNamePrefix(year, v, model);
-                    updateDescriptionPrefix(year, v, model);
+                    const newName = updateNamePrefix(year, v, model);
+                    updateAutoDescription(newName, serialNumber, year, v, model);
                   }}
                 />
               </div>
@@ -459,8 +502,8 @@ export default function AddPartPage() {
                   onChange={(e) => {
                     const v = e.target.value;
                     setModel(v);
-                    updateNamePrefix(year, make, v);
-                    updateDescriptionPrefix(year, make, v);
+                    const newName = updateNamePrefix(year, make, v);
+                    updateAutoDescription(newName, serialNumber, year, make, v);
                   }}
                 />
               </div>
@@ -485,7 +528,11 @@ export default function AddPartPage() {
                 id="name"
                 placeholder="e.g. Front Bumper, Engine ECU, Headlight Assembly"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setName(v);
+                  updateAutoDescription(v);
+                }}
                 required
               />
             </div>
@@ -508,7 +555,11 @@ export default function AddPartPage() {
                   id="serial_number"
                   placeholder="Part serial number"
                   value={serialNumber}
-                  onChange={(e) => setSerialNumber(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setSerialNumber(v);
+                    updateAutoDescription(undefined, v);
+                  }}
                   className="font-mono"
                 />
               </div>
