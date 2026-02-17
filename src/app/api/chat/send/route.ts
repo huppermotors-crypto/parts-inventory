@@ -138,14 +138,17 @@ export async function POST(request: NextRequest) {
       isAiFailure = true;
     }
 
+    // Detect escalation tags: [TRANSFER_TO_AGENT] or [TRANSFER_TO_MANAGER]
+    const ESCALATION_PATTERN = /\[TRANSFER_TO_(AGENT|MANAGER)\]/i;
+    let needsEscalation = ESCALATION_PATTERN.test(aiReply);
+
     // Track consecutive failures — auto-escalate after 3
-    let needsEscalation = aiReply.includes("[ESCALATE]");
     if (isAiFailure) {
       const failures = (failureMap.get(currentSessionId) || 0) + 1;
       failureMap.set(currentSessionId, failures);
       if (failures >= 3) {
         needsEscalation = true;
-        aiReply = "[ESCALATE] AI unable to respond after multiple attempts";
+        aiReply = "[TRANSFER_TO_AGENT] AI unable to respond after multiple attempts";
         failureMap.delete(currentSessionId);
       }
     } else {
@@ -153,7 +156,8 @@ export async function POST(request: NextRequest) {
     }
 
     const cleanReply = needsEscalation
-      ? "Connecting you with a manager — they'll jump in shortly! Stay in the chat."
+      ? aiReply.replace(ESCALATION_PATTERN, "").trim() ||
+        "Connecting you with a manager — they'll jump in shortly! Stay in the chat."
       : aiReply;
 
     // Save AI reply
@@ -179,7 +183,7 @@ export async function POST(request: NextRequest) {
         sessionId: currentSessionId,
         partContext,
         messages,
-        summary: aiReply.replace("[ESCALATE]", "").trim(),
+        summary: aiReply.replace(ESCALATION_PATTERN, "").trim(),
       }).catch((err) => console.error("Escalation error:", err));
     }
 

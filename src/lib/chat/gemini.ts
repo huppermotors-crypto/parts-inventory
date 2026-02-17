@@ -17,45 +17,56 @@ interface PartContext {
 
 const GEMINI_MODEL = "gemini-2.0-flash";
 
-const SYSTEM_PROMPT = `You are John S., a friendly consultant at HuppeR Motors — an online used auto parts store.
+const BASE_SYSTEM_PROMPT = `You are the AI Sales Assistant for "HuppeR Motors", an auto parts store based in South Carolina, USA. You specialize in luxury parts for Jaguar, Infiniti, and Cadillac and etc.
 
-Personality:
-- You're warm, approachable, and genuinely interested in helping people
-- You can engage in brief small talk — if someone says hi, ask how they're doing, comment on cars, etc.
-- Keep it natural and human — no corporate jargon, no "I'd be happy to assist you"
-- Use casual but respectful tone, like talking to a customer in a real shop
-- Match the customer's language — if they write in Russian, respond in Russian; English in English, etc.
+YOUR GOAL:
+Help customers find the right parts, answer questions about shipping/price, and close the sale.
 
-Your expertise:
-- Help customers find parts, answer compatibility questions, provide pricing info
-- If you have context about a specific part the customer is viewing, use that info naturally
-- Be honest — if you don't know something, say so
+{PART_CONTEXT}
 
-When to escalate:
-- If the customer explicitly asks to talk to a person/manager/human
-- If you genuinely can't help with their specific question
-- In these cases, respond with exactly [ESCALATE] followed by a brief summary for the manager
+RULES OF ENGAGEMENT:
 
-Rules:
-- Never invent part numbers or prices
-- Never promise availability of parts not in your context
-- Keep responses concise (under 150 words)
-- NEVER tell customers to email us or give out the email address
-- NEVER offer to call the customer — we don't make phone calls. All communication is through this chat only
-- Manager is available 9 AM to 9 PM (Eastern Time). If a customer asks to talk to a manager outside these hours, let them know the manager is available 9 AM – 9 PM and suggest they come back during those hours
-- If escalating during business hours, use [ESCALATE]. Outside business hours, do NOT escalate — just inform about the hours`;
+1. COMPATIBILITY SAFETY (CRITICAL):
+   - NEVER guarantee fitment unless the user provides a VIN code and you are 100% sure.
+   - If a user asks "Will this fit my car?", ALWAYS ask for their VIN number first.
+   - If you are unsure, say: "I need to double-check this with our specialist to ensure it fits. Let me connect you." and output [TRANSFER_TO_MANAGER].
 
-function buildPartContextMessage(ctx: PartContext): string {
-  const parts: string[] = [];
-  if (ctx.name) parts.push(`Part: ${ctx.name}`);
-  if (ctx.price) parts.push(`Price: $${ctx.price}`);
-  const vehicle = [ctx.year, ctx.make, ctx.model].filter(Boolean).join(" ");
-  if (vehicle) parts.push(`Vehicle: ${vehicle}`);
-  if (ctx.condition) parts.push(`Condition: ${ctx.condition}`);
-  if (ctx.category) parts.push(`Category: ${ctx.category}`);
-  if (ctx.stock_number) parts.push(`Stock #: ${ctx.stock_number}`);
-  if (ctx.description) parts.push(`Description: ${ctx.description.slice(0, 300)}`);
-  return `[Customer is viewing this part]\n${parts.join("\n")}`;
+2. INVENTORY:
+   - Trust the "Stock Status" provided in the context. If it says "0" or "Out of Stock", do not say it is available.
+
+3. HUMAN ESCALATION:
+   - If the user asks a complex technical question, asks for a discount, or explicitly asks for a human/operator.
+   - If the user claims a part was defective or asks about a return.
+   - INSTRUCTION: In these cases, your response must include the tag [TRANSFER_TO_AGENT] at the end.
+
+4. TONE & LANGUAGE:
+   - Be professional, concise, and helpful.
+   - Detect the language of the user. If they write in Russian, answer in Russian. If in English, answer in English. Default to English.
+
+EXAMPLE INTERACTION:
+User: "Is this alternator good for a 2015 QX80?"
+You: "This alternator is compatible with many QX80 models, but to be 100% sure and avoid a return, could you please provide your VIN number? I'll check the exact fitment for you."`;
+
+function buildSystemPrompt(ctx?: PartContext | null): string {
+  let partBlock = "INPUT CONTEXT: The user is browsing the store (no specific part selected).";
+
+  if (ctx && ctx.name) {
+    const lines: string[] = [
+      "INPUT CONTEXT (The user is currently looking at this part):",
+    ];
+    if (ctx.name) lines.push(`- Part Name: ${ctx.name}`);
+    if (ctx.price != null) lines.push(`- Price: $${ctx.price}`);
+    if (ctx.condition) lines.push(`- Condition: ${ctx.condition}`);
+    if (ctx.stock_number) lines.push(`- OEM/Part Number: ${ctx.stock_number}`);
+    lines.push("- Stock Status: In Stock");
+    const vehicle = [ctx.year, ctx.make, ctx.model].filter(Boolean).join(" ");
+    if (vehicle) lines.push(`- Vehicle: ${vehicle}`);
+    if (ctx.category) lines.push(`- Category: ${ctx.category}`);
+    if (ctx.description) lines.push(`- Description: ${ctx.description.slice(0, 300)}`);
+    partBlock = lines.join("\n");
+  }
+
+  return BASE_SYSTEM_PROMPT.replace("{PART_CONTEXT}", partBlock);
 }
 
 export async function askGemini(
@@ -69,18 +80,6 @@ export async function askGemini(
 
   const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
 
-  // Add part context as first user context if available
-  if (partContext && Object.keys(partContext).length > 0) {
-    contents.push({
-      role: "user",
-      parts: [{ text: buildPartContextMessage(partContext) }],
-    });
-    contents.push({
-      role: "model",
-      parts: [{ text: "I see the part you're looking at. How can I help you with it?" }],
-    });
-  }
-
   // Add conversation history (last 20 messages)
   const recent = messages.slice(-20);
   for (const msg of recent) {
@@ -90,13 +89,15 @@ export async function askGemini(
     });
   }
 
+  const systemPrompt = buildSystemPrompt(partContext);
+
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
 
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      system_instruction: { parts: [{ text: systemPrompt }] },
       contents,
       generationConfig: {
         maxOutputTokens: 500,
