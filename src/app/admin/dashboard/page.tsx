@@ -464,6 +464,22 @@ export default function DashboardPage() {
   };
 
   const postToFB = async (part: Part) => {
+    // Merge photos from all selected parts (if any are selected)
+    const allPhotos = [...(part.photos || [])];
+    let mergedCount = 0;
+
+    if (selectedIds.size > 0) {
+      const otherSelectedParts = parts.filter(
+        (p) => selectedIds.has(p.id) && p.id !== part.id
+      );
+      for (const sp of otherSelectedParts) {
+        if (sp.photos && sp.photos.length > 0) {
+          allPhotos.push(...sp.photos);
+          mergedCount++;
+        }
+      }
+    }
+
     const partData = {
       id: part.id,
       title: part.name,
@@ -471,7 +487,7 @@ export default function DashboardPage() {
       description: part.description || "",
       condition: part.condition,
       category: part.category,
-      photos: part.photos || [],
+      photos: allPhotos,
       make: part.make || "",
       model: part.model || "",
       year: part.year || "",
@@ -495,7 +511,9 @@ export default function DashboardPage() {
 
     toast({
       title: "Posting to FB Marketplace",
-      description: `"${part.name}" — extension will open Facebook and fill the form.`,
+      description: mergedCount > 0
+        ? `"${part.name}" with ${allPhotos.length} photos from ${mergedCount + 1} parts — extension will open Facebook.`
+        : `"${part.name}" — extension will open Facebook and fill the form.`,
     });
   };
 

@@ -2,6 +2,8 @@ import { Metadata } from "next";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { PartDetailClient } from "@/components/storefront/part-detail-client";
 import { getConditionLabel } from "@/lib/constants";
+import { applyPriceRules } from "@/lib/price-rules";
+import { PriceRule } from "@/types/database";
 
 interface Props {
   params: { id: string };
@@ -16,6 +18,15 @@ async function getPart(id: string) {
     .eq("is_published", true)
     .single();
   return data;
+}
+
+async function getActivePriceRules(): Promise<PriceRule[]> {
+  const supabase = createServerSupabaseClient();
+  const { data } = await supabase
+    .from("price_rules")
+    .select("*")
+    .eq("is_active", true);
+  return (data || []) as PriceRule[];
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -52,7 +63,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function PartDetailPage({ params }: Props) {
-  const part = await getPart(params.id);
+  const [part, priceRules] = await Promise.all([
+    getPart(params.id),
+    getActivePriceRules(),
+  ]);
+
+  const priceResult = part ? applyPriceRules(part, priceRules) : null;
+  const displayPrice = priceResult ? priceResult.finalPrice : part?.price;
 
   const jsonLd = part
     ? {
@@ -64,7 +81,7 @@ export default async function PartDetailPage({ params }: Props) {
         sku: part.stock_number || undefined,
         offers: {
           "@type": "Offer",
-          price: part.price,
+          price: displayPrice,
           priceCurrency: "USD",
           availability: part.is_sold
             ? "https://schema.org/SoldOut"
@@ -94,7 +111,7 @@ export default async function PartDetailPage({ params }: Props) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       )}
-      <PartDetailClient initialPart={part} />
+      <PartDetailClient initialPart={part} priceRules={priceRules} />
     </>
   );
 }

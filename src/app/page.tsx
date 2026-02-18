@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Part } from "@/types/database";
+import { Part, PriceRule } from "@/types/database";
+import { applyPriceRules } from "@/lib/price-rules";
 import { StorefrontHeader } from "@/components/storefront/header";
 import { PartCard } from "@/components/storefront/part-card";
 import { FiltersSidebar } from "@/components/storefront/filters-sidebar";
@@ -44,21 +45,29 @@ export default function StorefrontPage() {
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [priceRules, setPriceRules] = useState<PriceRule[]>([]);
 
   const fetchParts = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("parts")
-      .select("id, name, price, year, make, model, condition, category, photos, created_at")
-      .eq("is_published", true)
-      .eq("is_sold", false)
-      .order("created_at", { ascending: false });
+    const [partsRes, rulesRes] = await Promise.all([
+      supabase
+        .from("parts")
+        .select("id, name, price, year, make, model, vin, condition, category, photos, created_at")
+        .eq("is_published", true)
+        .eq("is_sold", false)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("price_rules")
+        .select("*")
+        .eq("is_active", true),
+    ]);
 
-    if (error) {
-      console.error("Error fetching parts:", error);
+    if (partsRes.error) {
+      console.error("Error fetching parts:", partsRes.error);
     } else {
-      setParts(data || []);
+      setParts(partsRes.data || []);
     }
+    setPriceRules(rulesRes.data || []);
     setLoading(false);
   }, []);
 
@@ -293,7 +302,7 @@ export default function StorefrontPage() {
             ) : viewMode === "grid" ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredParts.map((part) => (
-                  <PartCard key={part.id} part={part} />
+                  <PartCard key={part.id} part={part} priceRules={priceRules} />
                 ))}
               </div>
             ) : (
@@ -336,7 +345,21 @@ export default function StorefrontPage() {
                           </div>
                         </div>
                         <div className="text-right shrink-0">
-                          <span className="text-lg font-bold">{formatPrice(part.price)}</span>
+                          {(() => {
+                            const pr = priceRules.length > 0 ? applyPriceRules(part as Part, priceRules) : null;
+                            if (pr && pr.hasDiscount) {
+                              return (
+                                <div>
+                                  <span className="text-lg font-bold text-red-600">{formatPrice(pr.finalPrice)}</span>
+                                  <span className="text-sm text-muted-foreground line-through ml-2">{formatPrice(pr.originalPrice)}</span>
+                                </div>
+                              );
+                            }
+                            if (pr && pr.hasMarkup) {
+                              return <span className="text-lg font-bold">{formatPrice(pr.finalPrice)}</span>;
+                            }
+                            return <span className="text-lg font-bold">{formatPrice(part.price)}</span>;
+                          })()}
                           {part.photos && part.photos.length > 1 && (
                             <p className="text-xs text-muted-foreground">{part.photos.length} photos</p>
                           )}

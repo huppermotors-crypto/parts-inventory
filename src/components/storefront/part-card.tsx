@@ -1,7 +1,8 @@
 import { memo } from "react";
-import { Part } from "@/types/database";
+import { Part, PriceRule } from "@/types/database";
 import { getCategoryLabel, getConditionLabel } from "@/lib/constants";
 import { conditionColors, formatPrice, formatVehicle } from "@/lib/utils";
+import { applyPriceRules } from "@/lib/price-rules";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Package } from "lucide-react";
@@ -10,9 +11,10 @@ import Link from "next/link";
 
 interface PartCardProps {
   part: Part;
+  priceRules?: PriceRule[];
 }
 
-export const PartCard = memo(function PartCard({ part }: PartCardProps) {
+export const PartCard = memo(function PartCard({ part, priceRules }: PartCardProps) {
   const vehicle = formatVehicle(part.year, part.make, part.model);
 
   return (
@@ -55,7 +57,21 @@ export const PartCard = memo(function PartCard({ part }: PartCardProps) {
             <p className="text-sm text-muted-foreground">{vehicle}</p>
           )}
           <div className="flex items-center justify-between pt-1">
-            <span className="text-lg font-bold">{formatPrice(part.price)}</span>
+            {(() => {
+              const pr = priceRules && priceRules.length > 0 ? applyPriceRules(part, priceRules) : null;
+              if (pr && pr.hasDiscount) {
+                return (
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-bold text-red-600">{formatPrice(pr.finalPrice)}</span>
+                    <span className="text-sm text-muted-foreground line-through">{formatPrice(pr.originalPrice)}</span>
+                  </div>
+                );
+              }
+              if (pr && pr.hasMarkup) {
+                return <span className="text-lg font-bold">{formatPrice(pr.finalPrice)}</span>;
+              }
+              return <span className="text-lg font-bold">{formatPrice(part.price)}</span>;
+            })()}
             <Badge
               variant="secondary"
               className={`text-xs ${conditionColors[part.condition] || ""}`}

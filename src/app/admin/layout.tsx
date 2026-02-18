@@ -14,6 +14,8 @@ import {
   ExternalLink,
   Menu,
   Download,
+  Percent,
+  DollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -45,6 +47,16 @@ const navItems = [
     label: "Analytics",
     href: "/admin/analytics",
     icon: BarChart3,
+  },
+  {
+    label: "Pricing",
+    href: "/admin/pricing",
+    icon: Percent,
+  },
+  {
+    label: "Stats",
+    href: "/admin/stats",
+    icon: DollarSign,
   },
 ];
 

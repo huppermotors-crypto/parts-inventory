@@ -83,6 +83,23 @@ export function ChatWidget() {
     }
   }, [isOpen]);
 
+  // End session — send log to Telegram when chat closes
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const endSession = useCallback(async () => {
+    if (!sessionId || messages.length === 0) return;
+    try {
+      await fetch("/api/chat/end", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      });
+    } catch {
+      // Silent
+    }
+    setSessionId(null);
+    setMessages([]);
+  }, [sessionId, messages.length]);
+
   // Listen for "open-chat" event from part detail page
   // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
@@ -127,11 +144,12 @@ export function ChatWidget() {
     };
   }, [isOpen, sessionId, pollMessages]);
 
+  const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
   const sendMessage = async () => {
     const text = input.trim();
     if (!text || sending) return;
 
-    setSending(true);
     setInput("");
 
     const visitorId = getVisitorId();
@@ -144,6 +162,10 @@ export function ChatWidget() {
       created_at: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, userMsg]);
+
+    // Simulate "reading" delay before showing typing indicator
+    await delay(1500 + Math.random() * 1000);
+    setSending(true);
 
     try {
       const res = await fetch("/api/chat/send", {
@@ -176,6 +198,9 @@ export function ChatWidget() {
       }
 
       if (data.reply) {
+        // Simulate typing delay based on reply length
+        const typingDelay = Math.min(2000, Math.max(800, data.reply.content.length * 15));
+        await delay(typingDelay);
         setMessages((prev) => [...prev, data.reply]);
       }
     } catch {
@@ -249,7 +274,12 @@ export function ChatWidget() {
               </div>
             </div>
             <button
-              onClick={() => setIsOpen(false)}
+              onClick={() => {
+                setIsOpen(false);
+                if (sessionId && messages.length > 0) {
+                  endSession();
+                }
+              }}
               className="rounded-full p-1 hover:bg-blue-700 focus:outline-none"
               aria-label="Close chat"
             >

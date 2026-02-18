@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Part } from "@/types/database";
+import { Part, PriceRule } from "@/types/database";
+import { applyPriceRules } from "@/lib/price-rules";
 import { getCategoryLabel, getConditionLabel } from "@/lib/constants";
 import { conditionColors, formatPrice, formatVehicle } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -35,9 +36,10 @@ const CONTACT_EMAIL = "hupper.motors@gmail.com";
 
 interface PartDetailClientProps {
   initialPart: Part | null;
+  priceRules?: PriceRule[];
 }
 
-export function PartDetailClient({ initialPart }: PartDetailClientProps) {
+export function PartDetailClient({ initialPart, priceRules = [] }: PartDetailClientProps) {
   const [part, setPart] = useState<Part | null>(initialPart);
   const [activePhoto, setActivePhoto] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -275,9 +277,24 @@ export function PartDetailClient({ initialPart }: PartDetailClientProps) {
                 </Badge>
               </div>
               <h1 className="text-3xl font-bold tracking-tight">{part.name}</h1>
-              <p className="text-3xl font-bold text-primary mt-2">
-                {formatPrice(part.price)}
-              </p>
+              {(() => {
+                const pr = priceRules.length > 0 ? applyPriceRules(part, priceRules) : null;
+                if (pr && pr.hasDiscount) {
+                  return (
+                    <div className="flex items-center gap-3 mt-2">
+                      <p className="text-3xl font-bold text-red-600">{formatPrice(pr.finalPrice)}</p>
+                      <p className="text-xl text-muted-foreground line-through">{formatPrice(pr.originalPrice)}</p>
+                      <Badge variant="destructive" className="text-xs">
+                        -{pr.appliedRule?.amount_type === "percent" ? `${pr.appliedRule.amount}%` : `$${pr.appliedRule?.amount}`}
+                      </Badge>
+                    </div>
+                  );
+                }
+                if (pr && pr.hasMarkup) {
+                  return <p className="text-3xl font-bold text-primary mt-2">{formatPrice(pr.finalPrice)}</p>;
+                }
+                return <p className="text-3xl font-bold text-primary mt-2">{formatPrice(part.price)}</p>;
+              })()}
             </div>
 
             <Separator />
