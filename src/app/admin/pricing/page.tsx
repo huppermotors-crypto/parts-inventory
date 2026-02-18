@@ -43,16 +43,19 @@ import {
   Tag,
   TrendingUp,
   TrendingDown,
+  Search,
 } from "lucide-react";
+import { Part } from "@/types/database";
 
 const supabase = createClient();
 
 interface RuleForm {
   type: "discount" | "markup";
-  scope: "all" | "make" | "model" | "vin";
+  scope: "all" | "make" | "model" | "vin" | "part";
   scope_value: string;
   amount: string;
   amount_type: "percent" | "fixed";
+  part_name: string;
 }
 
 const defaultForm: RuleForm = {
@@ -61,6 +64,7 @@ const defaultForm: RuleForm = {
   scope_value: "",
   amount: "",
   amount_type: "percent",
+  part_name: "",
 };
 
 export default function PricingPage() {
@@ -70,6 +74,9 @@ export default function PricingPage() {
   const [editingRule, setEditingRule] = useState<PriceRule | null>(null);
   const [form, setForm] = useState<RuleForm>(defaultForm);
   const [saving, setSaving] = useState(false);
+  const [partSearch, setPartSearch] = useState("");
+  const [partResults, setPartResults] = useState<Part[]>([]);
+  const [searchingParts, setSearchingParts] = useState(false);
   const { toast } = useToast();
 
   const fetchRules = useCallback(async () => {
@@ -90,21 +97,45 @@ export default function PricingPage() {
     fetchRules();
   }, [fetchRules]);
 
+  const searchParts = useCallback(async (query: string) => {
+    if (query.length < 2) { setPartResults([]); return; }
+    setSearchingParts(true);
+    const { data } = await supabase
+      .from("parts")
+      .select("id, name, make, model, year, price, stock_number")
+      .or(`name.ilike.%${query}%,stock_number.ilike.%${query}%`)
+      .limit(8);
+    setPartResults((data || []) as Part[]);
+    setSearchingParts(false);
+  }, []);
+
   const openCreate = () => {
     setEditingRule(null);
     setForm(defaultForm);
     setDialogOpen(true);
   };
 
-  const openEdit = (rule: PriceRule) => {
+  const openEdit = async (rule: PriceRule) => {
     setEditingRule(rule);
+    let partName = "";
+    if (rule.scope === "part" && rule.scope_value) {
+      const { data } = await supabase
+        .from("parts")
+        .select("name")
+        .eq("id", rule.scope_value)
+        .single();
+      partName = data?.name || rule.scope_value;
+    }
     setForm({
       type: rule.type,
       scope: rule.scope,
       scope_value: rule.scope_value || "",
       amount: String(rule.amount),
       amount_type: rule.amount_type,
+      part_name: partName,
     });
+    setPartSearch("");
+    setPartResults([]);
     setDialogOpen(true);
   };
 
@@ -115,7 +146,7 @@ export default function PricingPage() {
       return;
     }
     if (form.scope !== "all" && !form.scope_value.trim()) {
-      toast({ title: "Error", description: "Please enter a value for the selected scope", variant: "destructive" });
+      toast({ title: "Error", description: form.scope === "part" ? "Please select a part" : "Please enter a value for the selected scope", variant: "destructive" });
       return;
     }
 
@@ -198,12 +229,33 @@ export default function PricingPage() {
     }
   };
 
+  const [partNames, setPartNames] = useState<Record<string, string>>({});
+
+  // Load part names for rules with scope=part
+  useEffect(() => {
+    const partRules = rules.filter((r) => r.scope === "part" && r.scope_value && !partNames[r.scope_value]);
+    if (partRules.length === 0) return;
+    const ids = partRules.map((r) => r.scope_value!);
+    supabase
+      .from("parts")
+      .select("id, name")
+      .in("id", ids)
+      .then(({ data }: { data: { id: string; name: string }[] | null }) => {
+        if (data) {
+          const names: Record<string, string> = {};
+          data.forEach((p) => { names[p.id] = p.name; });
+          setPartNames((prev) => ({ ...prev, ...names }));
+        }
+      });
+  }, [rules, partNames]);
+
   const scopeLabel = (scope: string, value: string | null) => {
     switch (scope) {
       case "all": return "All Parts";
       case "make": return value || "—";
       case "model": return value || "—";
       case "vin": return value || "—";
+      case "part": return value ? (partNames[value] || value.slice(0, 8) + "...") : "—";
       default: return "—";
     }
   };
@@ -412,8 +464,9 @@ export default function PricingPage() {
                 onValueChange={(v) =>
                   setForm((f) => ({
                     ...f,
-                    scope: v as "all" | "make" | "model" | "vin",
-                    scope_value: v === "all" ? "" : f.scope_value,
+                    scope: v as "all" | "make" | "model" | "vin" | "part",
+                    scope_value: v === "all" ? "" : v === "part" ? "" : f.scope_value,
+                    part_name: v === "part" ? "" : f.part_name,
                   }))
                 }
               >
@@ -422,6 +475,7 @@ export default function PricingPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Parts</SelectItem>
+                  <SelectItem value="part">Specific Part</SelectItem>
                   <SelectItem value="make">Specific Brand (Make)</SelectItem>
                   <SelectItem value="model">Specific Model</SelectItem>
                   <SelectItem value="vin">Specific VIN</SelectItem>
@@ -430,7 +484,7 @@ export default function PricingPage() {
             </div>
 
             {/* Scope Value */}
-            {form.scope !== "all" && (
+            {form.scope !== "all" && form.scope !== "part" && (
               <div className="space-y-2">
                 <Label>
                   {form.scope === "make" ? "Brand Name" : form.scope === "model" ? "Model Name" : "VIN Number"}
@@ -446,6 +500,70 @@ export default function PricingPage() {
                       : "e.g., 5UXZV4C58D0..."
                   }
                 />
+              </div>
+            )}
+
+            {/* Part Search */}
+            {form.scope === "part" && (
+              <div className="space-y-2">
+                <Label>Search Part</Label>
+                {form.part_name ? (
+                  <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">
+                    <span className="text-sm font-medium flex-1 truncate">{form.part_name}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs"
+                      onClick={() => {
+                        setForm((f) => ({ ...f, scope_value: "", part_name: "" }));
+                        setPartSearch("");
+                        setPartResults([]);
+                      }}
+                    >
+                      Change
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        value={partSearch}
+                        onChange={(e) => {
+                          setPartSearch(e.target.value);
+                          searchParts(e.target.value);
+                        }}
+                        placeholder="Type part name or stock #..."
+                        className="pl-9"
+                      />
+                      {searchingParts && (
+                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
+                    {partResults.length > 0 && (
+                      <div className="border rounded-md max-h-48 overflow-y-auto">
+                        {partResults.map((p) => (
+                          <button
+                            key={p.id}
+                            className="w-full text-left px-3 py-2 hover:bg-muted text-sm border-b last:border-b-0 transition-colors"
+                            onClick={() => {
+                              setForm((f) => ({ ...f, scope_value: p.id, part_name: p.name }));
+                              setPartSearch("");
+                              setPartResults([]);
+                            }}
+                          >
+                            <div className="font-medium truncate">{p.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {[p.year, p.make, p.model].filter(Boolean).join(" ")}
+                              {p.stock_number ? ` · #${p.stock_number}` : ""}
+                              {` · $${p.price}`}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             )}
 

@@ -22,6 +22,7 @@ import {
   ShoppingCart,
   ArrowUpDown,
 } from "lucide-react";
+import { normalizeMakeModel } from "@/lib/utils";
 
 const supabase = createClient();
 
@@ -81,17 +82,20 @@ export default function StatsPage() {
       let key: string;
       let subtitle: string | undefined;
 
+      const normalizedMake = part.make ? normalizeMakeModel(part.make) : null;
+      const normalizedModel = part.model ? normalizeMakeModel(part.model) : null;
+
       switch (groupBy) {
         case "vin":
           key = part.vin || "No VIN";
-          subtitle = [part.year, part.make, part.model].filter(Boolean).join(" ") || undefined;
+          subtitle = [part.year, normalizedMake, normalizedModel].filter(Boolean).join(" ") || undefined;
           break;
         case "make":
-          key = part.make || "Unknown";
+          key = normalizedMake || "Unknown";
           break;
         case "model":
-          key = part.model
-            ? `${part.make || ""} ${part.model}`.trim()
+          key = normalizedModel
+            ? `${normalizedMake || ""} ${normalizedModel}`.trim()
             : "Unknown";
           break;
       }

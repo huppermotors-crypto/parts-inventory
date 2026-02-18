@@ -391,7 +391,7 @@ export async function POST(request: NextRequest) {
         role: "assistant",
         content: cleanReply,
       })
-      .select("role, content, created_at")
+      .select("id, role, content, created_at")
       .single();
 
     // Handle escalation

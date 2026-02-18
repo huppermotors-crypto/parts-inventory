@@ -35,6 +35,13 @@ export function ChatWidget() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const sendingRef = useRef(false);
+  const sessionIdRef = useRef<string | null>(null);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
 
   // Don't render on admin or login pages
   if (
@@ -86,19 +93,19 @@ export function ChatWidget() {
   // End session — send log to Telegram when chat closes
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const endSession = useCallback(async () => {
-    if (!sessionId || messages.length === 0) return;
+    if (!sessionIdRef.current || messages.length === 0) return;
     try {
       await fetch("/api/chat/end", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId }),
+        body: JSON.stringify({ sessionId: sessionIdRef.current }),
       });
     } catch {
       // Silent
     }
     setSessionId(null);
     setMessages([]);
-  }, [sessionId, messages.length]);
+  }, [messages.length]);
 
   // Listen for "open-chat" event from part detail page
   // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -108,36 +115,30 @@ export function ChatWidget() {
     return () => window.removeEventListener("open-chat", handler);
   }, []);
 
-  // Polling for new messages
+  // Polling for new messages (only when NOT sending)
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const pollMessages = useCallback(async () => {
-    if (!sessionId) return;
-    const lastMsg = messages[messages.length - 1];
-    const after = lastMsg?.created_at || "";
+    // Skip polling while actively sending to prevent duplicates
+    if (!sessionIdRef.current || sendingRef.current) return;
     try {
       const res = await fetch(
-        `/api/chat/messages?sessionId=${sessionId}&after=${encodeURIComponent(after)}`
+        `/api/chat/messages?sessionId=${sessionIdRef.current}&after=`
       );
       if (!res.ok) return;
       const data = await res.json();
       if (data.messages && data.messages.length > 0) {
-        setMessages((prev) => {
-          const existingIds = new Set(prev.map((m) => m.id).filter(Boolean));
-          const newMsgs = data.messages.filter(
-            (m: ChatMessage) => !existingIds.has(m.id)
-          );
-          return newMsgs.length > 0 ? [...prev, ...newMsgs] : prev;
-        });
+        // Full sync from server — replace all messages to avoid duplicates
+        setMessages(data.messages);
       }
     } catch {
       // Silent fail
     }
-  }, [sessionId, messages]);
+  }, []);
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     if (isOpen && sessionId) {
-      pollRef.current = setInterval(pollMessages, 3000);
+      pollRef.current = setInterval(pollMessages, 4000);
     }
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
@@ -151,6 +152,7 @@ export function ChatWidget() {
     if (!text || sending) return;
 
     setInput("");
+    sendingRef.current = true;
 
     const visitorId = getVisitorId();
     const partContext = getPartContext();
@@ -163,8 +165,9 @@ export function ChatWidget() {
     };
     setMessages((prev) => [...prev, userMsg]);
 
-    // Simulate "reading" delay before showing typing indicator
-    await delay(1500 + Math.random() * 1000);
+    // Simulate "reading" delay — human needs time to read the message
+    const readDelay = 1500 + Math.random() * 1500;
+    await delay(readDelay);
     setSending(true);
 
     try {
@@ -198,8 +201,9 @@ export function ChatWidget() {
       }
 
       if (data.reply) {
-        // Simulate typing delay based on reply length
-        const typingDelay = Math.min(2000, Math.max(800, data.reply.content.length * 15));
+        // Human-like typing delay — longer replies take longer to "type"
+        const replyLen = data.reply.content.length;
+        const typingDelay = Math.min(4000, Math.max(1500, replyLen * 20));
         await delay(typingDelay);
         setMessages((prev) => [...prev, data.reply]);
       }
@@ -212,6 +216,7 @@ export function ChatWidget() {
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
       setSending(false);
+      sendingRef.current = false;
     }
   };
 

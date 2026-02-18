@@ -29,7 +29,7 @@ export type PartUpdate = Partial<PartInsert>;
 export interface PriceRule {
   id: string;
   type: "discount" | "markup";
-  scope: "all" | "make" | "model" | "vin";
+  scope: "all" | "make" | "model" | "vin" | "part";
   scope_value: string | null;
   amount: number;
   amount_type: "percent" | "fixed";

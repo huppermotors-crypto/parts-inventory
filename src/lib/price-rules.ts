@@ -15,7 +15,7 @@ export interface PriceResult {
 export function applyPriceRules(part: Part, rules: PriceRule[]): PriceResult {
   const activeRules = rules.filter((r) => r.is_active);
 
-  const scopePriority: Record<string, number> = { vin: 4, model: 3, make: 2, all: 1 };
+  const scopePriority: Record<string, number> = { part: 5, vin: 4, model: 3, make: 2, all: 1 };
 
   const matching = activeRules.filter((rule) => {
     switch (rule.scope) {
@@ -38,6 +38,11 @@ export function applyPriceRules(part: Part, rules: PriceRule[]): PriceResult {
           part.vin &&
           rule.scope_value &&
           part.vin.toLowerCase() === rule.scope_value.toLowerCase()
+        );
+      case "part":
+        return (
+          rule.scope_value &&
+          part.id === rule.scope_value
         );
       default:
         return false;
