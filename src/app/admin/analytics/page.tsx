@@ -38,6 +38,8 @@ const VisitorMap = dynamic(
   { ssr: false, loading: () => <div className="h-64 bg-slate-100 animate-pulse rounded-b-lg" /> }
 );
 
+const SELF_DOMAINS = ["onrender.com", "vercel.app", "localhost"];
+
 function CountryBadge({ code }: { code: string | null }) {
   if (!code) return null;
   return (
@@ -241,15 +243,13 @@ export default function AnalyticsPage() {
       .sort((a, b) => b.count - a.count);
   }, [views]);
 
-  const SELF_DOMAINS = ["onrender.com", "vercel.app", "localhost"];
-
   // --- Referrers ---
   const referrers = useMemo(() => {
     const counts = new Map<string, number>();
     let directCount = 0;
     for (const v of views) {
       const ref = v.referrer;
-      const isSelf = ref && SELF_DOMAINS.some(d => ref.includes(d));
+      const isSelf = ref && SELF_DOMAINS.some((d: string) => ref.includes(d));
       if (ref && !isSelf) {
         counts.set(ref, (counts.get(ref) || 0) + 1);
       } else {
@@ -743,7 +743,7 @@ export default function AnalyticsPage() {
                         <TableCell className="text-xs text-muted-foreground">
                           {(() => {
                             const ref = v.referrer;
-                            const isSelf = ref && SELF_DOMAINS.some(d => ref.includes(d));
+                            const isSelf = ref && SELF_DOMAINS.some((d: string) => ref.includes(d));
                             return isSelf || !ref ? "Direct" : ref;
                           })()}
                         </TableCell>
