@@ -82,7 +82,7 @@ export function ChatWidget() {
     return () => window.removeEventListener("open-chat", handler);
   }, []);
 
-  // Polling for new messages (only when NOT sending)
+  // Polling for new messages (operator replies only, never removes messages)
   const pollMessages = useCallback(async () => {
     if (!sessionIdRef.current || sendingRef.current) return;
     try {
@@ -92,7 +92,12 @@ export function ChatWidget() {
       if (!res.ok) return;
       const data = await res.json();
       if (data.messages && data.messages.length > 0) {
-        setMessages(data.messages);
+        setMessages((prev) => {
+          // Only update if server has MORE messages (e.g., operator reply came in)
+          // Never replace with fewer — prevents race condition message loss
+          if (data.messages.length <= prev.length) return prev;
+          return data.messages;
+        });
       }
     } catch {
       // Silent fail
