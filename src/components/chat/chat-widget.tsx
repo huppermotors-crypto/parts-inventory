@@ -27,6 +27,8 @@ interface PartContext {
 
 export function ChatWidget() {
   const pathname = usePathname();
+  const isPartPage = pathname.startsWith("/parts/");
+
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -43,8 +45,71 @@ export function ChatWidget() {
     sessionIdRef.current = sessionId;
   }, [sessionId]);
 
-  // Only render on part detail pages (chat opens via "Chat with Manager" button)
-  if (!pathname.startsWith("/parts/")) {
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
+
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  // End session — send log to Telegram when chat closes
+  const endSession = useCallback(async () => {
+    if (!sessionIdRef.current || messages.length === 0) return;
+    try {
+      await fetch("/api/chat/end", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: sessionIdRef.current }),
+      });
+    } catch {
+      // Silent
+    }
+    setSessionId(null);
+    setMessages([]);
+  }, [messages.length]);
+
+  // Listen for "open-chat" event from part detail page
+  useEffect(() => {
+    const handler = () => setIsOpen(true);
+    window.addEventListener("open-chat", handler);
+    return () => window.removeEventListener("open-chat", handler);
+  }, []);
+
+  // Polling for new messages (only when NOT sending)
+  const pollMessages = useCallback(async () => {
+    if (!sessionIdRef.current || sendingRef.current) return;
+    try {
+      const res = await fetch(
+        `/api/chat/messages?sessionId=${sessionIdRef.current}&after=`
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.messages && data.messages.length > 0) {
+        setMessages(data.messages);
+      }
+    } catch {
+      // Silent fail
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && sessionId) {
+      pollRef.current = setInterval(pollMessages, 4000);
+    }
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [isOpen, sessionId, pollMessages]);
+
+  // Only render on part detail pages
+  if (!isPartPage) {
     return null;
   }
 
@@ -70,77 +135,6 @@ export function ChatWidget() {
     }
   };
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isOpen]);
-
-  // End session — send log to Telegram when chat closes
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const endSession = useCallback(async () => {
-    if (!sessionIdRef.current || messages.length === 0) return;
-    try {
-      await fetch("/api/chat/end", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: sessionIdRef.current }),
-      });
-    } catch {
-      // Silent
-    }
-    setSessionId(null);
-    setMessages([]);
-  }, [messages.length]);
-
-  // Listen for "open-chat" event from part detail page
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
-    const handler = () => setIsOpen(true);
-    window.addEventListener("open-chat", handler);
-    return () => window.removeEventListener("open-chat", handler);
-  }, []);
-
-  // Polling for new messages (only when NOT sending)
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const pollMessages = useCallback(async () => {
-    // Skip polling while actively sending to prevent duplicates
-    if (!sessionIdRef.current || sendingRef.current) return;
-    try {
-      const res = await fetch(
-        `/api/chat/messages?sessionId=${sessionIdRef.current}&after=`
-      );
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data.messages && data.messages.length > 0) {
-        // Full sync from server — replace all messages to avoid duplicates
-        setMessages(data.messages);
-      }
-    } catch {
-      // Silent fail
-    }
-  }, []);
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
-    if (isOpen && sessionId) {
-      pollRef.current = setInterval(pollMessages, 4000);
-    }
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, [isOpen, sessionId, pollMessages]);
-
   const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
   const sendMessage = async () => {
@@ -153,7 +147,6 @@ export function ChatWidget() {
     const visitorId = getVisitorId();
     const partContext = getPartContext();
 
-    // Optimistic: add user message immediately
     const userMsg: ChatMessage = {
       role: "user",
       content: text,
@@ -161,7 +154,6 @@ export function ChatWidget() {
     };
     setMessages((prev) => [...prev, userMsg]);
 
-    // Simulate "reading" delay — human needs time to read the message
     const readDelay = 1500 + Math.random() * 1500;
     await delay(readDelay);
     setSending(true);
@@ -182,8 +174,7 @@ export function ChatWidget() {
         const err = await res.json().catch(() => ({}));
         const errorMsg: ChatMessage = {
           role: "assistant",
-          content:
-            err.error || "Something went wrong. Please try again.",
+          content: err.error || "Something went wrong. Please try again.",
           created_at: new Date().toISOString(),
         };
         setMessages((prev) => [...prev, errorMsg]);
@@ -197,7 +188,6 @@ export function ChatWidget() {
       }
 
       if (data.reply) {
-        // Human-like typing delay — longer replies take longer to "type"
         const replyLen = data.reply.content.length;
         const typingDelay = Math.min(4000, Math.max(1500, replyLen * 20));
         await delay(typingDelay);
@@ -231,7 +221,6 @@ export function ChatWidget() {
         </div>
       );
     }
-    // John S. avatar for both assistant and operator
     return (
       <div className="mt-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white text-xs font-bold">
         JS
@@ -247,7 +236,6 @@ export function ChatWidget() {
 
   return (
     <>
-      {/* Chat window — opens only via "Chat with Manager" button on part page */}
       {isOpen && (
         <div className="fixed bottom-6 right-6 z-50 flex w-[360px] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:w-[400px]"
           style={{ height: "min(500px, calc(100vh - 48px))" }}
