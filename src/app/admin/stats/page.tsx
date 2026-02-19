@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Part } from "@/types/database";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, getLotPrice } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -52,7 +52,7 @@ export default function StatsPage() {
     setLoading(true);
     const { data } = await supabase
       .from("parts")
-      .select("id, name, price, vin, make, model, year, is_sold, is_published")
+      .select("id, name, price, quantity, price_per, vin, make, model, year, is_sold, is_published")
       .order("created_at", { ascending: false });
     setParts((data || []) as Part[]);
     setLoading(false);
@@ -62,16 +62,18 @@ export default function StatsPage() {
     fetchParts();
   }, [fetchParts]);
 
+  const partLotPrice = (p: Part) => getLotPrice(p.price, p.quantity || 1, p.price_per || "lot");
+
   const overallStats = useMemo(() => {
     const inStock = parts.filter((p) => !p.is_sold);
     const sold = parts.filter((p) => p.is_sold);
     return {
       totalParts: parts.length,
-      totalValue: parts.reduce((s, p) => s + p.price, 0),
+      totalValue: parts.reduce((s, p) => s + partLotPrice(p), 0),
       inStockParts: inStock.length,
-      inStockValue: inStock.reduce((s, p) => s + p.price, 0),
+      inStockValue: inStock.reduce((s, p) => s + partLotPrice(p), 0),
       soldParts: sold.length,
-      soldValue: sold.reduce((s, p) => s + p.price, 0),
+      soldValue: sold.reduce((s, p) => s + partLotPrice(p), 0),
     };
   }, [parts]);
 
@@ -111,14 +113,15 @@ export default function StatsPage() {
         soldValue: 0,
       };
 
+      const lp = partLotPrice(part);
       existing.partCount++;
-      existing.totalValue += part.price;
+      existing.totalValue += lp;
       if (part.is_sold) {
         existing.soldCount++;
-        existing.soldValue += part.price;
+        existing.soldValue += lp;
       } else {
         existing.inStockCount++;
-        existing.inStockValue += part.price;
+        existing.inStockValue += lp;
       }
       if (subtitle && !existing.subtitle) existing.subtitle = subtitle;
 

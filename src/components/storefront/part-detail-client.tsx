@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Part, PriceRule } from "@/types/database";
 import { applyPriceRules } from "@/lib/price-rules";
 import { getCategoryLabel, getConditionLabel } from "@/lib/constants";
-import { conditionColors, formatPrice, formatVehicle } from "@/lib/utils";
+import { conditionColors, formatPrice, formatVehicle, getLotPrice, getItemPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -140,6 +140,8 @@ export function PartDetailClient({ initialPart, priceRules = [] }: PartDetailCli
     year: part.year || "",
     vin: part.vin || "",
     serial_number: part.serial_number || "",
+    quantity: part.quantity || 1,
+    price_per: part.price_per || "lot",
   };
 
   return (
@@ -275,25 +277,41 @@ export function PartDetailClient({ initialPart, priceRules = [] }: PartDetailCli
                 >
                   {getConditionLabel(part.condition)}
                 </Badge>
+                {(part.quantity || 1) > 1 && (
+                  <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800">
+                    Lot of {part.quantity}
+                  </Badge>
+                )}
               </div>
               <h1 className="text-3xl font-bold tracking-tight">{part.name}</h1>
               {(() => {
-                const pr = priceRules.length > 0 ? applyPriceRules(part, priceRules) : null;
-                if (pr && pr.hasDiscount) {
-                  return (
-                    <div className="flex items-center gap-3 mt-2">
-                      <p className="text-3xl font-bold text-red-600">{formatPrice(pr.finalPrice)}</p>
-                      <p className="text-xl text-muted-foreground line-through">{formatPrice(pr.originalPrice)}</p>
-                      <Badge variant="destructive" className="text-xs">
-                        -{pr.appliedRule?.amount_type === "percent" ? `${pr.appliedRule.amount}%` : `$${pr.appliedRule?.amount}`}
-                      </Badge>
-                    </div>
-                  );
-                }
-                if (pr && pr.hasMarkup) {
-                  return <p className="text-3xl font-bold text-primary mt-2">{formatPrice(pr.finalPrice)}</p>;
-                }
-                return <p className="text-3xl font-bold text-primary mt-2">{formatPrice(part.price)}</p>;
+                const qty = part.quantity || 1;
+                const pp = part.price_per || "lot";
+                const lotPrice = getLotPrice(part.price, qty, pp);
+                const itemPrice = getItemPrice(part.price, qty, pp);
+                const pr = priceRules.length > 0 ? applyPriceRules({ ...part, price: lotPrice }, priceRules) : null;
+                const displayPrice = pr && (pr.hasDiscount || pr.hasMarkup) ? pr.finalPrice : lotPrice;
+
+                return (
+                  <div className="mt-2">
+                    {pr && pr.hasDiscount ? (
+                      <div className="flex items-center gap-3">
+                        <p className="text-3xl font-bold text-red-600">{formatPrice(pr.finalPrice)}</p>
+                        <p className="text-xl text-muted-foreground line-through">{formatPrice(lotPrice)}</p>
+                        <Badge variant="destructive" className="text-xs">
+                          -{pr.appliedRule?.amount_type === "percent" ? `${pr.appliedRule.amount}%` : `$${pr.appliedRule?.amount}`}
+                        </Badge>
+                      </div>
+                    ) : (
+                      <p className="text-3xl font-bold text-primary">{formatPrice(displayPrice)}</p>
+                    )}
+                    {qty > 1 && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Lot of {qty} · {formatPrice(pr && pr.hasDiscount ? pr.finalPrice / qty : itemPrice)}/ea
+                      </p>
+                    )}
+                  </div>
+                );
               })()}
             </div>
 

@@ -8,7 +8,7 @@ import {
   getCategoryLabel,
   getConditionLabel,
 } from "@/lib/constants";
-import { conditionColors, formatPrice, formatVehicle, normalizeMakeModel } from "@/lib/utils";
+import { conditionColors, formatPrice, formatVehicle, normalizeMakeModel, getLotPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -142,16 +142,18 @@ export default function DashboardPage() {
   }, [fetchParts]);
 
   // --- Stats ---
+  const partLotPrice = (p: Part) => getLotPrice(p.price, p.quantity || 1, p.price_per || "lot");
+
   const stats = useMemo(() => {
     const total = parts.length;
     const live = parts.filter((p) => p.is_published && !p.is_sold).length;
     const sold = parts.filter((p) => p.is_sold).length;
     const inventoryValue = parts
       .filter((p) => !p.is_sold)
-      .reduce((sum, p) => sum + p.price, 0);
+      .reduce((sum, p) => sum + partLotPrice(p), 0);
     const soldValue = parts
       .filter((p) => p.is_sold)
-      .reduce((sum, p) => sum + p.price, 0);
+      .reduce((sum, p) => sum + partLotPrice(p), 0);
     return { total, live, sold, inventoryValue, soldValue };
   }, [parts]);
 
@@ -331,6 +333,13 @@ export default function DashboardPage() {
         description: "Failed to update status. Reverted.",
         variant: "destructive",
       });
+    } else if (newIsSold && part.fb_posted_at) {
+      toast({
+        title: "Marked as Sold — Update Facebook!",
+        description: `"${part.name}" was posted on FB. Don't forget to mark it as sold or remove the listing.`,
+        duration: 10000,
+      });
+      window.open("https://www.facebook.com/marketplace/you/selling", "_blank");
     }
   };
 
@@ -483,7 +492,7 @@ export default function DashboardPage() {
     const partData = {
       id: part.id,
       title: part.name,
-      price: part.price,
+      price: partLotPrice(part),
       description: part.description || "",
       condition: part.condition,
       category: part.category,
@@ -493,6 +502,8 @@ export default function DashboardPage() {
       year: part.year || "",
       vin: part.vin || "",
       serial_number: part.serial_number || "",
+      quantity: part.quantity || 1,
+      price_per: part.price_per || "lot",
     };
 
     window.dispatchEvent(
@@ -868,7 +879,14 @@ export default function DashboardPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {formatPrice(part.price)}
+                      <div>
+                        {formatPrice(partLotPrice(part))}
+                        {(part.quantity || 1) > 1 && (
+                          <p className="text-[10px] text-muted-foreground font-normal">
+                            {part.quantity} × {formatPrice(part.price_per === "item" ? part.price : part.price / part.quantity)}
+                          </p>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-1">
@@ -1084,7 +1102,12 @@ export default function DashboardPage() {
                   {formatVehicle(part.year, part.make, part.model) || "No vehicle info"}
                 </p>
                 <div className="flex items-center justify-between mt-2">
-                  <span className="font-bold">{formatPrice(part.price)}</span>
+                  <div>
+                    <span className="font-bold">{formatPrice(partLotPrice(part))}</span>
+                    {(part.quantity || 1) > 1 && (
+                      <p className="text-[10px] text-muted-foreground">{part.quantity}× {formatPrice(part.price_per === "item" ? part.price : part.price / part.quantity)}/ea</p>
+                    )}
+                  </div>
                   <Badge
                     variant="secondary"
                     className={`text-xs ${conditionColors[part.condition] || ""}`}

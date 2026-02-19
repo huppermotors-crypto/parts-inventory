@@ -56,6 +56,8 @@ export function EditPartDialog({
   const [description, setDescription] = useState("");
   const [serialNumber, setSerialNumber] = useState("");
   const [price, setPrice] = useState("");
+  const [quantity, setQuantity] = useState("1");
+  const [pricePer, setPricePer] = useState<"lot" | "item">("lot");
   const [condition, setCondition] = useState("used");
   const [category, setCategory] = useState("other");
   const [isPublished, setIsPublished] = useState(true);
@@ -74,6 +76,8 @@ export function EditPartDialog({
       setDescription(part.description || "");
       setSerialNumber(part.serial_number || "");
       setPrice(part.price?.toString() || "0");
+      setQuantity(part.quantity?.toString() || "1");
+      setPricePer(part.price_per || "lot");
       setCondition(part.condition);
       setCategory(part.category || "other");
       setIsPublished(part.is_published);
@@ -205,6 +209,8 @@ export function EditPartDialog({
           description: description.trim() || null,
           serial_number: serialNumber.trim() || null,
           price: parseFloat(price) || 0,
+          quantity: parseInt(quantity, 10) || 1,
+          price_per: pricePer,
           condition,
           category,
           is_published: isPublished,
@@ -308,6 +314,30 @@ export function EditPartDialog({
                 min={0}
                 step={0.01}
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Quantity in Lot</Label>
+              <Input
+                type="number"
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+                min={1}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Price Per</Label>
+              <Select value={pricePer} onValueChange={(v) => setPricePer(v as "lot" | "item")}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="lot">Entire Lot</SelectItem>
+                  <SelectItem value="item">Per Item</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

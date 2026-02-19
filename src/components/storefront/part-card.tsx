@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { Part, PriceRule } from "@/types/database";
 import { getCategoryLabel, getConditionLabel } from "@/lib/constants";
-import { conditionColors, formatPrice, formatVehicle } from "@/lib/utils";
+import { conditionColors, formatPrice, formatVehicle, getLotPrice, getItemPrice } from "@/lib/utils";
 import { applyPriceRules } from "@/lib/price-rules";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -58,19 +58,32 @@ export const PartCard = memo(function PartCard({ part, priceRules }: PartCardPro
           )}
           <div className="flex items-center justify-between pt-1">
             {(() => {
-              const pr = priceRules && priceRules.length > 0 ? applyPriceRules(part, priceRules) : null;
-              if (pr && pr.hasDiscount) {
-                return (
+              const qty = part.quantity || 1;
+              const pp = part.price_per || "lot";
+              const lotPrice = getLotPrice(part.price, qty, pp);
+              const itemPrice = getItemPrice(part.price, qty, pp);
+              const pr = priceRules && priceRules.length > 0 ? applyPriceRules({ ...part, price: lotPrice }, priceRules) : null;
+              const displayPrice = pr && (pr.hasDiscount || pr.hasMarkup) ? pr.finalPrice : lotPrice;
+
+              return (
+                <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-lg font-bold text-red-600">{formatPrice(pr.finalPrice)}</span>
-                    <span className="text-sm text-muted-foreground line-through">{formatPrice(pr.originalPrice)}</span>
+                    {pr && pr.hasDiscount ? (
+                      <>
+                        <span className="text-lg font-bold text-red-600">{formatPrice(pr.finalPrice)}</span>
+                        <span className="text-sm text-muted-foreground line-through">{formatPrice(lotPrice)}</span>
+                      </>
+                    ) : (
+                      <span className="text-lg font-bold">{formatPrice(displayPrice)}</span>
+                    )}
                   </div>
-                );
-              }
-              if (pr && pr.hasMarkup) {
-                return <span className="text-lg font-bold">{formatPrice(pr.finalPrice)}</span>;
-              }
-              return <span className="text-lg font-bold">{formatPrice(part.price)}</span>;
+                  {qty > 1 && (
+                    <p className="text-xs text-muted-foreground">
+                      Lot of {qty} · {formatPrice(pr && pr.hasDiscount ? pr.finalPrice / qty : itemPrice)}/ea
+                    </p>
+                  )}
+                </div>
+              );
             })()}
             <Badge
               variant="secondary"

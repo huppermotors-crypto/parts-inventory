@@ -8,7 +8,7 @@ import { StorefrontHeader } from "@/components/storefront/header";
 import { PartCard } from "@/components/storefront/part-card";
 import { FiltersSidebar } from "@/components/storefront/filters-sidebar";
 import { getCategoryLabel, getConditionLabel } from "@/lib/constants";
-import { conditionColors, formatPrice, formatVehicle } from "@/lib/utils";
+import { conditionColors, formatPrice, formatVehicle, getLotPrice, getItemPrice } from "@/lib/utils";
 import { Package, Loader2, SlidersHorizontal, X, ArrowUpDown, LayoutGrid, List } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -52,7 +52,7 @@ export default function StorefrontPage() {
     const [partsRes, rulesRes] = await Promise.all([
       supabase
         .from("parts")
-        .select("id, name, price, year, make, model, vin, condition, category, photos, created_at")
+        .select("id, name, price, quantity, price_per, year, make, model, vin, condition, category, photos, created_at")
         .eq("is_published", true)
         .eq("is_sold", false)
         .order("created_at", { ascending: false }),
@@ -346,19 +346,28 @@ export default function StorefrontPage() {
                         </div>
                         <div className="text-right shrink-0">
                           {(() => {
-                            const pr = priceRules.length > 0 ? applyPriceRules(part as Part, priceRules) : null;
-                            if (pr && pr.hasDiscount) {
-                              return (
-                                <div>
-                                  <span className="text-lg font-bold text-red-600">{formatPrice(pr.finalPrice)}</span>
-                                  <span className="text-sm text-muted-foreground line-through ml-2">{formatPrice(pr.originalPrice)}</span>
-                                </div>
-                              );
-                            }
-                            if (pr && pr.hasMarkup) {
-                              return <span className="text-lg font-bold">{formatPrice(pr.finalPrice)}</span>;
-                            }
-                            return <span className="text-lg font-bold">{formatPrice(part.price)}</span>;
+                            const qty = part.quantity || 1;
+                            const pp = part.price_per || "lot";
+                            const lotPrice = getLotPrice(part.price, qty, pp);
+                            const itemPrice = getItemPrice(part.price, qty, pp);
+                            const pr = priceRules.length > 0 ? applyPriceRules({ ...part, price: lotPrice } as Part, priceRules) : null;
+                            const displayPrice = pr && (pr.hasDiscount || pr.hasMarkup) ? pr.finalPrice : lotPrice;
+
+                            return (
+                              <div>
+                                {pr && pr.hasDiscount ? (
+                                  <>
+                                    <span className="text-lg font-bold text-red-600">{formatPrice(pr.finalPrice)}</span>
+                                    <span className="text-sm text-muted-foreground line-through ml-2">{formatPrice(lotPrice)}</span>
+                                  </>
+                                ) : (
+                                  <span className="text-lg font-bold">{formatPrice(displayPrice)}</span>
+                                )}
+                                {qty > 1 && (
+                                  <p className="text-xs text-muted-foreground">Lot of {qty} · {formatPrice(pr && pr.hasDiscount ? pr.finalPrice / qty : itemPrice)}/ea</p>
+                                )}
+                              </div>
+                            );
                           })()}
                           {part.photos && part.photos.length > 1 && (
                             <p className="text-xs text-muted-foreground">{part.photos.length} photos</p>

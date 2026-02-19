@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { PartDetailClient } from "@/components/storefront/part-detail-client";
 import { getConditionLabel } from "@/lib/constants";
 import { applyPriceRules } from "@/lib/price-rules";
+import { getLotPrice } from "@/lib/utils";
 import { PriceRule } from "@/types/database";
 
 interface Props {
@@ -68,8 +69,10 @@ export default async function PartDetailPage({ params }: Props) {
     getActivePriceRules(),
   ]);
 
-  const priceResult = part ? applyPriceRules(part, priceRules) : null;
-  const displayPrice = priceResult ? priceResult.finalPrice : part?.price;
+  const lotPrice = part ? getLotPrice(part.price, part.quantity || 1, part.price_per || "lot") : 0;
+  const partForRules = part ? { ...part, price: lotPrice } : null;
+  const priceResult = partForRules ? applyPriceRules(partForRules, priceRules) : null;
+  const displayPrice = priceResult ? priceResult.finalPrice : lotPrice;
 
   const jsonLd = part
     ? {

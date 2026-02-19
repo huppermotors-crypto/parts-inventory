@@ -65,6 +65,8 @@ export default function AddPartPage() {
   const [description, setDescription] = useState("");
   const [serialNumber, setSerialNumber] = useState("");
   const [price, setPrice] = useState("");
+  const [quantity, setQuantity] = useState("1");
+  const [pricePer, setPricePer] = useState<"lot" | "item">("lot");
   const [condition, setCondition] = useState("used");
   const [category, setCategory] = useState("other");
   const [photos, setPhotos] = useState<PhotoFile[]>([]);
@@ -327,6 +329,8 @@ export default function AddPartPage() {
         description: description.trim() || null,
         serial_number: serialNumber.trim() || null,
         price: parseFloat(price) || 0,
+        quantity: parseInt(quantity, 10) || 1,
+        price_per: pricePer,
         condition,
         category,
         photos: photoUrls,
@@ -577,6 +581,32 @@ export default function AddPartPage() {
                   step={0.01}
                   required
                 />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="quantity">Quantity in Lot</Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  placeholder="1"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  min={1}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Price Per</Label>
+                <Select value={pricePer} onValueChange={(v) => setPricePer(v as "lot" | "item")}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="lot">Entire Lot</SelectItem>
+                    <SelectItem value="item">Per Item</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

@@ -31,6 +31,26 @@ export function formatVehicle(
 }
 
 /**
+ * Calculate lot price: the total price for the whole lot.
+ * price_per = "lot"  → lot_price = price (already total)
+ * price_per = "item" → lot_price = price × quantity
+ */
+export function getLotPrice(price: number, quantity: number, pricePer: "lot" | "item"): number {
+  if (pricePer === "item") return price * quantity;
+  return price;
+}
+
+/**
+ * Calculate per-item price.
+ * price_per = "lot"  → item_price = price / quantity
+ * price_per = "item" → item_price = price
+ */
+export function getItemPrice(price: number, quantity: number, pricePer: "lot" | "item"): number {
+  if (pricePer === "lot" && quantity > 1) return price / quantity;
+  return price;
+}
+
+/**
  * Normalize make/model to consistent Title Case.
  * "FORD" → "Ford", "BMW" → "BMW", "CADILLAC" → "Cadillac"
  * Short all-caps words (≤3 chars) stay uppercase (BMW, GMC, etc.)

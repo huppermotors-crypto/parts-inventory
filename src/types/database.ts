@@ -13,6 +13,8 @@ export interface Part {
   price: number;
   condition: string;
   category: string;
+  quantity: number;
+  price_per: "lot" | "item";
   photos: string[];
   is_published: boolean;
   is_sold: boolean;
