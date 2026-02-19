@@ -15,8 +15,20 @@ export async function POST(request: NextRequest) {
     const adminClient = getAdminClient();
     if (!adminClient) return NextResponse.json({ ok: true });
 
-    const { sessionId } = await request.json();
-    if (!sessionId) return NextResponse.json({ ok: true });
+    const { sessionId, visitorId } = await request.json();
+    if (!sessionId || !visitorId) return NextResponse.json({ ok: true });
+
+    // Verify session belongs to this visitor
+    const { data: session } = await adminClient
+      .from("chat_sessions")
+      .select("id")
+      .eq("id", sessionId)
+      .eq("visitor_id", visitorId)
+      .single();
+
+    if (!session) {
+      return NextResponse.json({ ok: true });
+    }
 
     // Load full conversation
     const { data: messages } = await adminClient

@@ -20,9 +20,22 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const sessionId = searchParams.get("sessionId");
+    const visitorId = searchParams.get("visitorId");
     const after = searchParams.get("after");
 
-    if (!sessionId) {
+    if (!sessionId || !visitorId) {
+      return NextResponse.json({ messages: [] });
+    }
+
+    // Verify session belongs to this visitor
+    const { data: session } = await adminClient
+      .from("chat_sessions")
+      .select("id")
+      .eq("id", sessionId)
+      .eq("visitor_id", visitorId)
+      .single();
+
+    if (!session) {
       return NextResponse.json({ messages: [] });
     }
 

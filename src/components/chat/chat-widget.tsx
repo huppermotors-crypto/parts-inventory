@@ -66,7 +66,7 @@ export function ChatWidget() {
       await fetch("/api/chat/end", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: sessionIdRef.current }),
+        body: JSON.stringify({ sessionId: sessionIdRef.current, visitorId: getVisitorId() }),
       });
     } catch {
       // Silent
@@ -87,7 +87,7 @@ export function ChatWidget() {
     if (!sessionIdRef.current || sendingRef.current) return;
     try {
       const res = await fetch(
-        `/api/chat/messages?sessionId=${sessionIdRef.current}&after=`
+        `/api/chat/messages?sessionId=${sessionIdRef.current}&visitorId=${encodeURIComponent(getVisitorId())}&after=`
       );
       if (!res.ok) return;
       const data = await res.json();
