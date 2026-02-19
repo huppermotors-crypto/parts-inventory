@@ -4,7 +4,7 @@ import { getEbayClient } from "@/lib/ebay-server";
 
 export async function GET() {
   // Auth check
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

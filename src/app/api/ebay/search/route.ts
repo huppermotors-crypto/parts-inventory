@@ -52,7 +52,7 @@ async function getApplicationToken(): Promise<string> {
 
 export async function GET(request: NextRequest) {
   // Auth check — only logged-in users
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

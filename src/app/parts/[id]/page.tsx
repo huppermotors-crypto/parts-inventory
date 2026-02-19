@@ -6,11 +6,11 @@ import { applyPriceRules } from "@/lib/price-rules";
 import { PriceRule } from "@/types/database";
 
 interface Props {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 async function getPart(id: string) {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
   const { data } = await supabase
     .from("parts")
     .select("*")
@@ -21,7 +21,7 @@ async function getPart(id: string) {
 }
 
 async function getActivePriceRules(): Promise<PriceRule[]> {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
   const { data } = await supabase
     .from("price_rules")
     .select("*")
@@ -30,7 +30,8 @@ async function getActivePriceRules(): Promise<PriceRule[]> {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const part = await getPart(params.id);
+  const { id } = await params;
+  const part = await getPart(id);
 
   if (!part) {
     return { title: "Part Not Found" };
@@ -63,8 +64,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function PartDetailPage({ params }: Props) {
+  const { id } = await params;
   const [part, priceRules] = await Promise.all([
-    getPart(params.id),
+    getPart(id),
     getActivePriceRules(),
   ]);
 

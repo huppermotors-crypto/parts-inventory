@@ -5,7 +5,7 @@ import { getEbayCategoryId, getEbayCondition } from "@/lib/ebay-mappings";
 
 export async function POST(request: NextRequest) {
   // Auth check
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

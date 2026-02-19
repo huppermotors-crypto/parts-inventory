@@ -4,7 +4,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 const BASE_URL = "https://parts-inventory.onrender.com";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
 
   const { data: parts } = await supabase
     .from("parts")
