@@ -53,6 +53,7 @@ import {
   EyeOff,
   LayoutGrid,
   LayoutList,
+  Grid3X3,
   List,
   Package,
   Loader2,
@@ -90,7 +91,7 @@ export default function DashboardPage() {
   const [filterMake, setFilterMake] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<StatusFilter>("all");
-  const [viewMode, setViewMode] = useState<"table" | "grid" | "list">("table");
+  const [viewMode, setViewMode] = useState<"table" | "grid" | "compact" | "list">("table");
 
   // Sort state
   const [sortField, setSortField] = useState<SortField>("created_at");
@@ -678,27 +679,44 @@ export default function DashboardPage() {
         {/* Spacer */}
         <div className="hidden sm:block sm:flex-1" />
 
-        {/* View toggle (hidden on mobile, grid is forced) */}
-        <div className="hidden sm:block">
-          <Tabs
-            value={viewMode}
-            onValueChange={(v) => setViewMode(v as "table" | "grid" | "list")}
+        {/* View toggle */}
+        <div className="flex border rounded-md">
+          <Button
+            variant={viewMode === "table" ? "secondary" : "ghost"}
+            size="icon"
+            className="h-9 w-9 rounded-r-none hidden sm:inline-flex"
+            onClick={() => setViewMode("table")}
+            title="Table"
           >
-            <TabsList>
-              <TabsTrigger value="table" className="gap-1.5">
-                <LayoutList className="h-4 w-4" />
-                Table
-              </TabsTrigger>
-              <TabsTrigger value="grid" className="gap-1.5">
-                <LayoutGrid className="h-4 w-4" />
-                Grid
-              </TabsTrigger>
-              <TabsTrigger value="list" className="gap-1.5">
-                <List className="h-4 w-4" />
-                List
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+            <LayoutList className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === "grid" ? "secondary" : "ghost"}
+            size="icon"
+            className="h-9 w-9 rounded-none sm:border-x"
+            onClick={() => setViewMode("grid")}
+            title="Grid"
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === "compact" ? "secondary" : "ghost"}
+            size="icon"
+            className="h-9 w-9 rounded-none border-x sm:border-x-0 sm:border-r"
+            onClick={() => setViewMode("compact")}
+            title="Compact"
+          >
+            <Grid3X3 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === "list" ? "secondary" : "ghost"}
+            size="icon"
+            className="h-9 w-9 rounded-l-none"
+            onClick={() => setViewMode("list")}
+            title="List"
+          >
+            <List className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
@@ -1150,6 +1168,59 @@ export default function DashboardPage() {
               </div>
             );
           })}
+        </div>
+      ) : viewMode === "compact" ? (
+        /* Compact Grid View */
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          {paginatedParts.map((part) => (
+            <Card key={part.id} className="overflow-hidden group">
+              <div className="aspect-square relative bg-muted">
+                {part.photos && part.photos.length > 0 ? (
+                  <Image
+                    src={part.photos[0]}
+                    alt={part.name}
+                    fill
+                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <Package className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                )}
+                <div className="absolute top-1 left-1 flex gap-1">
+                  {part.is_sold && (
+                    <Badge variant="secondary" className="text-[10px] bg-amber-100 text-amber-800 px-1 py-0">Sold</Badge>
+                  )}
+                  {!part.is_sold && !part.is_published && (
+                    <Badge variant="secondary" className="text-[10px] px-1 py-0">Hidden</Badge>
+                  )}
+                </div>
+                <div className="absolute top-1 right-1 flex gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                  <Button variant="secondary" size="icon" className="h-6 w-6" onClick={() => { setEditPart(part); setEditOpen(true); }}>
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className={`h-6 w-6 ${part.is_sold ? "text-green-600" : "text-amber-600"}`}
+                    onClick={() => toggleSold(part)}
+                  >
+                    {part.is_sold ? <Undo2 className="h-3 w-3" /> : <BadgeDollarSign className="h-3 w-3" />}
+                  </Button>
+                </div>
+              </div>
+              <CardContent className="p-2">
+                <h3 className="font-medium text-sm truncate">{part.name}</h3>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="font-bold text-sm">{formatPrice(partLotPrice(part))}</span>
+                  <Badge variant="secondary" className={`text-[10px] ${conditionColors[part.condition] || ""}`}>
+                    {getConditionLabel(part.condition)}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       ) : (
         /* Grid View */

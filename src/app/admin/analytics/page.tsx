@@ -699,7 +699,7 @@ export default function AnalyticsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {views.slice((recentPage - 1) * 50, recentPage * 50).map((v) => (
+                    {views.slice((recentPage - 1) * 20, recentPage * 20).map((v) => (
                       <TableRow key={v.id}>
                         <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                           {new Date(v.created_at).toLocaleString("en-US", {
@@ -753,10 +753,10 @@ export default function AnalyticsPage() {
                 </Table>
               </div>
               {/* Pagination */}
-              {views.length > 50 && (
+              {views.length > 20 && (
                 <div className="flex items-center justify-between px-4 py-3 border-t">
                   <p className="text-sm text-muted-foreground">
-                    {(recentPage - 1) * 50 + 1}&ndash;{Math.min(recentPage * 50, views.length)} of {views.length.toLocaleString()}
+                    {(recentPage - 1) * 20 + 1}&ndash;{Math.min(recentPage * 20, views.length)} of {views.length.toLocaleString()}
                   </p>
                   <div className="flex items-center gap-2">
                     <Button
@@ -769,13 +769,13 @@ export default function AnalyticsPage() {
                       Prev
                     </Button>
                     <span className="text-sm text-muted-foreground">
-                      {recentPage} / {Math.ceil(views.length / 50)}
+                      {recentPage} / {Math.ceil(views.length / 20)}
                     </span>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setRecentPage((p) => Math.min(Math.ceil(views.length / 50), p + 1))}
-                      disabled={recentPage >= Math.ceil(views.length / 50)}
+                      onClick={() => setRecentPage((p) => Math.min(Math.ceil(views.length / 20), p + 1))}
+                      disabled={recentPage >= Math.ceil(views.length / 20)}
                     >
                       Next
                       <ChevronRight className="h-4 w-4 ml-1" />
