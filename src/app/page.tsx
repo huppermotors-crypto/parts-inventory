@@ -9,7 +9,7 @@ import { PartCard } from "@/components/storefront/part-card";
 import { FiltersSidebar } from "@/components/storefront/filters-sidebar";
 import { getCategoryLabel, getConditionLabel } from "@/lib/constants";
 import { conditionColors, formatPrice, formatVehicle, getLotPrice, getItemPrice } from "@/lib/utils";
-import { Package, Loader2, SlidersHorizontal, X, ArrowUpDown, LayoutGrid, List } from "lucide-react";
+import { Package, Loader2, SlidersHorizontal, X, ArrowUpDown, LayoutGrid, List, Grid3X3, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,9 @@ import {
 } from "@/components/ui/sheet";
 
 type SortOption = "newest" | "price_asc" | "price_desc" | "name_asc";
+type ViewMode = "grid" | "compact" | "list";
 
+const PAGE_SIZE = 20;
 const supabase = createClient();
 
 export default function StorefrontPage() {
@@ -43,7 +45,8 @@ export default function StorefrontPage() {
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [currentPage, setCurrentPage] = useState(1);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [priceRules, setPriceRules] = useState<PriceRule[]>([]);
 
@@ -133,6 +136,18 @@ export default function StorefrontPage() {
 
     return filtered;
   }, [parts, search, selectedMake, selectedCategory, selectedCondition, priceMin, priceMax, sortBy]);
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filteredParts.length / PAGE_SIZE));
+  const paginatedParts = filteredParts.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, selectedMake, selectedCategory, selectedCondition, priceMin, priceMax, sortBy]);
 
   const activeFiltersCount =
     (selectedMake ? 1 : 0) +
@@ -252,14 +267,25 @@ export default function StorefrontPage() {
                     size="icon"
                     className="h-9 w-9 rounded-r-none"
                     onClick={() => setViewMode("grid")}
+                    title="Large cards"
                   >
                     <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === "compact" ? "secondary" : "ghost"}
+                    size="icon"
+                    className="h-9 w-9 rounded-none border-x"
+                    onClick={() => setViewMode("compact")}
+                    title="Compact cards"
+                  >
+                    <Grid3X3 className="h-4 w-4" />
                   </Button>
                   <Button
                     variant={viewMode === "list" ? "secondary" : "ghost"}
                     size="icon"
                     className="h-9 w-9 rounded-l-none"
                     onClick={() => setViewMode("list")}
+                    title="List view"
                   >
                     <List className="h-4 w-4" />
                   </Button>
@@ -301,13 +327,19 @@ export default function StorefrontPage() {
               </div>
             ) : viewMode === "grid" ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredParts.map((part) => (
+                {paginatedParts.map((part) => (
                   <PartCard key={part.id} part={part} priceRules={priceRules} />
+                ))}
+              </div>
+            ) : viewMode === "compact" ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                {paginatedParts.map((part) => (
+                  <PartCard key={part.id} part={part} priceRules={priceRules} compact />
                 ))}
               </div>
             ) : (
               <div className="space-y-2">
-                {filteredParts.map((part) => {
+                {paginatedParts.map((part) => {
                   const vehicle = formatVehicle(part.year, part.make, part.model);
                   return (
                     <Link key={part.id} href={`/parts/${part.id}`}>
@@ -377,6 +409,44 @@ export default function StorefrontPage() {
                     </Link>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Pagination */}
+            {!loading && totalPages > 1 && (
+              <div className="flex items-center justify-between pt-4">
+                <p className="text-sm text-muted-foreground">
+                  {(currentPage - 1) * PAGE_SIZE + 1}&ndash;{Math.min(currentPage * PAGE_SIZE, filteredParts.length)} of {filteredParts.length}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setCurrentPage((p) => Math.max(1, p - 1));
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    {currentPage} / {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setCurrentPage((p) => Math.min(totalPages, p + 1));
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
               </div>
             )}
           </div>
