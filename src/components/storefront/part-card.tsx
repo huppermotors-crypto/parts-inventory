@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { Part, PriceRule } from "@/types/database";
 import { getCategoryLabel, getConditionLabel } from "@/lib/constants";
-import { conditionColors, formatPrice, formatVehicle, getLotPrice, getItemPrice } from "@/lib/utils";
+import { conditionColors, formatPrice, formatVehicle } from "@/lib/utils";
 import { applyPriceRules } from "@/lib/price-rules";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,11 +18,9 @@ interface PartCardProps {
 export const PartCard = memo(function PartCard({ part, priceRules, compact }: PartCardProps) {
   const vehicle = formatVehicle(part.year, part.make, part.model);
   const qty = part.quantity || 1;
-  const pp = part.price_per || "lot";
-  const lotPrice = getLotPrice(part.price, qty, pp);
-  const itemPrice = getItemPrice(part.price, qty, pp);
-  const pr = priceRules && priceRules.length > 0 ? applyPriceRules({ ...part, price: lotPrice }, priceRules) : null;
-  const displayPrice = pr && (pr.hasDiscount || pr.hasMarkup) ? pr.finalPrice : lotPrice;
+  // Apply price rules to part.price directly (the entered price, whether per item or per lot)
+  const pr = priceRules && priceRules.length > 0 ? applyPriceRules(part, priceRules) : null;
+  const displayPrice = pr && (pr.hasDiscount || pr.hasMarkup) ? pr.finalPrice : part.price;
 
   return (
     <Link href={`/parts/${part.id}`}>
@@ -69,7 +67,7 @@ export const PartCard = memo(function PartCard({ part, priceRules, compact }: Pa
                 {pr && pr.hasDiscount ? (
                   <>
                     <span className={`font-bold text-red-600 ${compact ? "text-sm" : "text-lg"}`}>{formatPrice(pr.finalPrice)}</span>
-                    {!compact && <span className="text-sm text-muted-foreground line-through">{formatPrice(lotPrice)}</span>}
+                    {!compact && <span className="text-sm text-muted-foreground line-through">{formatPrice(part.price)}</span>}
                   </>
                 ) : (
                   <span className={`font-bold ${compact ? "text-sm" : "text-lg"}`}>{formatPrice(displayPrice)}</span>
@@ -77,7 +75,7 @@ export const PartCard = memo(function PartCard({ part, priceRules, compact }: Pa
               </div>
               {qty > 1 && (
                 <p className={`text-muted-foreground ${compact ? "text-[10px]" : "text-xs"}`}>
-                  Lot of {qty} · {formatPrice(pr && pr.hasDiscount ? pr.finalPrice / qty : itemPrice)}/ea
+                  Lot of {qty}
                 </p>
               )}
             </div>

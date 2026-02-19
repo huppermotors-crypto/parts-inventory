@@ -8,7 +8,7 @@ import { StorefrontHeader } from "@/components/storefront/header";
 import { PartCard } from "@/components/storefront/part-card";
 import { FiltersSidebar } from "@/components/storefront/filters-sidebar";
 import { getCategoryLabel, getConditionLabel } from "@/lib/constants";
-import { conditionColors, formatPrice, formatVehicle, getLotPrice, getItemPrice } from "@/lib/utils";
+import { conditionColors, formatPrice, formatVehicle } from "@/lib/utils";
 import { Package, Loader2, SlidersHorizontal, X, ArrowUpDown, LayoutGrid, List, Grid3X3, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -379,24 +379,21 @@ export default function StorefrontPage() {
                         <div className="text-right shrink-0">
                           {(() => {
                             const qty = part.quantity || 1;
-                            const pp = part.price_per || "lot";
-                            const lotPrice = getLotPrice(part.price, qty, pp);
-                            const itemPrice = getItemPrice(part.price, qty, pp);
-                            const pr = priceRules.length > 0 ? applyPriceRules({ ...part, price: lotPrice } as Part, priceRules) : null;
-                            const displayPrice = pr && (pr.hasDiscount || pr.hasMarkup) ? pr.finalPrice : lotPrice;
+                            const pr = priceRules.length > 0 ? applyPriceRules(part as Part, priceRules) : null;
+                            const displayPrice = pr && (pr.hasDiscount || pr.hasMarkup) ? pr.finalPrice : part.price;
 
                             return (
                               <div>
                                 {pr && pr.hasDiscount ? (
                                   <>
                                     <span className="text-lg font-bold text-red-600">{formatPrice(pr.finalPrice)}</span>
-                                    <span className="text-sm text-muted-foreground line-through ml-2">{formatPrice(lotPrice)}</span>
+                                    <span className="text-sm text-muted-foreground line-through ml-2">{formatPrice(part.price)}</span>
                                   </>
                                 ) : (
                                   <span className="text-lg font-bold">{formatPrice(displayPrice)}</span>
                                 )}
                                 {qty > 1 && (
-                                  <p className="text-xs text-muted-foreground">Lot of {qty} · {formatPrice(pr && pr.hasDiscount ? pr.finalPrice / qty : itemPrice)}/ea</p>
+                                  <p className="text-xs text-muted-foreground">Lot of {qty}</p>
                                 )}
                               </div>
                             );

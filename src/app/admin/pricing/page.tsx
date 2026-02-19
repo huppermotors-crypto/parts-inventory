@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { PriceRule } from "@/types/database";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,8 +44,12 @@ import {
   TrendingUp,
   TrendingDown,
   Search,
+  Package,
 } from "lucide-react";
 import { Part } from "@/types/database";
+import { applyPriceRules, PriceResult } from "@/lib/price-rules";
+import { formatPrice } from "@/lib/utils";
+import Image from "next/image";
 
 const supabase = createClient();
 
@@ -69,6 +73,7 @@ const defaultForm: RuleForm = {
 
 export default function PricingPage() {
   const [rules, setRules] = useState<PriceRule[]>([]);
+  const [allParts, setAllParts] = useState<Part[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<PriceRule | null>(null);
@@ -79,23 +84,46 @@ export default function PricingPage() {
   const [searchingParts, setSearchingParts] = useState(false);
   const { toast } = useToast();
 
-  const fetchRules = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("price_rules")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const [rulesRes, partsRes] = await Promise.all([
+      supabase
+        .from("price_rules")
+        .select("*")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("parts")
+        .select("id, name, price, quantity, price_per, make, model, year, vin, condition, category, photos, is_sold, stock_number")
+        .eq("is_sold", false)
+        .order("name"),
+    ]);
 
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    if (rulesRes.error) {
+      toast({ title: "Error", description: rulesRes.error.message, variant: "destructive" });
     }
-    setRules(data || []);
+    setRules(rulesRes.data || []);
+    setAllParts((partsRes.data || []) as Part[]);
     setLoading(false);
   }, [toast]);
 
   useEffect(() => {
-    fetchRules();
-  }, [fetchRules]);
+    fetchData();
+  }, [fetchData]);
+
+  // Compute affected parts
+  const affectedParts = useMemo(() => {
+    const activeRules = rules.filter((r) => r.is_active);
+    if (activeRules.length === 0) return [];
+
+    const result: { part: Part; pr: PriceResult }[] = [];
+    for (const part of allParts) {
+      const pr = applyPriceRules(part, activeRules);
+      if (pr.appliedRule) {
+        result.push({ part, pr });
+      }
+    }
+    return result;
+  }, [allParts, rules]);
 
   const searchParts = useCallback(async (query: string) => {
     if (query.length < 2) { setPartResults([]); return; }
@@ -420,6 +448,85 @@ export default function PricingPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Affected Parts */}
+      {!loading && affectedParts.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Affected Parts ({affectedParts.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Part</TableHead>
+                  <TableHead>Rule</TableHead>
+                  <TableHead className="text-right">Original</TableHead>
+                  <TableHead className="text-right">Final Price</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {affectedParts.map(({ part, pr }) => (
+                  <TableRow key={part.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="relative h-10 w-10 rounded overflow-hidden bg-muted shrink-0">
+                          {part.photos && part.photos.length > 0 ? (
+                            <Image
+                              src={part.photos[0]}
+                              alt={part.name}
+                              fill
+                              sizes="40px"
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="flex items-center justify-center h-full">
+                              <Package className="h-4 w-4 text-muted-foreground/50" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate">{part.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {[part.year, part.make, part.model].filter(Boolean).join(" ")}
+                            {(part.quantity || 1) > 1 && ` · Lot of ${part.quantity}`}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {pr.appliedRule && (
+                        <Badge
+                          variant={pr.hasDiscount ? "destructive" : "default"}
+                          className={`text-xs ${pr.hasMarkup ? "bg-blue-600" : ""}`}
+                        >
+                          {pr.hasDiscount ? "-" : "+"}
+                          {pr.appliedRule.amount_type === "percent"
+                            ? `${pr.appliedRule.amount}%`
+                            : `$${pr.appliedRule.amount}`}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <span className="font-mono text-sm text-muted-foreground line-through">
+                        {formatPrice(part.price)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <span className={`font-mono text-sm font-bold ${pr.hasDiscount ? "text-red-600" : "text-blue-600"}`}>
+                        {formatPrice(pr.finalPrice)}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

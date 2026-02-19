@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Part, PriceRule } from "@/types/database";
 import { applyPriceRules } from "@/lib/price-rules";
 import { getCategoryLabel, getConditionLabel } from "@/lib/constants";
-import { conditionColors, formatPrice, formatVehicle, getLotPrice, getItemPrice } from "@/lib/utils";
+import { conditionColors, formatPrice, formatVehicle } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -286,18 +286,15 @@ export function PartDetailClient({ initialPart, priceRules = [] }: PartDetailCli
               <h1 className="text-3xl font-bold tracking-tight">{part.name}</h1>
               {(() => {
                 const qty = part.quantity || 1;
-                const pp = part.price_per || "lot";
-                const lotPrice = getLotPrice(part.price, qty, pp);
-                const itemPrice = getItemPrice(part.price, qty, pp);
-                const pr = priceRules.length > 0 ? applyPriceRules({ ...part, price: lotPrice }, priceRules) : null;
-                const displayPrice = pr && (pr.hasDiscount || pr.hasMarkup) ? pr.finalPrice : lotPrice;
+                const pr = priceRules.length > 0 ? applyPriceRules(part, priceRules) : null;
+                const displayPrice = pr && (pr.hasDiscount || pr.hasMarkup) ? pr.finalPrice : part.price;
 
                 return (
                   <div className="mt-2">
                     {pr && pr.hasDiscount ? (
                       <div className="flex items-center gap-3">
                         <p className="text-3xl font-bold text-red-600">{formatPrice(pr.finalPrice)}</p>
-                        <p className="text-xl text-muted-foreground line-through">{formatPrice(lotPrice)}</p>
+                        <p className="text-xl text-muted-foreground line-through">{formatPrice(part.price)}</p>
                         <Badge variant="destructive" className="text-xs">
                           -{pr.appliedRule?.amount_type === "percent" ? `${pr.appliedRule.amount}%` : `$${pr.appliedRule?.amount}`}
                         </Badge>
@@ -307,7 +304,7 @@ export function PartDetailClient({ initialPart, priceRules = [] }: PartDetailCli
                     )}
                     {qty > 1 && (
                       <p className="text-sm text-muted-foreground mt-1">
-                        Lot of {qty} · {formatPrice(pr && pr.hasDiscount ? pr.finalPrice / qty : itemPrice)}/ea
+                        Lot of {qty}
                       </p>
                     )}
                   </div>
