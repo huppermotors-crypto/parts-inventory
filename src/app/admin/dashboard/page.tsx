@@ -53,6 +53,7 @@ import {
   EyeOff,
   LayoutGrid,
   LayoutList,
+  List,
   Package,
   Loader2,
   X,
@@ -89,7 +90,7 @@ export default function DashboardPage() {
   const [filterMake, setFilterMake] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<StatusFilter>("all");
-  const [viewMode, setViewMode] = useState<"table" | "grid">("table");
+  const [viewMode, setViewMode] = useState<"table" | "grid" | "list">("table");
 
   // Sort state
   const [sortField, setSortField] = useState<SortField>("created_at");
@@ -102,11 +103,11 @@ export default function DashboardPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkPriceOpen, setBulkPriceOpen] = useState(false);
 
-  // Force grid view on mobile (table is unusable on small screens)
+  // Force non-table view on mobile (table is unusable on small screens)
   useEffect(() => {
     const mql = window.matchMedia("(max-width: 767px)");
     const handler = (e: MediaQueryListEvent | MediaQueryList) => {
-      if (e.matches) setViewMode("grid");
+      if (e.matches) setViewMode((v) => v === "table" ? "list" : v);
     };
     handler(mql);
     mql.addEventListener("change", handler);
@@ -681,7 +682,7 @@ export default function DashboardPage() {
         <div className="hidden sm:block">
           <Tabs
             value={viewMode}
-            onValueChange={(v) => setViewMode(v as "table" | "grid")}
+            onValueChange={(v) => setViewMode(v as "table" | "grid" | "list")}
           >
             <TabsList>
               <TabsTrigger value="table" className="gap-1.5">
@@ -691,6 +692,10 @@ export default function DashboardPage() {
               <TabsTrigger value="grid" className="gap-1.5">
                 <LayoutGrid className="h-4 w-4" />
                 Grid
+              </TabsTrigger>
+              <TabsTrigger value="list" className="gap-1.5">
+                <List className="h-4 w-4" />
+                List
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -1012,6 +1017,140 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
+      ) : viewMode === "list" ? (
+        /* List View */
+        <div className="space-y-2">
+          {paginatedParts.map((part) => {
+            const vehicle = formatVehicle(part.year, part.make, part.model);
+            return (
+              <div
+                key={part.id}
+                className={`flex items-center gap-4 p-3 rounded-lg border hover:shadow-md transition-shadow ${selectedIds.has(part.id) ? "bg-muted/50 border-primary" : ""}`}
+              >
+                <Checkbox
+                  checked={selectedIds.has(part.id)}
+                  onCheckedChange={() => toggleSelect(part.id)}
+                  aria-label={`Select ${part.name}`}
+                />
+                <Link href={`/parts/${part.id}`} target="_blank" className="shrink-0">
+                  <div className="relative h-20 w-20 rounded-lg overflow-hidden bg-muted">
+                    {part.photos && part.photos.length > 0 ? (
+                      <Image
+                        src={part.photos[0]}
+                        alt={part.name}
+                        fill
+                        sizes="80px"
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full">
+                        <Package className="h-8 w-8 text-muted-foreground/50" />
+                      </div>
+                    )}
+                  </div>
+                </Link>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/parts/${part.id}`}
+                      target="_blank"
+                      className="font-semibold truncate hover:text-primary hover:underline"
+                    >
+                      {part.name}
+                    </Link>
+                    {part.stock_number && (
+                      <span className="font-mono text-xs text-muted-foreground shrink-0">#{part.stock_number}</span>
+                    )}
+                  </div>
+                  {vehicle && (
+                    <p className="text-sm text-muted-foreground">{vehicle}</p>
+                  )}
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <Badge variant="outline" className="text-xs">
+                      {getCategoryLabel(part.category)}
+                    </Badge>
+                    <Badge
+                      variant="secondary"
+                      className={`text-xs ${conditionColors[part.condition] || ""}`}
+                    >
+                      {getConditionLabel(part.condition)}
+                    </Badge>
+                    {part.is_sold ? (
+                      <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800">Sold</Badge>
+                    ) : part.is_published ? (
+                      <Badge variant="default" className="text-xs bg-green-600">Live</Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-xs">Hidden</Badge>
+                    )}
+                    {part.fb_posted_at && (
+                      <Badge variant="outline" className="text-xs text-blue-600 border-blue-300">
+                        <Facebook className="h-2.5 w-2.5 mr-0.5" />
+                        FB
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="font-bold">{formatPrice(partLotPrice(part))}</span>
+                  {(part.quantity || 1) > 1 && (
+                    <p className="text-[10px] text-muted-foreground">
+                      {part.quantity}× {formatPrice(part.price_per === "item" ? part.price : part.price / part.quantity)}/ea
+                    </p>
+                  )}
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => {
+                            setEditPart(part);
+                            setEditOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Edit</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={`h-8 w-8 ${part.is_sold ? "text-green-600" : "text-amber-600"}`}
+                          onClick={() => toggleSold(part)}
+                        >
+                          {part.is_sold ? <Undo2 className="h-4 w-4" /> : <BadgeDollarSign className="h-4 w-4" />}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{part.is_sold ? "Mark Available" : "Mark Sold"}</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => {
+                            setDeletePart(part);
+                            setDeleteOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Delete</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       ) : (
         /* Grid View */
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

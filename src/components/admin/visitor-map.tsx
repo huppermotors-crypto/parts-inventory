@@ -53,7 +53,7 @@ export function VisitorMap({ countryCodeMap, maxViews }: Props) {
     <div className="bg-slate-100 rounded-b-lg overflow-hidden">
       <ComposableMap
         projectionConfig={{ scale: 155, center: [0, 10] }}
-        style={{ width: "100%", height: "auto" }}
+        style={{ width: "100%", height: "160px" }}
       >
         <Geographies geography={GEO_URL}>
           {({ geographies }) =>

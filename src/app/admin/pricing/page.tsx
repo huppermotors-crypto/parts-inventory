@@ -50,6 +50,7 @@ import { Part } from "@/types/database";
 import { applyPriceRules, PriceResult } from "@/lib/price-rules";
 import { formatPrice } from "@/lib/utils";
 import Image from "next/image";
+import { EditPartDialog } from "@/components/admin/edit-part-dialog";
 
 const supabase = createClient();
 
@@ -82,6 +83,8 @@ export default function PricingPage() {
   const [partSearch, setPartSearch] = useState("");
   const [partResults, setPartResults] = useState<Part[]>([]);
   const [searchingParts, setSearchingParts] = useState(false);
+  const [editPart, setEditPart] = useState<Part | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const fetchData = useCallback(async () => {
@@ -466,6 +469,7 @@ export default function PricingPage() {
                   <TableHead>Rule</TableHead>
                   <TableHead className="text-right">Original</TableHead>
                   <TableHead className="text-right">Final Price</TableHead>
+                  <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -520,6 +524,19 @@ export default function PricingPage() {
                         {formatPrice(pr.finalPrice)}
                       </span>
                     </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => {
+                          setEditPart(part);
+                          setEditDialogOpen(true);
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -528,7 +545,15 @@ export default function PricingPage() {
         </Card>
       )}
 
-      {/* Create/Edit Dialog */}
+      {/* Edit Part Dialog */}
+      <EditPartDialog
+        part={editPart}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onSaved={fetchData}
+      />
+
+      {/* Create/Edit Rule Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
