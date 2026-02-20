@@ -283,7 +283,7 @@ export default function StorefrontPage() {
                   <Button
                     variant={viewMode === "list" ? "secondary" : "ghost"}
                     size="icon"
-                    className="h-9 w-9 rounded-l-none"
+                    className="h-9 w-9 rounded-l-none hidden sm:inline-flex"
                     onClick={() => setViewMode("list")}
                     title="List view"
                   >

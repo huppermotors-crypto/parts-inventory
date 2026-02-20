@@ -26,13 +26,12 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { PhotoUploader, PhotoFile } from "@/components/admin/photo-uploader";
-import { VinScanner } from "@/components/admin/vin-scanner";
+
 import { EbayPriceSearch } from "@/components/admin/ebay-price-search";
 import { PART_CATEGORIES, PART_CONDITIONS } from "@/lib/constants";
 import { getNextStockNumber } from "@/lib/stock-number";
 import { normalizeMakeModel } from "@/lib/utils";
 import {
-  ScanBarcode,
   Search,
   Loader2,
   Save,
@@ -72,7 +71,6 @@ export default function AddPartPage() {
   const [photos, setPhotos] = useState<PhotoFile[]>([]);
 
   // UI state
-  const [scannerOpen, setScannerOpen] = useState(false);
   const [decoding, setDecoding] = useState(false);
   const [saving, setSaving] = useState(false);
   const [stockNumber, setStockNumber] = useState<string | null>(null);
@@ -240,14 +238,6 @@ export default function AddPartPage() {
     }
   };
 
-  const handleVinScan = (scannedVin: string) => {
-    setVin(scannedVin);
-    toast({
-      title: "VIN Scanned",
-      description: `Detected VIN: ${scannedVin}`,
-    });
-  };
-
   const handleRecentVinSelect = (rv: RecentVin) => {
     setVin(rv.vin);
     const newYear = rv.year?.toString() || "";
@@ -405,15 +395,6 @@ export default function AddPartPage() {
                   maxLength={17}
                   className="font-mono flex-1 min-w-0 uppercase"
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  title="Scan VIN"
-                  onClick={() => setScannerOpen(true)}
-                >
-                  <ScanBarcode className="h-4 w-4" />
-                </Button>
                 <Button
                   type="button"
                   variant="outline"
@@ -694,12 +675,6 @@ export default function AddPartPage() {
         </div>
       </form>
 
-      {/* VIN Scanner Dialog */}
-      <VinScanner
-        open={scannerOpen}
-        onOpenChange={setScannerOpen}
-        onScan={handleVinScan}
-      />
     </div>
   );
 }
