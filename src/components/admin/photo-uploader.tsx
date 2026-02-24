@@ -25,7 +25,7 @@ export type { PhotoFile };
 export function PhotoUploader({
   photos,
   onChange,
-  maxPhotos = 10,
+  maxPhotos = 30,
 }: PhotoUploaderProps) {
   const [compressing, setCompressing] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -180,7 +180,7 @@ export function PhotoUploader({
 
       {/* Preview grid */}
       {photos.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           {photos.map((photo, index) => (
             <div key={index} className="relative group rounded-lg overflow-hidden border">
               <div className="aspect-square relative">

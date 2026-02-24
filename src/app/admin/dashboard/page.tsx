@@ -43,6 +43,7 @@ import { Separator } from "@/components/ui/separator";
 import { EditPartDialog } from "@/components/admin/edit-part-dialog";
 import { DeletePartDialog } from "@/components/admin/delete-part-dialog";
 import { BulkPriceDialog } from "@/components/admin/bulk-price-dialog";
+import { SellQuantityDialog } from "@/components/admin/sell-quantity-dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   PlusCircle,
@@ -71,6 +72,7 @@ import {
   DollarSign,
   TrendingUp,
   BarChart3,
+  ShoppingBag,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -120,6 +122,8 @@ export default function DashboardPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [deletePart, setDeletePart] = useState<Part | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [sellPart, setSellPart] = useState<Part | null>(null);
+  const [sellOpen, setSellOpen] = useState(false);
 
   const { toast } = useToast();
 
@@ -311,6 +315,13 @@ export default function DashboardPage() {
 
   // --- Optimistic toggle sold ---
   const toggleSold = async (part: Part) => {
+    // For lots with quantity > 1 that are not yet sold, open quantity dialog
+    if ((part.quantity || 1) > 1 && !part.is_sold) {
+      setSellPart(part);
+      setSellOpen(true);
+      return;
+    }
+
     const newIsSold = !part.is_sold;
     const newIsPublished = newIsSold ? false : true;
     const previousParts = [...parts];
@@ -339,6 +350,103 @@ export default function DashboardPage() {
       toast({
         title: "Marked as Sold — Update Facebook!",
         description: `"${part.name}" was posted on FB. Don't forget to mark it as sold or remove the listing.`,
+        duration: 10000,
+      });
+      window.open("https://www.facebook.com/marketplace/you/selling", "_blank");
+    }
+  };
+
+  // --- Partial lot sell ---
+  const sellPartial = async (part: Part, soldQty: number) => {
+    const previousParts = [...parts];
+    const remainingQty = (part.quantity || 1) - soldQty;
+    const allSold = remainingQty === 0;
+
+    // Calculate price for sold portion when price_per is "lot"
+    const soldPrice = part.price_per === "item"
+      ? part.price
+      : (part.price / (part.quantity || 1)) * soldQty;
+    const remainingPrice = part.price_per === "item"
+      ? part.price
+      : part.price - soldPrice;
+
+    // Optimistic: update original part
+    setParts((prev) =>
+      prev.map((p) =>
+        p.id === part.id
+          ? {
+              ...p,
+              quantity: remainingQty,
+              price: part.price_per === "item" ? p.price : remainingPrice,
+              is_sold: allSold,
+              is_published: allSold ? false : p.is_published,
+            }
+          : p
+      )
+    );
+
+    // 1. Create sold record in DB
+    const { data: soldRecord, error: insertError } = await supabase
+      .from("parts")
+      .insert({
+        name: part.name,
+        description: part.description,
+        vin: part.vin,
+        year: part.year,
+        make: part.make,
+        model: part.model,
+        serial_number: part.serial_number,
+        price: part.price_per === "item" ? part.price : soldPrice,
+        condition: part.condition,
+        category: part.category,
+        quantity: soldQty,
+        price_per: part.price_per,
+        photos: part.photos,
+        is_published: false,
+        is_sold: true,
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      setParts(previousParts);
+      toast({ title: "Error", description: "Failed to create sold record.", variant: "destructive" });
+      return;
+    }
+
+    // 2. Update original part in DB
+    const updateData: Record<string, unknown> = {
+      quantity: remainingQty,
+      ...(part.price_per === "lot" ? { price: remainingPrice } : {}),
+      ...(allSold ? { is_sold: true, is_published: false } : {}),
+    };
+
+    const { error: updateError } = await supabase
+      .from("parts")
+      .update(updateData)
+      .eq("id", part.id);
+
+    if (updateError) {
+      // Rollback: delete the inserted sold record and revert
+      await supabase.from("parts").delete().eq("id", soldRecord.id);
+      setParts(previousParts);
+      toast({ title: "Error", description: "Failed to update original part.", variant: "destructive" });
+      return;
+    }
+
+    // Add sold record to local state
+    setParts((prev) => [soldRecord, ...prev]);
+
+    toast({
+      title: "Partial Sale Recorded",
+      description: `Sold ${soldQty} of "${part.name}". ${allSold ? "All sold." : `${remainingQty} remaining.`}`,
+    });
+
+    // Notify about FB if posted
+    if (part.fb_posted_at && allSold) {
+      toast({
+        title: "Update Facebook!",
+        description: `"${part.name}" was posted on FB — all items are now sold.`,
         duration: 10000,
       });
       window.open("https://www.facebook.com/marketplace/you/selling", "_blank");
@@ -542,6 +650,79 @@ export default function DashboardPage() {
     toast({
       title: "FB Status Reset",
       description: `"${part.name}" — removed from Facebook.`,
+    });
+  };
+
+  const postToEbay = async (part: Part) => {
+    const allPhotos = [...(part.photos || [])];
+    let mergedCount = 0;
+
+    if (selectedIds.size > 0) {
+      const otherSelectedParts = parts.filter(
+        (p) => selectedIds.has(p.id) && p.id !== part.id
+      );
+      for (const sp of otherSelectedParts) {
+        if (sp.photos && sp.photos.length > 0) {
+          allPhotos.push(...sp.photos);
+          mergedCount++;
+        }
+      }
+    }
+
+    const partData = {
+      id: part.id,
+      title: part.name,
+      price: partLotPrice(part),
+      description: part.description || "",
+      condition: part.condition,
+      category: part.category,
+      photos: allPhotos,
+      make: part.make || "",
+      model: part.model || "",
+      year: part.year || "",
+      vin: part.vin || "",
+      serial_number: part.serial_number || "",
+      quantity: part.quantity || 1,
+      price_per: part.price_per || "lot",
+    };
+
+    window.dispatchEvent(
+      new CustomEvent("ebay-post-part", { detail: partData })
+    );
+
+    const now = new Date().toISOString();
+    setParts((prev) =>
+      prev.map((p) => (p.id === part.id ? { ...p, ebay_listed_at: now } : p))
+    );
+    await supabase
+      .from("parts")
+      .update({ ebay_listed_at: now })
+      .eq("id", part.id);
+
+    toast({
+      title: "Posting to eBay",
+      description: mergedCount > 0
+        ? `"${part.name}" with ${allPhotos.length} photos from ${mergedCount + 1} parts — extension will open eBay.`
+        : `"${part.name}" — extension will open eBay and fill the form.`,
+    });
+  };
+
+  const resetEbayStatus = async (part: Part) => {
+    setParts((prev) =>
+      prev.map((p) =>
+        p.id === part.id
+          ? { ...p, ebay_listed_at: null, ebay_listing_id: null, ebay_offer_id: null, ebay_listing_url: null }
+          : p
+      )
+    );
+    await supabase
+      .from("parts")
+      .update({ ebay_listed_at: null, ebay_listing_id: null, ebay_offer_id: null, ebay_listing_url: null })
+      .eq("id", part.id);
+
+    toast({
+      title: "eBay Status Reset",
+      description: `"${part.name}" — removed from eBay.`,
     });
   };
 
@@ -935,6 +1116,12 @@ export default function DashboardPage() {
                             FB
                           </Badge>
                         )}
+                        {part.ebay_listed_at && (
+                          <Badge variant="outline" className="text-orange-600 border-orange-300 text-[10px]">
+                            <ShoppingBag className="h-2.5 w-2.5 mr-0.5" />
+                            eBay
+                          </Badge>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -968,6 +1155,31 @@ export default function DashboardPage() {
                               {part.fb_posted_at
                                 ? `On FB (${new Date(part.fb_posted_at).toLocaleDateString()}) — click to reset`
                                 : "Post to FB"}
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className={`h-8 w-8 ${
+                                  part.ebay_listed_at
+                                    ? "text-green-600 hover:text-red-600 hover:bg-red-50"
+                                    : "text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                }`}
+                                onClick={() =>
+                                  part.ebay_listed_at
+                                    ? resetEbayStatus(part)
+                                    : postToEbay(part)
+                                }
+                              >
+                                <ShoppingBag className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {part.ebay_listed_at
+                                ? `On eBay (${new Date(part.ebay_listed_at).toLocaleDateString()}) — click to reset`
+                                : "Post to eBay"}
                             </TooltipContent>
                           </Tooltip>
                           <Tooltip>
@@ -1104,6 +1316,12 @@ export default function DashboardPage() {
                       <Badge variant="outline" className="text-xs text-blue-600 border-blue-300">
                         <Facebook className="h-2.5 w-2.5 mr-0.5" />
                         FB
+                      </Badge>
+                    )}
+                    {part.ebay_listed_at && (
+                      <Badge variant="outline" className="text-xs text-orange-600 border-orange-300">
+                        <ShoppingBag className="h-2.5 w-2.5 mr-0.5" />
+                        eBay
                       </Badge>
                     )}
                   </div>
@@ -1259,6 +1477,12 @@ export default function DashboardPage() {
                       FB
                     </Badge>
                   )}
+                  {part.ebay_listed_at && (
+                    <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-700">
+                      <ShoppingBag className="h-2.5 w-2.5 mr-0.5" />
+                      eBay
+                    </Badge>
+                  )}
                   <Badge variant="secondary" className="text-xs bg-white/80 text-black">
                     {getCategoryLabel(part.category)}
                   </Badge>
@@ -1381,6 +1605,12 @@ export default function DashboardPage() {
         onOpenChange={setBulkPriceOpen}
         count={selectedIds.size}
         onApply={handleBulkPriceUpdate}
+      />
+      <SellQuantityDialog
+        part={sellPart}
+        open={sellOpen}
+        onOpenChange={setSellOpen}
+        onConfirm={sellPartial}
       />
     </div>
   );

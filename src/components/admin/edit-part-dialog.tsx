@@ -453,7 +453,7 @@ export function EditPartDialog({
               <PhotoUploader
                 photos={newPhotos}
                 onChange={setNewPhotos}
-                maxPhotos={10 - existingPhotos.length}
+                maxPhotos={30 - existingPhotos.length}
               />
             )}
           </div>
