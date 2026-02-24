@@ -690,6 +690,9 @@ export default function DashboardPage() {
       new CustomEvent("ebay-post-part", { detail: partData })
     );
 
+    // Open eBay create listing page
+    window.open("https://www.ebay.com/sell/create", "_blank");
+
     const now = new Date().toISOString();
     setParts((prev) =>
       prev.map((p) => (p.id === part.id ? { ...p, ebay_listed_at: now } : p))
@@ -703,7 +706,7 @@ export default function DashboardPage() {
       title: "Posting to eBay",
       description: mergedCount > 0
         ? `"${part.name}" with ${allPhotos.length} photos from ${mergedCount + 1} parts — extension will open eBay.`
-        : `"${part.name}" — extension will open eBay and fill the form.`,
+        : `"${part.name}" — extension will open eBay.`,
     });
   };
 
