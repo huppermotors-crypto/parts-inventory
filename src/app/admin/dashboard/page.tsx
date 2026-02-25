@@ -690,9 +690,6 @@ export default function DashboardPage() {
       new CustomEvent("ebay-post-part", { detail: partData })
     );
 
-    // Open eBay create listing page
-    window.open("https://www.ebay.com/sell/create", "_blank");
-
     const now = new Date().toISOString();
     setParts((prev) =>
       prev.map((p) => (p.id === part.id ? { ...p, ebay_listed_at: now } : p))

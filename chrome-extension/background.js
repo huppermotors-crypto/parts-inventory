@@ -71,6 +71,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // Direct post to eBay from admin dashboard
+  if (message.action === "DIRECT_POST_EBAY") {
+    handleDirectPostEbay(message.data);
+    sendResponse({ status: "started" });
+    return true;
+  }
+
+  if (message.action === "GET_EBAY_DATA") {
+    chrome.storage.local.get("ebayPart", (result) => {
+      sendResponse({ data: result.ebayPart || null });
+    });
+    return true;
+  }
+
   // Fetch image from content script (CORS workaround — background has no origin restrictions)
   if (message.action === "FETCH_IMAGE") {
     const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -247,6 +261,27 @@ async function handleDirectPost(data) {
     });
   } catch (err) {
     console.error("[BG] Direct post error:", err);
+  }
+}
+
+// Direct post to eBay: save data and open eBay create listing page
+async function handleDirectPostEbay(data) {
+  if (!data || !data.title) {
+    console.error("[BG] DIRECT_POST_EBAY: no data");
+    return;
+  }
+
+  console.log("[BG] eBay posting:", data.title);
+
+  try {
+    await chrome.storage.local.set({ ebayPart: data });
+
+    chrome.tabs.create({
+      url: "https://www.ebay.com/sl/prelist/suggest",
+      active: true,
+    });
+  } catch (err) {
+    console.error("[BG] eBay post error:", err);
   }
 }
 

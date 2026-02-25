@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Auto Parts → FB Marketplace",
-  "version": "1.0.0",
-  "description": "Scrape product data from your inventory site and cross-post to Facebook Marketplace",
+  "name": "Auto Parts → FB & eBay",
+  "version": "1.1.0",
+  "description": "Cross-post auto parts to Facebook Marketplace and eBay from your inventory dashboard",
   "icons": {
     "16": "icons/icon48.png",
     "48": "icons/icon48.png",
@@ -16,6 +16,7 @@
   ],
   "host_permissions": [
     "*://www.facebook.com/*",
+    "*://www.ebay.com/*",
     "*://localhost/*",
     "*://*.vercel.app/*",
     "*://*.onrender.com/*"
@@ -55,6 +56,16 @@
     {
       "matches": ["*://www.facebook.com/marketplace/create/*"],
       "js": ["content-fb.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://www.ebay.com/sell/create*",
+        "*://www.ebay.com/sl/sell*",
+        "*://www.ebay.com/sl/prelist/*"
+      ],
+      "js": ["content-ebay.js"],
       "css": ["styles.css"],
       "run_at": "document_idle"
     }

@@ -24,27 +24,29 @@ import {
   BarChart3,
   ExternalLink,
   Clock,
-  MapPin,
   ChevronLeft,
   ChevronRight,
   AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import dynamic from "next/dynamic";
-
-const VisitorMap = dynamic(
-  () => import("@/components/admin/visitor-map").then((m) => m.VisitorMap),
-  { ssr: false, loading: () => <div className="h-64 bg-slate-100 animate-pulse rounded-b-lg" /> }
-);
 
 const SELF_DOMAINS = ["onrender.com", "vercel.app", "localhost"];
+
+function countryFlag(code: string): string {
+  return code
+    .toUpperCase()
+    .split("")
+    .map((c) => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65))
+    .join("");
+}
 
 function CountryBadge({ code }: { code: string | null }) {
   if (!code) return null;
   return (
-    <span className="inline-flex items-center justify-center text-[10px] font-bold bg-muted rounded px-1 py-0.5 leading-none font-mono mr-1">
-      {code.toUpperCase()}
+    <span className="inline-flex items-center gap-1 text-sm mr-1">
+      <span>{countryFlag(code)}</span>
+      <span className="text-[10px] font-bold font-mono text-muted-foreground">{code.toUpperCase()}</span>
     </span>
   );
 }
@@ -289,23 +291,6 @@ export default function AnalyticsPage() {
       .sort((a, b) => b.count - a.count);
   }, [views]);
 
-  // Map ISO-2 country codes to counts for the map
-  const countryCodeMap = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const v of views) {
-      if (v.country_code) {
-        const code = v.country_code.toUpperCase();
-        map.set(code, (map.get(code) || 0) + 1);
-      }
-    }
-    return map;
-  }, [views]);
-
-  const maxCountryViews = useMemo(
-    () => Math.max(1, ...Array.from(countryCodeMap.values())),
-    [countryCodeMap]
-  );
-
   const deviceIcon = (type: string) => {
     switch (type) {
       case "mobile":
@@ -532,25 +517,6 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
           </div>
-
-          {/* Visitor Map */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-medium flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                Visitor Map
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0 overflow-hidden rounded-b-lg">
-              {countryCodeMap.size === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  No location data yet
-                </p>
-              ) : (
-                <VisitorMap countryCodeMap={countryCodeMap} maxViews={maxCountryViews} />
-              )}
-            </CardContent>
-          </Card>
 
           {/* Devices & Countries */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
