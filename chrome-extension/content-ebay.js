@@ -13,6 +13,7 @@
   const RETRY_MS = 500;
 
   let hasRun = false;
+  let lastUrl = "";
 
   if (document.readyState === "complete") {
     startWithDelay();
@@ -24,11 +25,50 @@
     setTimeout(init, 2000);
   }
 
+  // Watch for SPA navigation (eBay changes URL without full reload)
+  function watchForNavigation() {
+    setInterval(async () => {
+      const currentUrl = window.location.href;
+      if (currentUrl !== lastUrl) {
+        lastUrl = currentUrl;
+        log("URL changed to:", currentUrl);
+
+        const data = await getStorage("ebayPart");
+        if (!data) return;
+
+        // If we landed on the listing form page, fill it
+        if (isListingFormUrl(currentUrl)) {
+          log("Listing form detected via navigation watcher");
+          showOverlay(data);
+          await handleListingForm(data);
+        }
+      }
+    }, 1500);
+  }
+
+  function isListingFormUrl(url) {
+    return (
+      url.includes("/sl/list") ||
+      url.includes("/sl/create") ||
+      url.includes("/sell/create") ||
+      url.includes("mode=AddItem")
+    );
+  }
+
+  function isPrelistSuggestUrl(url) {
+    return url.includes("/sl/prelist/suggest") || url.includes("/sl/sell");
+  }
+
+  function isIdentifyUrl(url) {
+    return url.includes("/sl/prelist/identify");
+  }
+
   async function init() {
     if (hasRun) return;
     hasRun = true;
 
     const url = window.location.href;
+    lastUrl = url;
     log("Initializing on", url);
 
     const data = await getStorage("ebayPart");
@@ -40,12 +80,23 @@
     log("Data loaded:", data.title);
     showOverlay(data);
 
-    // Step 1: prelist/suggest page — fill search and submit
-    if (url.includes("/sl/prelist") || url.includes("/sl/sell")) {
+    // Start watching for SPA navigation
+    watchForNavigation();
+
+    if (isPrelistSuggestUrl(url)) {
+      // Step 1: search page — fill title and submit
       await handlePrelistPage(data);
-    } else {
-      // Step 2: full listing form
+    } else if (isIdentifyUrl(url)) {
+      // Step 2: "Find a match" page — click "Continue without match"
+      await handleIdentifyPage(data);
+    } else if (isListingFormUrl(url)) {
+      // Step 3: full listing form — fill all fields
       await handleListingForm(data);
+    } else {
+      // Unknown eBay page — might be the listing form with different URL
+      // Try to detect form fields
+      log("Unknown URL pattern, watching for form fields...");
+      watchForForm(data);
     }
   }
 
@@ -128,6 +179,101 @@
     }
 
     updateOverlay("Search input not found. Enter title manually.");
+  }
+
+  // ============================================
+  // Step 2: "Find a match" / identify page
+  // ============================================
+
+  // Map our condition values to eBay's "Confirm details" radio labels
+  const EBAY_CONDITION_LABELS = {
+    new: "New",
+    like_new: "New other (see details)",
+    excellent: "Used",
+    good: "Used",
+    fair: "Used",
+    used: "Used",
+    for_parts: "For parts or not working",
+  };
+
+  async function handleIdentifyPage(data) {
+    updateOverlay('Looking for "Continue without match"...');
+
+    // Step 2a: click "Continue without match"
+    for (let i = 0; i < 30; i++) {
+      const continueBtn =
+        findClickableByText("Continue without match") ||
+        findClickableByText("Continue without selecting") ||
+        findClickableByText("Continue without product") ||
+        findClickableByText("List without catalog") ||
+        document.querySelector('[data-testid="no-match-cta"]') ||
+        document.querySelector('[data-testid="skip-match"]');
+
+      if (continueBtn) {
+        log('Clicking "Continue without match"');
+        continueBtn.click();
+        await sleep(2000);
+
+        // Step 2b: "Confirm details" modal — select condition
+        await selectConditionInModal(data.condition);
+        return;
+      }
+
+      await sleep(1000);
+    }
+
+    updateOverlay(
+      'Could not find "Continue without match". Click it manually.'
+    );
+  }
+
+  async function selectConditionInModal(condition) {
+    const target = EBAY_CONDITION_LABELS[condition] || "Used";
+    updateOverlay(`Selecting condition: ${target}...`);
+
+    for (let i = 0; i < 20; i++) {
+      // Find all radio-like options in the modal
+      // eBay uses radio buttons or clickable labels/spans
+      const labels = document.querySelectorAll(
+        'label, [role="radio"], [role="option"], span'
+      );
+
+      for (const label of labels) {
+        const text = label.textContent.trim();
+        if (text === target) {
+          log("Selecting condition:", target);
+          // Click the radio input inside or the label itself
+          const radio = label.querySelector('input[type="radio"]');
+          if (radio) {
+            radio.click();
+          } else {
+            label.click();
+          }
+          await sleep(1000);
+
+          // Now click "Continue to listing"
+          const continueToListing =
+            findClickableByText("Continue to listing") ||
+            findClickableByText("Continue") ||
+            document.querySelector('[data-testid="continue-to-listing"]');
+
+          if (continueToListing) {
+            log('Clicking "Continue to listing"');
+            continueToListing.click();
+            updateOverlay("Navigating to listing form...");
+          } else {
+            updateOverlay(
+              'Condition selected. Click "Continue to listing" manually.'
+            );
+          }
+          return;
+        }
+      }
+
+      await sleep(1000);
+    }
+
+    updateOverlay("Could not find condition options. Select manually.");
   }
 
   async function handleCategorySelection(data) {
@@ -273,7 +419,12 @@
     await fillDescription(data);
     await sleep(800);
 
-    // 5. Fill Price
+    // 5. Set format to "Buy It Now" (Fixed price)
+    updateOverlay("Setting Buy It Now...");
+    await setFixedPrice();
+    await sleep(800);
+
+    // 6. Fill Price
     updateOverlay("Filling price...");
     await fillPrice(data);
     await sleep(500);
@@ -534,13 +685,41 @@
   // Description
   // ============================================
 
+  const EBAY_BOILERPLATE = `
+——————————————————
+
+ITEM CONDITION:
+Tested and verified working before removal. May show normal signs of wear consistent with age and use. Please inspect all photos carefully — what you see is what you will receive.
+
+COMPATIBILITY:
+PLEASE VERIFY COMPATIBILITY BEFORE BUYING. IT IS THE BUYER'S RESPONSIBILITY TO DETERMINE WHETHER THE PART WILL FIT HIS/HER CAR OR NOT. PLEASE MAKE SURE TO MATCH THE PART NUMBER WITH YOUR ORIGINAL PART. WHAT YOU SEE IN THE PHOTOS IS WHAT YOU WILL RECEIVE. Please ask questions prior to purchasing and verify the fit in your application with your local dealer or an independent source.
+Please do not buy just to check and diagnose your vehicle problem.
+
+SHIPPING:
+Small/medium items ship via USPS, UPS, or FedEx (1-3 business days processing). Large/oversized items (bumpers, doors, hoods, engines, transmissions, seats, etc.) are LOCAL PICKUP ONLY. If listed as "Local Pickup" — item must be picked up from our location. Buyer may arrange their own freight carrier at their own expense. Contact us for address.
+
+RETURNS:
+Returns accepted within 30 days ONLY if the item is non-functional or significantly differs from the description. Buyer is fully responsible for the shipping cost of the return. Shipping and handling fees are non-refundable. Most of our products are offered with free shipping, meaning shipping has been included in the price. You will be refunded the purchase price minus our shipping costs as soon as item is returned to us.
+All electronics are tested before removed from vehicle. IF NOT FUNCTIONAL, WE WILL NOT SELL. If the item is defective we will state accordingly and is sold for parts only. All electronic items are not eligible for return.
+We are not responsible for labor costs related to installation or removal.
+
+WARRANTY:
+30-day warranty on all parts.
+
+CONTACT:
+Questions? Message us through eBay — we respond within 24 hours. Please ask before purchasing!
+
+IMPORTANT:
+Once you have received your item in satisfactory condition, please leave us feedback. If there is a concern or issue that would cause you to want to leave negative feedback, please contact us first and we will do our best to resolve the problem and satisfy the situation.`.trim();
+
   async function fillDescription(data) {
     let desc = data.description || "";
     if (data.serial_number) desc += `\nPart #: ${data.serial_number}`;
     if (data.vin) desc += `\nVIN: ${data.vin}`;
     if ((data.quantity || 1) > 1) desc += `\nQuantity: ${data.quantity}`;
 
-    if (!desc.trim()) return;
+    // Append boilerplate
+    desc = desc.trim() + "\n\n" + EBAY_BOILERPLATE;
 
     const descInput =
       document.querySelector('textarea[aria-label*="escription"]') ||
@@ -563,6 +742,63 @@
   // ============================================
   // Price
   // ============================================
+
+  async function setFixedPrice() {
+    // eBay defaults to Auction — switch to "Buy It Now" (Fixed price)
+    // Look for the format selector: radio buttons, dropdown, or tabs
+    const buyItNowRadio =
+      document.querySelector('input[type="radio"][value="FIXED_PRICE"]') ||
+      document.querySelector('input[type="radio"][value="fixedPrice"]') ||
+      document.querySelector('input[type="radio"][value="BIN"]');
+
+    if (buyItNowRadio) {
+      buyItNowRadio.click();
+      log("Buy It Now selected via radio");
+      return;
+    }
+
+    // Try clicking text-based options
+    const buyNowOption =
+      findClickableByText("Buy It Now") ||
+      findClickableByText("Fixed price") ||
+      findClickableByText("Buy it now");
+
+    if (buyNowOption) {
+      buyNowOption.click();
+      log("Buy It Now selected via text click");
+      return;
+    }
+
+    // Try dropdown: look for format/listing type selector
+    const formatDropdown =
+      document.querySelector('[aria-label*="ormat"]') ||
+      document.querySelector('[aria-label*="isting type"]') ||
+      document.querySelector('[data-testid="format"] button') ||
+      document.querySelector('[data-testid="format"] select');
+
+    if (formatDropdown) {
+      formatDropdown.click();
+      await sleep(800);
+
+      const options = document.querySelectorAll(
+        '[role="option"], [role="menuitem"], [role="listbox"] [role="option"], li[role="option"]'
+      );
+      for (const opt of options) {
+        const text = opt.textContent.trim();
+        if (
+          text.includes("Buy It Now") ||
+          text.includes("Fixed price") ||
+          text === "Fixed"
+        ) {
+          opt.click();
+          log("Buy It Now selected via dropdown:", text);
+          return;
+        }
+      }
+    }
+
+    log("Could not find Buy It Now selector — may already be set or not available");
+  }
 
   async function fillPrice(data) {
     const price = data.price

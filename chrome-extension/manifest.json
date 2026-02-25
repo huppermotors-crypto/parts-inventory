@@ -63,7 +63,9 @@
       "matches": [
         "*://www.ebay.com/sell/create*",
         "*://www.ebay.com/sl/sell*",
-        "*://www.ebay.com/sl/prelist/*"
+        "*://www.ebay.com/sl/prelist/*",
+        "*://www.ebay.com/sl/list*",
+        "*://www.ebay.com/sl/create*"
       ],
       "js": ["content-ebay.js"],
       "css": ["styles.css"],
