@@ -414,14 +414,14 @@
     await setCondition(data.condition);
     await sleep(800);
 
-    // 4. Fill Description
+    // 4. Enable Buy It Now toggle
+    updateOverlay("Setting Buy It Now...");
+    await enableBuyItNow();
+    await sleep(1500);
+
+    // 5. Fill Description
     updateOverlay("Filling description...");
     await fillDescription(data);
-    await sleep(800);
-
-    // 5. Set format to "Buy It Now" (Fixed price)
-    updateOverlay("Setting Buy It Now...");
-    await setFixedPrice();
     await sleep(800);
 
     // 6. Fill Price
@@ -429,7 +429,14 @@
     await fillPrice(data);
     await sleep(500);
 
-    // 6. Clear stored data
+    // 7. Fill Quantity (if more than 1) — field only visible in Buy It Now mode
+    if (data.quantity && parseInt(data.quantity) > 1) {
+      updateOverlay("Setting quantity...");
+      await fillQuantity(data.quantity);
+      await sleep(500);
+    }
+
+    // 8. Clear stored data
     chrome.storage.local.remove("ebayPart");
 
     updateOverlay("Done! Review and publish your listing.");
@@ -712,7 +719,100 @@ Questions? Message us through eBay — we respond within 24 hours. Please ask be
 IMPORTANT:
 Once you have received your item in satisfactory condition, please leave us feedback. If there is a concern or issue that would cause you to want to leave negative feedback, please contact us first and we will do our best to resolve the problem and satisfy the situation.`.trim();
 
+  async function enableHtmlEditor() {
+    // Look for "Show HTML editor" checkbox/toggle/link
+    // eBay may use a checkbox, a link, or a toggle
+    const candidates = document.querySelectorAll(
+      'input[type="checkbox"], label, a, button, span, [role="checkbox"], [role="switch"]'
+    );
+
+    for (const el of candidates) {
+      const text = el.textContent?.trim().toLowerCase() || "";
+      const ariaLabel = (el.getAttribute("aria-label") || "").toLowerCase();
+
+      if (
+        text.includes("html editor") ||
+        text.includes("html view") ||
+        text.includes("show html") ||
+        ariaLabel.includes("html editor") ||
+        ariaLabel.includes("html view")
+      ) {
+        // If it's a checkbox, check it
+        if (el.type === "checkbox" || el.getAttribute("role") === "checkbox") {
+          if (!el.checked && el.getAttribute("aria-checked") !== "true") {
+            el.click();
+            log("HTML editor checkbox enabled");
+            await sleep(1000);
+            return true;
+          }
+          log("HTML editor already enabled");
+          return true;
+        }
+
+        // If it's a label, click it (will toggle the associated checkbox)
+        if (el.tagName === "LABEL") {
+          el.click();
+          log("HTML editor enabled via label click");
+          await sleep(1000);
+          return true;
+        }
+
+        // Any other clickable element
+        el.click();
+        log("HTML editor enabled via click:", el.tagName);
+        await sleep(1000);
+        return true;
+      }
+    }
+
+    // Also try finding by partial text in surrounding containers
+    const allText = document.querySelectorAll("span, label, a, div");
+    for (const el of allText) {
+      if (
+        el.children.length === 0 &&
+        el.textContent.trim().toLowerCase().includes("html")
+      ) {
+        // Check if there's a checkbox nearby
+        const container = el.closest("label, div, fieldset");
+        if (container) {
+          const checkbox =
+            container.querySelector('input[type="checkbox"]') ||
+            container.querySelector('[role="checkbox"]');
+          if (checkbox) {
+            if (
+              !checkbox.checked &&
+              checkbox.getAttribute("aria-checked") !== "true"
+            ) {
+              checkbox.click();
+              log("HTML editor checkbox found near text, enabled");
+              await sleep(1000);
+              return true;
+            }
+          }
+        }
+
+        // The text element itself might be clickable
+        if (
+          el.tagName === "A" ||
+          el.tagName === "SPAN" ||
+          el.style.cursor === "pointer"
+        ) {
+          el.click();
+          log("HTML editor enabled via nearby text click");
+          await sleep(1000);
+          return true;
+        }
+      }
+    }
+
+    log("HTML editor toggle not found");
+    return false;
+  }
+
   async function fillDescription(data) {
+    // First, enable the HTML editor
+    await enableHtmlEditor();
+
     let desc = data.description || "";
     if (data.serial_number) desc += `\nPart #: ${data.serial_number}`;
     if (data.vin) desc += `\nVIN: ${data.vin}`;
@@ -721,6 +821,8 @@ Once you have received your item in satisfactory condition, please leave us feed
     // Append boilerplate
     desc = desc.trim() + "\n\n" + EBAY_BOILERPLATE;
 
+    // After enabling HTML editor, re-search for the description field
+    // (it may have changed from a rich editor to a textarea)
     const descInput =
       document.querySelector('textarea[aria-label*="escription"]') ||
       document.querySelector('textarea[placeholder*="escription"]') ||
@@ -743,61 +845,35 @@ Once you have received your item in satisfactory condition, please leave us feed
   // Price
   // ============================================
 
-  async function setFixedPrice() {
-    // eBay defaults to Auction — switch to "Buy It Now" (Fixed price)
-    // Look for the format selector: radio buttons, dropdown, or tabs
-    const buyItNowRadio =
-      document.querySelector('input[type="radio"][value="FIXED_PRICE"]') ||
-      document.querySelector('input[type="radio"][value="fixedPrice"]') ||
-      document.querySelector('input[type="radio"][value="BIN"]');
+  async function enableBuyItNow() {
+    // Find the "Buy It Now" heading, walk up to find the checkbox toggle
+    const allEls = document.querySelectorAll("*");
+    for (const el of allEls) {
+      if (el.children.length > 3) continue;
+      const text = el.textContent.trim();
+      if (text !== "Buy It Now") continue;
 
-    if (buyItNowRadio) {
-      buyItNowRadio.click();
-      log("Buy It Now selected via radio");
-      return;
-    }
+      log(`Found "Buy It Now" in <${el.tagName}>`);
 
-    // Try clicking text-based options
-    const buyNowOption =
-      findClickableByText("Buy It Now") ||
-      findClickableByText("Fixed price") ||
-      findClickableByText("Buy it now");
-
-    if (buyNowOption) {
-      buyNowOption.click();
-      log("Buy It Now selected via text click");
-      return;
-    }
-
-    // Try dropdown: look for format/listing type selector
-    const formatDropdown =
-      document.querySelector('[aria-label*="ormat"]') ||
-      document.querySelector('[aria-label*="isting type"]') ||
-      document.querySelector('[data-testid="format"] button') ||
-      document.querySelector('[data-testid="format"] select');
-
-    if (formatDropdown) {
-      formatDropdown.click();
-      await sleep(800);
-
-      const options = document.querySelectorAll(
-        '[role="option"], [role="menuitem"], [role="listbox"] [role="option"], li[role="option"]'
-      );
-      for (const opt of options) {
-        const text = opt.textContent.trim();
-        if (
-          text.includes("Buy It Now") ||
-          text.includes("Fixed price") ||
-          text === "Fixed"
-        ) {
-          opt.click();
-          log("Buy It Now selected via dropdown:", text);
+      // Walk up 1-5 levels looking for a checkbox
+      let container = el.parentElement;
+      for (let i = 0; i < 5 && container; i++) {
+        const cb = container.querySelector('input[type="checkbox"]');
+        if (cb) {
+          log(`Buy It Now checkbox found ${i + 1} levels up, checked: ${cb.checked}`);
+          if (!cb.checked) {
+            cb.click();
+            log("Buy It Now checkbox clicked ON");
+            await sleep(2000);
+          } else {
+            log("Buy It Now already ON");
+          }
           return;
         }
+        container = container.parentElement;
       }
     }
-
-    log("Could not find Buy It Now selector — may already be set or not available");
+    log("Buy It Now toggle not found");
   }
 
   async function fillPrice(data) {
@@ -806,18 +882,108 @@ Once you have received your item in satisfactory condition, please leave us feed
       : "";
     if (!price) return;
 
-    const priceInput =
-      document.querySelector('input[aria-label*="rice"]') ||
-      document.querySelector('input[placeholder*="rice"]') ||
-      document.querySelector('[data-testid="price"] input') ||
-      findField("Price") ||
-      findField("Buy It Now price");
+    // Find all price-like inputs on the page
+    const allInputs = document.querySelectorAll('input');
+    let binPriceInput = null;
 
-    if (priceInput) {
-      await setInputValue(priceInput, price);
+    for (const input of allInputs) {
+      // Check if this input is inside the "Buy It Now" section
+      let parent = input.parentElement;
+      for (let i = 0; i < 6 && parent; i++) {
+        const text = parent.textContent || "";
+        if (text.includes("Buy It Now") && text.length < 400) {
+          // This input is in the Buy It Now section
+          // Make sure it looks like a price field (number/text input, not checkbox)
+          if (input.type === "text" || input.type === "number" || input.type === "") {
+            binPriceInput = input;
+            log("Found price input in Buy It Now section");
+            break;
+          }
+        }
+        parent = parent.parentElement;
+      }
+      if (binPriceInput) break;
+    }
+
+    // Fallback: try standard selectors
+    if (!binPriceInput) {
+      binPriceInput =
+        document.querySelector('input[aria-label*="rice"]') ||
+        document.querySelector('input[placeholder*="rice"]') ||
+        document.querySelector('[data-testid="price"] input') ||
+        findField("Price") ||
+        findField("Buy It Now price");
+    }
+
+    if (binPriceInput) {
+      await setInputValue(binPriceInput, price);
       log("Price filled:", price);
     } else {
       log("Price field not found");
+    }
+  }
+
+  async function fillQuantity(quantity) {
+    const qty = parseInt(quantity).toString();
+
+    // 1. Click "More options" to reveal Quantity section
+    const moreOptions =
+      findClickableByText("More options") ||
+      findClickableByText("More Options");
+
+    if (moreOptions) {
+      moreOptions.click();
+      log("Clicked 'More options' to reveal Quantity");
+      await sleep(1500);
+    }
+
+    // 2. Quantity has its own toggle switch — find and enable it
+    const allToggles = document.querySelectorAll(
+      '[role="switch"], button[aria-checked]'
+    );
+    for (const toggle of allToggles) {
+      const label = (toggle.getAttribute("aria-label") || "").toLowerCase();
+      if (label.includes("quantity")) {
+        if (toggle.getAttribute("aria-checked") !== "true") {
+          toggle.click();
+          log("Quantity toggle turned ON via aria-label");
+          await sleep(1000);
+        }
+        break;
+      }
+
+      // Check nearby text
+      let container = toggle.parentElement;
+      for (let i = 0; i < 5 && container; i++) {
+        const text = container.textContent || "";
+        if (text.includes("Quantity") && !text.includes("Pricing")) {
+          if (toggle.getAttribute("aria-checked") !== "true") {
+            toggle.click();
+            log("Quantity toggle turned ON");
+            await sleep(1000);
+          }
+          container = null; // break outer
+          break;
+        }
+        container = container.parentElement;
+      }
+      if (!container) break; // was found
+    }
+
+    // 3. Now fill the quantity input
+    await sleep(500);
+    const qtyInput =
+      document.querySelector('input[aria-label*="uantity"]') ||
+      document.querySelector('input[placeholder*="uantity"]') ||
+      document.querySelector('[data-testid="quantity"] input') ||
+      findField("Quantity") ||
+      findField("Available quantity");
+
+    if (qtyInput) {
+      await setInputValue(qtyInput, qty);
+      log("Quantity filled:", qty);
+    } else {
+      log("Quantity input field not found after toggle");
     }
   }
 

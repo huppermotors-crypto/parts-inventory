@@ -16,6 +16,7 @@ import {
   Download,
   Percent,
   DollarSign,
+  ShoppingBag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -52,6 +53,11 @@ const navItems = [
     label: "Pricing",
     href: "/admin/pricing",
     icon: Percent,
+  },
+  {
+    label: "Listings",
+    href: "/admin/listings",
+    icon: ShoppingBag,
   },
   {
     label: "Stats",
