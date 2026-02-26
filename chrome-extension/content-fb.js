@@ -173,8 +173,8 @@
     await setCategory();
     await sleep(600);
 
-    // 8. Clear stored data so it doesn't auto-fill next time
-    chrome.storage.local.remove("scrapedPart");
+    // Data stays in storage so the side panel keeps showing it.
+    // It gets overwritten next time a new part is posted.
 
     updateOverlay("✅ Done! Review and publish your listing.");
     log("Form filling complete!");

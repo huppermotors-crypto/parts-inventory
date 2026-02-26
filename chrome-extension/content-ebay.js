@@ -437,8 +437,8 @@
       await sleep(500);
     }
 
-    // 8. Clear stored data
-    chrome.storage.local.remove("ebayPart");
+    // Data stays in storage so the side panel keeps showing it.
+    // It gets overwritten next time a new part is posted.
 
     updateOverlay("Done! Review and publish your listing.");
     log("Form filling complete!");
