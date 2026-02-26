@@ -267,17 +267,25 @@ export default function StatsPage() {
                         field="key"
                       />
                     </TableHead>
-                    <TableHead className="text-right">
-                      <SortHeader label="Parts" field="partCount" />
+                    <TableHead>
+                      <div className="flex justify-end">
+                        <SortHeader label="Parts" field="partCount" />
+                      </div>
                     </TableHead>
-                    <TableHead className="text-right">
-                      <SortHeader label="In Stock ($)" field="inStockValue" />
+                    <TableHead>
+                      <div className="flex justify-end">
+                        <SortHeader label="In Stock ($)" field="inStockValue" />
+                      </div>
                     </TableHead>
-                    <TableHead className="text-right">
-                      <SortHeader label="Sold ($)" field="soldValue" />
+                    <TableHead>
+                      <div className="flex justify-end">
+                        <SortHeader label="Sold ($)" field="soldValue" />
+                      </div>
                     </TableHead>
-                    <TableHead className="text-right">
-                      <SortHeader label="Total ($)" field="totalValue" />
+                    <TableHead>
+                      <div className="flex justify-end">
+                        <SortHeader label="Total ($)" field="totalValue" />
+                      </div>
                     </TableHead>
                   </TableRow>
                 </TableHeader>
