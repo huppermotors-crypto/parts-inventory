@@ -27,7 +27,7 @@ import { PART_CATEGORIES, PART_CONDITIONS } from "@/lib/constants";
 import { PhotoUploader, PhotoFile } from "@/components/admin/photo-uploader";
 import { EbayPriceSearch } from "@/components/admin/ebay-price-search";
 import { rotateImage } from "@/lib/rotate-image";
-import { Loader2, Save, X, ImageIcon, RotateCw } from "lucide-react";
+import { Loader2, Save, X, ImageIcon, RotateCw, GripVertical } from "lucide-react";
 import Image from "next/image";
 
 const supabase = createClient();
@@ -94,6 +94,38 @@ export function EditPartDialog({
   );
 
   const [rotating, setRotating] = useState<number | null>(null);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  const handleDragStart = (index: number) => {
+    setDragIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  };
+
+  const handleDrop = (index: number) => {
+    if (dragIndex === null || dragIndex === index) {
+      setDragIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+    setExistingPhotos((prev) => {
+      const arr = [...prev];
+      const [moved] = arr.splice(dragIndex, 1);
+      arr.splice(index, 0, moved);
+      return arr;
+    });
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
 
   const handleRotateExisting = useCallback(
     async (index: number) => {
@@ -244,7 +276,7 @@ export function EditPartDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>Edit Part</DialogTitle>
         </DialogHeader>
@@ -408,23 +440,38 @@ export function EditPartDialog({
 
             {/* Existing photos */}
             {existingPhotos.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                 {existingPhotos.map((url, index) => (
                   <div
                     key={url}
-                    className="relative group rounded-lg overflow-hidden border aspect-square"
+                    draggable
+                    onDragStart={() => handleDragStart(index)}
+                    onDragOver={(e) => handleDragOver(e, index)}
+                    onDrop={() => handleDrop(index)}
+                    onDragEnd={handleDragEnd}
+                    className={`relative group rounded-lg overflow-hidden border aspect-square cursor-grab active:cursor-grabbing transition-all ${
+                      dragIndex === index ? "opacity-40 scale-95" : ""
+                    } ${dragOverIndex === index && dragIndex !== index ? "ring-2 ring-primary" : ""}`}
                   >
                     <Image
                       src={url}
                       alt={`Photo ${index + 1}`}
                       fill
-                      className="object-cover"
+                      className="object-cover pointer-events-none"
                     />
+                    {/* Position number */}
+                    <span className="absolute bottom-1 left-1 bg-black/60 text-white text-xs font-bold px-1.5 py-0.5 rounded">
+                      {index + 1}
+                    </span>
+                    {/* Drag handle */}
+                    <div className="absolute top-1 left-1/2 -translate-x-1/2 bg-black/40 text-white rounded px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <GripVertical className="h-3 w-3" />
+                    </div>
                     <Button
                       type="button"
                       variant="secondary"
                       size="icon"
-                      className="absolute top-1 left-1 h-7 w-7 sm:h-6 sm:w-6 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                      className="absolute bottom-1 right-1 h-7 w-7 sm:h-6 sm:w-6 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                       onClick={() => handleRotateExisting(index)}
                       disabled={rotating === index}
                     >
