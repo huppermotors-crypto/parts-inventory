@@ -93,6 +93,7 @@ export default function DashboardPage() {
   const [filterMake, setFilterMake] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<StatusFilter>("all");
+  const [filterNoVin, setFilterNoVin] = useState(false);
   const [viewMode, setViewMode] = useState<"table" | "grid" | "compact" | "list">("table");
 
   // Sort state
@@ -217,9 +218,12 @@ export default function DashboardPage() {
       const matchesCategory =
         filterCategory === "all" || part.category === filterCategory;
 
-      return matchesSearch && matchesMake && matchesCategory;
+      // No VIN filter
+      const matchesVin = !filterNoVin || !part.vin;
+
+      return matchesSearch && matchesMake && matchesCategory && matchesVin;
     });
-  }, [parts, search, filterMake, filterCategory, filterStatus]);
+  }, [parts, search, filterMake, filterCategory, filterStatus, filterNoVin]);
 
   // --- Sorting ---
   const sortedParts = useMemo(() => {
@@ -255,22 +259,24 @@ export default function DashboardPage() {
   // Reset page when filters/sort changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, filterMake, filterCategory, filterStatus, sortField, sortDirection]);
+  }, [search, filterMake, filterCategory, filterStatus, filterNoVin, sortField, sortDirection]);
 
   // Clear selection on filter changes
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [search, filterMake, filterCategory, filterStatus]);
+  }, [search, filterMake, filterCategory, filterStatus, filterNoVin]);
 
   const activeFiltersCount =
     (filterMake !== "all" ? 1 : 0) +
     (filterCategory !== "all" ? 1 : 0) +
-    (filterStatus !== "all" ? 1 : 0);
+    (filterStatus !== "all" ? 1 : 0) +
+    (filterNoVin ? 1 : 0);
 
   const clearFilters = () => {
     setFilterMake("all");
     setFilterCategory("all");
     setFilterStatus("all");
+    setFilterNoVin(false);
     setSearch("");
   };
 
@@ -877,6 +883,15 @@ export default function DashboardPage() {
             )}
           </SelectContent>
         </Select>
+
+        {/* No VIN filter */}
+        <label className="flex items-center gap-2 cursor-pointer text-sm whitespace-nowrap">
+          <Checkbox
+            checked={filterNoVin}
+            onCheckedChange={(checked) => setFilterNoVin(checked === true)}
+          />
+          No VIN
+        </label>
 
         {/* Clear filters */}
         {activeFiltersCount > 0 && (

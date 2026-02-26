@@ -61,11 +61,10 @@ export function normalizeMakeModel(value: string): string {
     .trim()
     .split(/\s+/)
     .map((word) => {
+      // Short all-caps abbreviations stay as-is: BMW, GMC, AMG
       if (word.length <= 3 && word === word.toUpperCase()) return word;
-      if (word === word.toUpperCase()) {
-        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-      }
-      return word;
+      // Everything else → Title Case
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
     })
     .join(" ");
 }
