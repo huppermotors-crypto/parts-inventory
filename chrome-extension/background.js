@@ -315,14 +315,30 @@ async function handleImageDownloads(imageUrls, title) {
 }
 
 // Open the side panel showing part details
-function openSidePanel(tabId) {
+async function openSidePanel(tabId) {
   try {
-    if (chrome.sidePanel && chrome.sidePanel.open) {
-      chrome.sidePanel.open({ tabId }).catch((err) => {
-        console.log("[BG] Side panel open failed (user may need to allow):", err.message);
+    if (!chrome.sidePanel || !chrome.sidePanel.open) {
+      console.log("[BG] Side panel API not available");
+      return;
+    }
+
+    // Enable the side panel for this tab
+    if (chrome.sidePanel.setOptions) {
+      await chrome.sidePanel.setOptions({
+        tabId,
+        path: "sidepanel.html",
+        enabled: true,
       });
     }
+
+    // Get the window ID from the tab
+    const tab = await chrome.tabs.get(tabId);
+    const windowId = tab.windowId;
+
+    // Open side panel — needs windowId
+    await chrome.sidePanel.open({ windowId });
+    console.log("[BG] Side panel opened for window", windowId);
   } catch (err) {
-    console.log("[BG] Side panel not supported:", err.message);
+    console.log("[BG] Side panel open failed:", err.message);
   }
 }
