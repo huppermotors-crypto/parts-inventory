@@ -251,14 +251,18 @@ async function handleDirectPost(data) {
   console.log("[BG] Direct posting:", data.title);
 
   try {
+    data._source = "fb";
     // Save to storage (photos URLs included — content-fb.js will fetch & upload them)
     await chrome.storage.local.set({ scrapedPart: data });
 
     // Open FB Marketplace (listing = general item, not vehicle)
-    chrome.tabs.create({
+    const tab = await chrome.tabs.create({
       url: "https://www.facebook.com/marketplace/create/listing",
       active: true,
     });
+
+    // Open side panel with part details
+    openSidePanel(tab.id);
   } catch (err) {
     console.error("[BG] Direct post error:", err);
   }
@@ -274,12 +278,16 @@ async function handleDirectPostEbay(data) {
   console.log("[BG] eBay posting:", data.title);
 
   try {
+    data._source = "ebay";
     await chrome.storage.local.set({ ebayPart: data });
 
-    chrome.tabs.create({
+    const tab = await chrome.tabs.create({
       url: "https://www.ebay.com/sl/prelist/suggest",
       active: true,
     });
+
+    // Open side panel with part details
+    openSidePanel(tab.id);
   } catch (err) {
     console.error("[BG] eBay post error:", err);
   }
@@ -303,5 +311,18 @@ async function handleImageDownloads(imageUrls, title) {
     } catch (err) {
       console.error(`Failed to download image ${i + 1}:`, err);
     }
+  }
+}
+
+// Open the side panel showing part details
+function openSidePanel(tabId) {
+  try {
+    if (chrome.sidePanel && chrome.sidePanel.open) {
+      chrome.sidePanel.open({ tabId }).catch((err) => {
+        console.log("[BG] Side panel open failed (user may need to allow):", err.message);
+      });
+    }
+  } catch (err) {
+    console.log("[BG] Side panel not supported:", err.message);
   }
 }
