@@ -315,28 +315,27 @@ export default function DashboardPage() {
 
   // --- Optimistic toggle sold ---
   const toggleSold = async (part: Part) => {
-    // For lots with quantity > 1 that are not yet sold, open quantity dialog
-    if ((part.quantity || 1) > 1 && !part.is_sold) {
+    if (!part.is_sold) {
+      // Not yet sold — open sale confirmation dialog (for all parts)
       setSellPart(part);
       setSellOpen(true);
       return;
     }
 
-    const newIsSold = !part.is_sold;
-    const newIsPublished = newIsSold ? false : true;
+    // Already sold — mark as available again
     const previousParts = [...parts];
 
     setParts((prev) =>
       prev.map((p) =>
         p.id === part.id
-          ? { ...p, is_sold: newIsSold, is_published: newIsPublished }
+          ? { ...p, is_sold: false, is_published: true, sold_price: null, sold_at: null }
           : p
       )
     );
 
     const { error } = await supabase
       .from("parts")
-      .update({ is_sold: newIsSold, is_published: newIsPublished })
+      .update({ is_sold: false, is_published: true, sold_price: null, sold_at: null })
       .eq("id", part.id);
 
     if (error) {
@@ -346,31 +345,62 @@ export default function DashboardPage() {
         description: "Failed to update status. Reverted.",
         variant: "destructive",
       });
-    } else if (newIsSold && part.fb_posted_at) {
-      toast({
-        title: "Marked as Sold — Update Facebook!",
-        description: `"${part.name}" was posted on FB. Don't forget to mark it as sold or remove the listing.`,
-        duration: 10000,
-      });
-      window.open("https://www.facebook.com/marketplace/you/selling", "_blank");
     }
   };
 
-  // --- Partial lot sell ---
-  const sellPartial = async (part: Part, soldQty: number) => {
+  // --- Sell with price confirmation ---
+  const sellPartial = async (part: Part, soldQty: number, confirmedPrice: number) => {
     const previousParts = [...parts];
     const remainingQty = (part.quantity || 1) - soldQty;
     const allSold = remainingQty === 0;
+    const now = new Date().toISOString();
 
-    // Calculate price for sold portion when price_per is "lot"
-    const soldPrice = part.price_per === "item"
+    // Calculate remaining price for lot pricing
+    const defaultSoldPrice = part.price_per === "item"
       ? part.price
       : (part.price / (part.quantity || 1)) * soldQty;
     const remainingPrice = part.price_per === "item"
       ? part.price
-      : part.price - soldPrice;
+      : part.price - defaultSoldPrice;
 
-    // Optimistic: update original part
+    // If selling the whole lot (qty=1 or all items), just update the part
+    if (allSold && soldQty === (part.quantity || 1)) {
+      setParts((prev) =>
+        prev.map((p) =>
+          p.id === part.id
+            ? { ...p, is_sold: true, is_published: false, sold_price: confirmedPrice, sold_at: now }
+            : p
+        )
+      );
+
+      const { error } = await supabase
+        .from("parts")
+        .update({ is_sold: true, is_published: false, sold_price: confirmedPrice, sold_at: now })
+        .eq("id", part.id);
+
+      if (error) {
+        setParts(previousParts);
+        toast({ title: "Error", description: "Failed to mark as sold.", variant: "destructive" });
+        return;
+      }
+
+      toast({
+        title: "Sold!",
+        description: `"${part.name}" sold for $${confirmedPrice.toFixed(2)}`,
+      });
+
+      if (part.fb_posted_at) {
+        toast({
+          title: "Update Facebook!",
+          description: `"${part.name}" was posted on FB — mark it as sold there too.`,
+          duration: 10000,
+        });
+        window.open("https://www.facebook.com/marketplace/you/selling", "_blank");
+      }
+      return;
+    }
+
+    // Partial lot sell — create a sold record + update original
     setParts((prev) =>
       prev.map((p) =>
         p.id === part.id
@@ -396,7 +426,7 @@ export default function DashboardPage() {
         make: part.make,
         model: part.model,
         serial_number: part.serial_number,
-        price: part.price_per === "item" ? part.price : soldPrice,
+        price: part.price_per === "item" ? part.price : defaultSoldPrice,
         condition: part.condition,
         category: part.category,
         quantity: soldQty,
@@ -404,6 +434,8 @@ export default function DashboardPage() {
         photos: part.photos,
         is_published: false,
         is_sold: true,
+        sold_price: confirmedPrice,
+        sold_at: now,
       })
       .select()
       .single();
@@ -418,7 +450,7 @@ export default function DashboardPage() {
     const updateData: Record<string, unknown> = {
       quantity: remainingQty,
       ...(part.price_per === "lot" ? { price: remainingPrice } : {}),
-      ...(allSold ? { is_sold: true, is_published: false } : {}),
+      ...(allSold ? { is_sold: true, is_published: false, sold_price: confirmedPrice, sold_at: now } : {}),
     };
 
     const { error: updateError } = await supabase
@@ -427,22 +459,19 @@ export default function DashboardPage() {
       .eq("id", part.id);
 
     if (updateError) {
-      // Rollback: delete the inserted sold record and revert
       await supabase.from("parts").delete().eq("id", soldRecord.id);
       setParts(previousParts);
       toast({ title: "Error", description: "Failed to update original part.", variant: "destructive" });
       return;
     }
 
-    // Add sold record to local state
     setParts((prev) => [soldRecord, ...prev]);
 
     toast({
       title: "Partial Sale Recorded",
-      description: `Sold ${soldQty} of "${part.name}". ${allSold ? "All sold." : `${remainingQty} remaining.`}`,
+      description: `Sold ${soldQty} of "${part.name}" for $${confirmedPrice.toFixed(2)}. ${allSold ? "All sold." : `${remainingQty} remaining.`}`,
     });
 
-    // Notify about FB if posted
     if (part.fb_posted_at && allSold) {
       toast({
         title: "Update Facebook!",

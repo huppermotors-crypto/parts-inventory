@@ -18,6 +18,8 @@ export interface Part {
   photos: string[];
   is_published: boolean;
   is_sold: boolean;
+  sold_price: number | null;
+  sold_at: string | null;
   fb_posted_at: string | null;
   ebay_listing_id: string | null;
   ebay_offer_id: string | null;
