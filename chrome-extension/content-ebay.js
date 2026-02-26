@@ -14,6 +14,7 @@
 
   let hasRun = false;
   let lastUrl = "";
+  let savedDescription = ""; // saved HTML description for re-fill after eBay resets
 
   if (document.readyState === "complete") {
     startWithDelay();
@@ -834,11 +835,68 @@ Once you have received your item in satisfactory condition, please leave us feed
       findField("Tell buyers about your item");
 
     if (descInput) {
-      await setInputValue(descInput, desc.trim());
+      const finalDesc = desc.trim();
+      savedDescription = finalDesc;
+      await setInputValue(descInput, finalDesc);
       log("Description filled");
+      // Watch for eBay resetting description (e.g. when toggling Local Pickup)
+      watchDescriptionField();
     } else {
       log("Description field not found");
     }
+  }
+
+  // Re-fill description if eBay resets it (shipping changes, etc.)
+  function watchDescriptionField() {
+    if (!savedDescription) return;
+
+    let refilling = false;
+    const CHECK_INTERVAL = 2000;
+    const MAX_CHECKS = 300; // 10 minutes
+    let checks = 0;
+
+    const interval = setInterval(async () => {
+      checks++;
+      if (checks > MAX_CHECKS || !savedDescription) {
+        clearInterval(interval);
+        return;
+      }
+      if (refilling) return;
+
+      const descInput =
+        document.querySelector('textarea[aria-label*="escription"]') ||
+        document.querySelector('textarea[placeholder*="escription"]') ||
+        document.querySelector('[data-testid="description"] textarea') ||
+        document.querySelector('[aria-label*="escription"][contenteditable="true"]') ||
+        findField("Description");
+
+      if (!descInput) return;
+
+      const currentValue = descInput.value || descInput.textContent || "";
+      // If description was cleared or significantly shortened (eBay reset it)
+      if (currentValue.length < savedDescription.length * 0.5 && savedDescription.length > 50) {
+        refilling = true;
+        log("Description was reset by eBay! Re-filling...");
+
+        // Re-enable HTML editor first
+        await enableHtmlEditor();
+        await sleep(500);
+
+        // Re-find the field (may have changed after HTML toggle)
+        const freshInput =
+          document.querySelector('textarea[aria-label*="escription"]') ||
+          document.querySelector('textarea[placeholder*="escription"]') ||
+          document.querySelector('[data-testid="description"] textarea') ||
+          document.querySelector('[aria-label*="escription"][contenteditable="true"]') ||
+          findField("Description");
+
+        if (freshInput) {
+          await setInputValue(freshInput, savedDescription);
+          log("Description re-filled successfully");
+        }
+        refilling = false;
+      }
+    }, CHECK_INTERVAL);
   }
 
   // ============================================
