@@ -44,6 +44,7 @@ import { EditPartDialog } from "@/components/admin/edit-part-dialog";
 import { DeletePartDialog } from "@/components/admin/delete-part-dialog";
 import { BulkPriceDialog } from "@/components/admin/bulk-price-dialog";
 import { SellQuantityDialog } from "@/components/admin/sell-quantity-dialog";
+import { MergeLotDialog } from "@/components/admin/merge-lot-dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   PlusCircle,
@@ -73,6 +74,7 @@ import {
   TrendingUp,
   BarChart3,
   ShoppingBag,
+  Merge,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -94,6 +96,7 @@ export default function DashboardPage() {
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<StatusFilter>("all");
   const [filterNoVin, setFilterNoVin] = useState(false);
+  const [filterOtherCategory, setFilterOtherCategory] = useState(false);
   const [viewMode, setViewMode] = useState<"table" | "grid" | "compact" | "list">("table");
 
   // Sort state
@@ -106,6 +109,7 @@ export default function DashboardPage() {
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkPriceOpen, setBulkPriceOpen] = useState(false);
+  const [mergeLotOpen, setMergeLotOpen] = useState(false);
 
   // Force non-table view on mobile (table is unusable on small screens)
   useEffect(() => {
@@ -221,9 +225,12 @@ export default function DashboardPage() {
       // No VIN filter
       const matchesVin = !filterNoVin || !part.vin;
 
-      return matchesSearch && matchesMake && matchesCategory && matchesVin;
+      // Other category filter
+      const matchesOther = !filterOtherCategory || part.category === "other";
+
+      return matchesSearch && matchesMake && matchesCategory && matchesVin && matchesOther;
     });
-  }, [parts, search, filterMake, filterCategory, filterStatus, filterNoVin]);
+  }, [parts, search, filterMake, filterCategory, filterStatus, filterNoVin, filterOtherCategory]);
 
   // --- Sorting ---
   const sortedParts = useMemo(() => {
@@ -259,24 +266,26 @@ export default function DashboardPage() {
   // Reset page when filters/sort changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, filterMake, filterCategory, filterStatus, filterNoVin, sortField, sortDirection]);
+  }, [search, filterMake, filterCategory, filterStatus, filterNoVin, filterOtherCategory, sortField, sortDirection]);
 
   // Clear selection on filter changes
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [search, filterMake, filterCategory, filterStatus, filterNoVin]);
+  }, [search, filterMake, filterCategory, filterStatus, filterNoVin, filterOtherCategory]);
 
   const activeFiltersCount =
     (filterMake !== "all" ? 1 : 0) +
     (filterCategory !== "all" ? 1 : 0) +
     (filterStatus !== "all" ? 1 : 0) +
-    (filterNoVin ? 1 : 0);
+    (filterNoVin ? 1 : 0) +
+    (filterOtherCategory ? 1 : 0);
 
   const clearFilters = () => {
     setFilterMake("all");
     setFilterCategory("all");
     setFilterStatus("all");
     setFilterNoVin(false);
+    setFilterOtherCategory(false);
     setSearch("");
   };
 
@@ -617,6 +626,55 @@ export default function DashboardPage() {
     }
   };
 
+  // Get selected parts in selection order (first checked = primary)
+  const selectedPartsForMerge = useMemo(() => {
+    return parts.filter((p) => selectedIds.has(p.id));
+  }, [parts, selectedIds]);
+
+  const handleMergeLot = async (
+    primaryId: string,
+    mergedIds: string[],
+    updates: { name: string; quantity: number; price: number; price_per: "lot" | "item"; description: string | null; photos: string[] }
+  ) => {
+    const previousParts = [...parts];
+
+    // Optimistic: update primary, remove merged
+    setParts((prev) =>
+      prev
+        .map((p) => (p.id === primaryId ? { ...p, ...updates } : p))
+        .filter((p) => !mergedIds.includes(p.id))
+    );
+    clearSelection();
+
+    try {
+      // Update primary part
+      const { error: updateErr } = await supabase
+        .from("parts")
+        .update({
+          name: updates.name,
+          quantity: updates.quantity,
+          price: updates.price,
+          price_per: updates.price_per,
+          description: updates.description,
+          photos: updates.photos,
+        })
+        .eq("id", primaryId);
+      if (updateErr) throw updateErr;
+
+      // Delete merged parts
+      const { error: deleteErr } = await supabase
+        .from("parts")
+        .delete()
+        .in("id", mergedIds);
+      if (deleteErr) throw deleteErr;
+
+      toast({ title: "Merged", description: `${mergedIds.length + 1} parts merged into 1 lot.` });
+    } catch {
+      setParts(previousParts);
+      toast({ title: "Error", description: "Merge failed. Reverted.", variant: "destructive" });
+    }
+  };
+
   const postToFB = async (part: Part) => {
     // Merge photos from all selected parts (if any are selected)
     const allPhotos = [...(part.photos || [])];
@@ -884,13 +942,20 @@ export default function DashboardPage() {
           </SelectContent>
         </Select>
 
-        {/* No VIN filter */}
+        {/* Quick filters */}
         <label className="flex items-center gap-2 cursor-pointer text-sm whitespace-nowrap">
           <Checkbox
             checked={filterNoVin}
             onCheckedChange={(checked) => setFilterNoVin(checked === true)}
           />
           No VIN
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer text-sm whitespace-nowrap">
+          <Checkbox
+            checked={filterOtherCategory}
+            onCheckedChange={(checked) => setFilterOtherCategory(checked === true)}
+          />
+          Other
         </label>
 
         {/* Clear filters */}
@@ -965,6 +1030,12 @@ export default function DashboardPage() {
               <DollarSign className="h-4 w-4 mr-1" />
               Change Price
             </Button>
+            {selectedIds.size >= 2 && (
+              <Button variant="outline" size="sm" onClick={() => setMergeLotOpen(true)}>
+                <Merge className="h-4 w-4 mr-1" />
+                Merge Lot
+              </Button>
+            )}
             <Button variant="destructive" size="sm" onClick={bulkDelete}>
               <Trash2 className="h-4 w-4 mr-1" />
               Delete
@@ -1655,6 +1726,12 @@ export default function DashboardPage() {
         open={sellOpen}
         onOpenChange={setSellOpen}
         onConfirm={sellPartial}
+      />
+      <MergeLotDialog
+        parts={selectedPartsForMerge}
+        open={mergeLotOpen}
+        onOpenChange={setMergeLotOpen}
+        onConfirm={handleMergeLot}
       />
     </div>
   );
