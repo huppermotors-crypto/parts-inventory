@@ -723,15 +723,18 @@ export default function DashboardPage() {
       new CustomEvent("fb-post-part", { detail: partData })
     );
 
-    // Mark as posted to FB
+    // Mark all included parts as posted to FB
     const now = new Date().toISOString();
+    const idsToMark = [part.id, ...(selectedIds.size > 0
+      ? parts.filter((p) => selectedIds.has(p.id) && p.id !== part.id).map((p) => p.id)
+      : [])];
     setParts((prev) =>
-      prev.map((p) => (p.id === part.id ? { ...p, fb_posted_at: now } : p))
+      prev.map((p) => idsToMark.includes(p.id) ? { ...p, fb_posted_at: now } : p)
     );
     const { error } = await supabase
       .from("parts")
       .update({ fb_posted_at: now })
-      .eq("id", part.id);
+      .in("id", idsToMark);
 
     if (error) {
       console.error("FB status update failed:", error);
@@ -800,14 +803,18 @@ export default function DashboardPage() {
       new CustomEvent("ebay-post-part", { detail: partData })
     );
 
+    // Mark all included parts as posted to eBay
     const now = new Date().toISOString();
+    const idsToMark = [part.id, ...(selectedIds.size > 0
+      ? parts.filter((p) => selectedIds.has(p.id) && p.id !== part.id).map((p) => p.id)
+      : [])];
     setParts((prev) =>
-      prev.map((p) => (p.id === part.id ? { ...p, ebay_listed_at: now } : p))
+      prev.map((p) => idsToMark.includes(p.id) ? { ...p, ebay_listed_at: now } : p)
     );
     const { error } = await supabase
       .from("parts")
       .update({ ebay_listed_at: now })
-      .eq("id", part.id);
+      .in("id", idsToMark);
 
     if (error) {
       console.error("eBay status update failed:", error);
