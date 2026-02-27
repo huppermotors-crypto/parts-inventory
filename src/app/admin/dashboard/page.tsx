@@ -97,6 +97,8 @@ export default function DashboardPage() {
   const [filterStatus, setFilterStatus] = useState<StatusFilter>("all");
   const [filterNoVin, setFilterNoVin] = useState(false);
   const [filterOtherCategory, setFilterOtherCategory] = useState(false);
+  const [filterNotOnFB, setFilterNotOnFB] = useState(false);
+  const [filterNotOnEbay, setFilterNotOnEbay] = useState(false);
   const [viewMode, setViewMode] = useState<"table" | "grid" | "compact" | "list">("table");
 
   // Sort state
@@ -228,9 +230,13 @@ export default function DashboardPage() {
       // Other category filter
       const matchesOther = !filterOtherCategory || part.category === "other";
 
-      return matchesSearch && matchesMake && matchesCategory && matchesVin && matchesOther;
+      // Not posted filters
+      const matchesNotOnFB = !filterNotOnFB || !part.fb_posted_at;
+      const matchesNotOnEbay = !filterNotOnEbay || !part.ebay_listed_at;
+
+      return matchesSearch && matchesMake && matchesCategory && matchesVin && matchesOther && matchesNotOnFB && matchesNotOnEbay;
     });
-  }, [parts, search, filterMake, filterCategory, filterStatus, filterNoVin, filterOtherCategory]);
+  }, [parts, search, filterMake, filterCategory, filterStatus, filterNoVin, filterOtherCategory, filterNotOnFB, filterNotOnEbay]);
 
   // --- Sorting ---
   const sortedParts = useMemo(() => {
@@ -266,19 +272,21 @@ export default function DashboardPage() {
   // Reset page when filters/sort changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, filterMake, filterCategory, filterStatus, filterNoVin, filterOtherCategory, sortField, sortDirection]);
+  }, [search, filterMake, filterCategory, filterStatus, filterNoVin, filterOtherCategory, filterNotOnFB, filterNotOnEbay, sortField, sortDirection]);
 
   // Clear selection on filter changes
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [search, filterMake, filterCategory, filterStatus, filterNoVin, filterOtherCategory]);
+  }, [search, filterMake, filterCategory, filterStatus, filterNoVin, filterOtherCategory, filterNotOnFB, filterNotOnEbay]);
 
   const activeFiltersCount =
     (filterMake !== "all" ? 1 : 0) +
     (filterCategory !== "all" ? 1 : 0) +
     (filterStatus !== "all" ? 1 : 0) +
     (filterNoVin ? 1 : 0) +
-    (filterOtherCategory ? 1 : 0);
+    (filterOtherCategory ? 1 : 0) +
+    (filterNotOnFB ? 1 : 0) +
+    (filterNotOnEbay ? 1 : 0);
 
   const clearFilters = () => {
     setFilterMake("all");
@@ -286,6 +294,8 @@ export default function DashboardPage() {
     setFilterStatus("all");
     setFilterNoVin(false);
     setFilterOtherCategory(false);
+    setFilterNotOnFB(false);
+    setFilterNotOnEbay(false);
     setSearch("");
   };
 
@@ -732,6 +742,7 @@ export default function DashboardPage() {
   };
 
   const resetFBStatus = async (part: Part) => {
+    if (!confirm(`Remove "${part.name}" from Facebook?`)) return;
     setParts((prev) =>
       prev.map((p) => (p.id === part.id ? { ...p, fb_posted_at: null } : p))
     );
@@ -801,6 +812,7 @@ export default function DashboardPage() {
   };
 
   const resetEbayStatus = async (part: Part) => {
+    if (!confirm(`Remove "${part.name}" from eBay?`)) return;
     setParts((prev) =>
       prev.map((p) =>
         p.id === part.id
@@ -956,6 +968,20 @@ export default function DashboardPage() {
             onCheckedChange={(checked) => setFilterOtherCategory(checked === true)}
           />
           Other
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer text-sm whitespace-nowrap">
+          <Checkbox
+            checked={filterNotOnFB}
+            onCheckedChange={(checked) => setFilterNotOnFB(checked === true)}
+          />
+          Not on FB
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer text-sm whitespace-nowrap">
+          <Checkbox
+            checked={filterNotOnEbay}
+            onCheckedChange={(checked) => setFilterNotOnEbay(checked === true)}
+          />
+          Not on eBay
         </label>
 
         {/* Clear filters */}
