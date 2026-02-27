@@ -138,7 +138,7 @@ export default function AdminLayout({
         </Link>
         <a
           href="/extension.zip"
-          download={`AutoParts-Extension-${new Date().toISOString().slice(0, 10)}.zip`}
+          download="AutoParts-Extension-v1.1.0.zip"
           className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors min-h-[44px]"
         >
           <Download className="h-4 w-4" />

@@ -693,32 +693,73 @@
   // Description
   // ============================================
 
-  const EBAY_BOILERPLATE = `
-——————————————————
+  function buildDescriptionHtml(data) {
+    const lines = [];
 
-ITEM CONDITION:
-Tested and verified working before removal. May show normal signs of wear consistent with age and use. Please inspect all photos carefully — what you see is what you will receive.
+    // Part description from the listing
+    let desc = data.description || "";
+    if (data.serial_number) desc += `\nPart #: ${data.serial_number}`;
+    if (data.vin) desc += `\nVIN: ${data.vin}`;
+    if ((data.quantity || 1) > 1) desc += `\nQuantity: ${data.quantity}`;
 
-COMPATIBILITY:
-PLEASE VERIFY COMPATIBILITY BEFORE BUYING. IT IS THE BUYER'S RESPONSIBILITY TO DETERMINE WHETHER THE PART WILL FIT HIS/HER CAR OR NOT. PLEASE MAKE SURE TO MATCH THE PART NUMBER WITH YOUR ORIGINAL PART. WHAT YOU SEE IN THE PHOTOS IS WHAT YOU WILL RECEIVE. Please ask questions prior to purchasing and verify the fit in your application with your local dealer or an independent source.
-Please do not buy just to check and diagnose your vehicle problem.
+    const descHtml = desc.trim().split("\n").map(l => l.trim()).filter(Boolean).join("<br>");
 
-SHIPPING:
-Small/medium items ship via USPS, UPS, or FedEx (1-3 business days processing). Large/oversized items (bumpers, doors, hoods, engines, transmissions, seats, etc.) are LOCAL PICKUP ONLY. If listed as "Local Pickup" — item must be picked up from our location. Buyer may arrange their own freight carrier at their own expense. Contact us for address.
+    const sectionStyle = 'style="margin:0;padding:8px 12px;font-size:14px;font-family:Arial,Helvetica,sans-serif;line-height:1.5"';
+    const headerStyle = 'style="margin:0 0 4px 0;font-size:15px;font-weight:bold;text-transform:uppercase;letter-spacing:0.5px"';
 
-RETURNS:
-Returns accepted within 30 days ONLY if the item is non-functional or significantly differs from the description. Buyer is fully responsible for the shipping cost of the return. Shipping and handling fees are non-refundable. Most of our products are offered with free shipping, meaning shipping has been included in the price. You will be refunded the purchase price minus our shipping costs as soon as item is returned to us.
-All electronics are tested before removed from vehicle. IF NOT FUNCTIONAL, WE WILL NOT SELL. If the item is defective we will state accordingly and is sold for parts only. All electronic items are not eligible for return.
-We are not responsible for labor costs related to installation or removal.
+    lines.push(`<div style="max-width:800px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#222">`);
 
-WARRANTY:
-30-day warranty on all parts.
+    // Main description
+    if (descHtml) {
+      lines.push(`<div style="padding:12px;font-size:15px;margin-bottom:8px">${descHtml}</div>`);
+    }
 
-CONTACT:
-Questions? Message us through eBay — we respond within 24 hours. Please ask before purchasing!
+    // Divider
+    lines.push(`<hr style="border:none;border-top:2px solid #cc0000;margin:8px 0">`);
 
-IMPORTANT:
-Once you have received your item in satisfactory condition, please leave us feedback. If there is a concern or issue that would cause you to want to leave negative feedback, please contact us first and we will do our best to resolve the problem and satisfy the situation.`.trim();
+    // ITEM CONDITION
+    lines.push(`<div ${sectionStyle}>`);
+    lines.push(`<p ${headerStyle}><span style="color:#cc0000">&#9679;</span> ITEM CONDITION</p>`);
+    lines.push(`<p style="margin:0;color:#444">Tested and verified working before removal. May show normal signs of wear consistent with age and use. Please inspect all photos carefully &mdash; what you see is what you will receive.</p>`);
+    lines.push(`</div>`);
+
+    // COMPATIBILITY
+    lines.push(`<div ${sectionStyle}>`);
+    lines.push(`<p ${headerStyle}><span style="color:#cc0000">&#9679;</span> COMPATIBILITY</p>`);
+    lines.push(`<p style="margin:0;color:#444"><strong>PLEASE VERIFY COMPATIBILITY BEFORE BUYING.</strong> It is the buyer's responsibility to determine whether the part will fit his/her vehicle. Please make sure to match the part number with your original part. Verify the fit with your local dealer or an independent source before purchasing.</p>`);
+    lines.push(`<p style="margin:4px 0 0 0;color:#444">Please do not buy just to check and diagnose your vehicle problem.</p>`);
+    lines.push(`</div>`);
+
+    // SHIPPING
+    lines.push(`<div ${sectionStyle}>`);
+    lines.push(`<p ${headerStyle}><span style="color:#cc0000">&#9679;</span> SHIPPING</p>`);
+    lines.push(`<p style="margin:0;color:#444">Small/medium items ship via USPS, UPS, or FedEx (1&ndash;3 business days processing). Large/oversized items (bumpers, doors, hoods, engines, transmissions, seats, etc.) are <strong>LOCAL PICKUP ONLY</strong>. Buyer may arrange their own freight carrier at their own expense. Contact us for address.</p>`);
+    lines.push(`</div>`);
+
+    // RETURNS
+    lines.push(`<div ${sectionStyle}>`);
+    lines.push(`<p ${headerStyle}><span style="color:#cc0000">&#9679;</span> RETURNS</p>`);
+    lines.push(`<p style="margin:0;color:#444">Returns accepted within 30 days ONLY if the item is non-functional or significantly differs from the description. Buyer is fully responsible for the shipping cost of the return. Shipping and handling fees are non-refundable. You will be refunded the purchase price minus our shipping costs as soon as the item is returned to us.</p>`);
+    lines.push(`<p style="margin:4px 0 0 0;color:#444">All electronics are tested before removal. If not functional, we will not sell. Defective items are stated accordingly and sold for parts only. All electronic items are not eligible for return. We are not responsible for labor costs related to installation or removal.</p>`);
+    lines.push(`</div>`);
+
+    // CONTACT
+    lines.push(`<div ${sectionStyle}>`);
+    lines.push(`<p ${headerStyle}><span style="color:#cc0000">&#9679;</span> CONTACT</p>`);
+    lines.push(`<p style="margin:0;color:#444">Questions? Message us through eBay &mdash; we respond within 24 hours. Please ask before purchasing!</p>`);
+    lines.push(`</div>`);
+
+    // FEEDBACK
+    lines.push(`<div ${sectionStyle}>`);
+    lines.push(`<p ${headerStyle}><span style="color:#cc0000">&#9679;</span> FEEDBACK</p>`);
+    lines.push(`<p style="margin:0;color:#444">Once you have received your item in satisfactory condition, please leave us feedback. If there is a concern or issue, please contact us first and we will do our best to resolve the problem.</p>`);
+    lines.push(`</div>`);
+
+    lines.push(`<hr style="border:none;border-top:2px solid #cc0000;margin:8px 0">`);
+    lines.push(`</div>`);
+
+    return lines.join("\n");
+  }
 
   async function enableHtmlEditor() {
     // Look for "Show HTML editor" checkbox/toggle/link
@@ -814,13 +855,7 @@ Once you have received your item in satisfactory condition, please leave us feed
     // First, enable the HTML editor
     await enableHtmlEditor();
 
-    let desc = data.description || "";
-    if (data.serial_number) desc += `\nPart #: ${data.serial_number}`;
-    if (data.vin) desc += `\nVIN: ${data.vin}`;
-    if ((data.quantity || 1) > 1) desc += `\nQuantity: ${data.quantity}`;
-
-    // Append boilerplate
-    desc = desc.trim() + "\n\n" + EBAY_BOILERPLATE;
+    const finalDesc = buildDescriptionHtml(data);
 
     // After enabling HTML editor, re-search for the description field
     // (it may have changed from a rich editor to a textarea)
@@ -835,10 +870,9 @@ Once you have received your item in satisfactory condition, please leave us feed
       findField("Tell buyers about your item");
 
     if (descInput) {
-      const finalDesc = desc.trim();
       savedDescription = finalDesc;
       await setInputValue(descInput, finalDesc);
-      log("Description filled");
+      log("Description filled (HTML)");
       // Watch for eBay resetting description (e.g. when toggling Local Pickup)
       watchDescriptionField();
     } else {
