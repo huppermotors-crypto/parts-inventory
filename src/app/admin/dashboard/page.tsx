@@ -742,6 +742,7 @@ export default function DashboardPage() {
       return;
     }
 
+    setSelectedIds(new Set());
     toast({
       title: "Posting to FB Marketplace",
       description: mergedCount > 0
@@ -822,6 +823,7 @@ export default function DashboardPage() {
       return;
     }
 
+    setSelectedIds(new Set());
     toast({
       title: "Posting to eBay",
       description: mergedCount > 0
