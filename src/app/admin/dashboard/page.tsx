@@ -393,14 +393,18 @@ export default function DashboardPage() {
       setParts((prev) =>
         prev.map((p) =>
           p.id === part.id
-            ? { ...p, is_sold: true, is_published: false, sold_price: confirmedPrice, sold_at: now }
+            ? { ...p, is_sold: true, is_published: false, sold_price: confirmedPrice, sold_at: now,
+                fb_posted_at: null, ebay_listed_at: null, ebay_listing_id: null, ebay_offer_id: null, ebay_listing_url: null }
             : p
         )
       );
 
       const { error } = await supabase
         .from("parts")
-        .update({ is_sold: true, is_published: false, sold_price: confirmedPrice, sold_at: now })
+        .update({
+          is_sold: true, is_published: false, sold_price: confirmedPrice, sold_at: now,
+          fb_posted_at: null, ebay_listed_at: null, ebay_listing_id: null, ebay_offer_id: null, ebay_listing_url: null,
+        })
         .eq("id", part.id);
 
       if (error) {
@@ -421,6 +425,14 @@ export default function DashboardPage() {
           duration: 10000,
         });
         window.open("https://www.facebook.com/marketplace/you/selling", "_blank");
+      }
+      if (part.ebay_listing_url) {
+        toast({
+          title: "Update eBay!",
+          description: `"${part.name}" was listed on eBay — mark it as sold there too.`,
+          duration: 10000,
+        });
+        window.open(part.ebay_listing_url, "_blank");
       }
       return;
     }
@@ -475,7 +487,10 @@ export default function DashboardPage() {
     const updateData: Record<string, unknown> = {
       quantity: remainingQty,
       ...(part.price_per === "lot" ? { price: remainingPrice } : {}),
-      ...(allSold ? { is_sold: true, is_published: false, sold_price: confirmedPrice, sold_at: now } : {}),
+      ...(allSold ? {
+        is_sold: true, is_published: false, sold_price: confirmedPrice, sold_at: now,
+        fb_posted_at: null, ebay_listed_at: null, ebay_listing_id: null, ebay_offer_id: null, ebay_listing_url: null,
+      } : {}),
     };
 
     const { error: updateError } = await supabase
@@ -504,6 +519,14 @@ export default function DashboardPage() {
         duration: 10000,
       });
       window.open("https://www.facebook.com/marketplace/you/selling", "_blank");
+    }
+    if (part.ebay_listing_url && allSold) {
+      toast({
+        title: "Update eBay!",
+        description: `"${part.name}" was listed on eBay — all items are now sold.`,
+        duration: 10000,
+      });
+      window.open(part.ebay_listing_url, "_blank");
     }
   };
 

@@ -163,7 +163,9 @@
       findField("Add a description");
     if (descInput) {
       let desc = data.description || "";
-      if (data.serial_number) desc += `\nS/N: ${data.serial_number}`;
+      if (data.serial_number && !desc.includes(data.serial_number)) {
+        desc += `\nS/N: ${data.serial_number}`;
+      }
       await setInputValue(descInput, desc.trim());
       await sleep(600);
     }
