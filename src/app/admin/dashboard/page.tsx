@@ -728,10 +728,16 @@ export default function DashboardPage() {
     setParts((prev) =>
       prev.map((p) => (p.id === part.id ? { ...p, fb_posted_at: now } : p))
     );
-    await supabase
+    const { error } = await supabase
       .from("parts")
       .update({ fb_posted_at: now })
       .eq("id", part.id);
+
+    if (error) {
+      console.error("FB status update failed:", error);
+      toast({ title: "Error", description: "Failed to save FB status to database.", variant: "destructive" });
+      return;
+    }
 
     toast({
       title: "Posting to FB Marketplace",
@@ -798,10 +804,16 @@ export default function DashboardPage() {
     setParts((prev) =>
       prev.map((p) => (p.id === part.id ? { ...p, ebay_listed_at: now } : p))
     );
-    await supabase
+    const { error } = await supabase
       .from("parts")
       .update({ ebay_listed_at: now })
       .eq("id", part.id);
+
+    if (error) {
+      console.error("eBay status update failed:", error);
+      toast({ title: "Error", description: "Failed to save eBay status to database.", variant: "destructive" });
+      return;
+    }
 
     toast({
       title: "Posting to eBay",

@@ -134,10 +134,13 @@ export default function ListingsPage() {
 
   const fetchParts = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("parts")
       .select("*")
       .order("created_at", { ascending: false });
+    if (error) {
+      console.error("Listings fetch error:", error);
+    }
     setParts((data || []) as Part[]);
     setLoading(false);
   }, []);
