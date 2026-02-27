@@ -449,11 +449,19 @@
   // ============================================
 
   function buildEbayTitle(data) {
-    const parts = [data.year, data.make, data.model, data.title].filter(
-      Boolean
-    );
-    const title = parts.join(" ");
-    return title.substring(0, 80); // eBay 80-char limit
+    let title = data.title || "";
+    const titleLower = title.toLowerCase();
+
+    // Only prepend year/make/model if not already in title
+    const prefix = [data.year, data.make, data.model]
+      .filter(Boolean)
+      .filter((v) => !titleLower.includes(String(v).toLowerCase()));
+
+    if (prefix.length > 0) {
+      title = prefix.join(" ") + " " + title;
+    }
+
+    return title.trim().substring(0, 80); // eBay 80-char limit
   }
 
   // ============================================
