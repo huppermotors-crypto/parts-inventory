@@ -27,7 +27,8 @@ import { PART_CATEGORIES, PART_CONDITIONS } from "@/lib/constants";
 import { PhotoUploader, PhotoFile } from "@/components/admin/photo-uploader";
 import { EbayPriceSearch } from "@/components/admin/ebay-price-search";
 import { rotateImage } from "@/lib/rotate-image";
-import { Loader2, Save, X, ImageIcon, RotateCw, GripVertical } from "lucide-react";
+import { CropDialog } from "./crop-dialog";
+import { Loader2, Save, X, ImageIcon, RotateCw, GripVertical, Crop } from "lucide-react";
 import Image from "next/image";
 
 const supabase = createClient();
@@ -94,6 +95,7 @@ export function EditPartDialog({
   );
 
   const [rotating, setRotating] = useState<number | null>(null);
+  const [cropIndex, setCropIndex] = useState<number | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
@@ -161,6 +163,39 @@ export function EditPartDialog({
       }
     },
     [existingPhotos, toast]
+  );
+
+  const handleCropExisting = useCallback(
+    async (blob: Blob) => {
+      if (cropIndex === null) return;
+      const url = existingPhotos[cropIndex];
+      try {
+        const fileName = `${Date.now()}-cropped.jpg`;
+        const filePath = `parts/${fileName}`;
+        const { error: uploadError } = await supabase.storage
+          .from("part-photos")
+          .upload(filePath, blob, { cacheControl: "3600", upsert: false });
+        if (uploadError) throw uploadError;
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("part-photos").getPublicUrl(filePath);
+
+        const oldMatch = url.match(/part-photos\/(.+)$/);
+        if (oldMatch) {
+          await supabase.storage.from("part-photos").remove([oldMatch[1]]);
+        }
+
+        setExistingPhotos((prev) =>
+          prev.map((u, i) => (i === cropIndex ? publicUrl : u))
+        );
+        toast({ title: "Photo cropped" });
+      } catch {
+        toast({ title: "Crop failed", variant: "destructive" });
+      }
+      setCropIndex(null);
+    },
+    [existingPhotos, cropIndex, toast]
   );
 
   const uploadNewPhotos = async (): Promise<string[]> => {
@@ -275,6 +310,7 @@ export function EditPartDialog({
   const totalPhotos = existingPhotos.length + newPhotos.length;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
@@ -467,20 +503,31 @@ export function EditPartDialog({
                     <div className="absolute top-1 left-1/2 -translate-x-1/2 bg-black/40 text-white rounded px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                       <GripVertical className="h-3 w-3" />
                     </div>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="icon"
-                      className="absolute bottom-1 right-1 h-7 w-7 sm:h-6 sm:w-6 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
-                      onClick={() => handleRotateExisting(index)}
-                      disabled={rotating === index}
-                    >
-                      {rotating === index ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <RotateCw className="h-3 w-3" />
-                      )}
-                    </Button>
+                    <div className="absolute bottom-1 right-1 flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="icon"
+                        className="h-7 w-7 sm:h-6 sm:w-6"
+                        onClick={() => setCropIndex(index)}
+                      >
+                        <Crop className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="icon"
+                        className="h-7 w-7 sm:h-6 sm:w-6"
+                        onClick={() => handleRotateExisting(index)}
+                        disabled={rotating === index}
+                      >
+                        {rotating === index ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <RotateCw className="h-3 w-3" />
+                        )}
+                      </Button>
+                    </div>
                     <Button
                       type="button"
                       variant="destructive"
@@ -521,5 +568,14 @@ export function EditPartDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    {cropIndex !== null && existingPhotos[cropIndex] && (
+      <CropDialog
+        open={true}
+        onOpenChange={(open) => { if (!open) setCropIndex(null); }}
+        imageSrc={existingPhotos[cropIndex]}
+        onCrop={handleCropExisting}
+      />
+    )}
+    </>
   );
 }

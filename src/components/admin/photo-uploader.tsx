@@ -3,7 +3,8 @@
 import { useCallback, useState } from "react";
 import { compressImage, formatFileSize } from "@/lib/compress-image";
 import { rotateImage } from "@/lib/rotate-image";
-import { ImagePlus, X, Loader2, RotateCw } from "lucide-react";
+import { ImagePlus, X, Loader2, RotateCw, Crop } from "lucide-react";
+import { CropDialog } from "./crop-dialog";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 
@@ -29,6 +30,7 @@ export function PhotoUploader({
 }: PhotoUploaderProps) {
   const [compressing, setCompressing] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [cropIndex, setCropIndex] = useState<number | null>(null);
 
   const processFiles = useCallback(
     async (files: FileList | File[]) => {
@@ -136,6 +138,28 @@ export function PhotoUploader({
     [photos, onChange]
   );
 
+  const handleCrop = useCallback(
+    (blob: Blob) => {
+      if (cropIndex === null) return;
+      const photo = photos[cropIndex];
+      const croppedFile = new File([blob], photo.file.name, {
+        type: "image/jpeg",
+      });
+      URL.revokeObjectURL(photo.preview);
+      const newPreview = URL.createObjectURL(croppedFile);
+      const updatedPhotos = [...photos];
+      updatedPhotos[cropIndex] = {
+        ...photo,
+        file: croppedFile,
+        preview: newPreview,
+        compressedSize: croppedFile.size,
+      };
+      onChange(updatedPhotos);
+      setCropIndex(null);
+    },
+    [photos, onChange, cropIndex]
+  );
+
   return (
     <div className="space-y-4">
       {/* Drop zone */}
@@ -191,15 +215,26 @@ export function PhotoUploader({
                   className="object-cover"
                 />
               </div>
-              <Button
-                type="button"
-                variant="secondary"
-                size="icon"
-                className="absolute top-1 left-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={() => handleRotate(index)}
-              >
-                <RotateCw className="h-3 w-3" />
-              </Button>
+              <div className="absolute top-1 left-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => handleRotate(index)}
+                >
+                  <RotateCw className="h-3 w-3" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => setCropIndex(index)}
+                >
+                  <Crop className="h-3 w-3" />
+                </Button>
+              </div>
               <Button
                 type="button"
                 variant="destructive"
@@ -216,6 +251,14 @@ export function PhotoUploader({
             </div>
           ))}
         </div>
+      )}
+      {cropIndex !== null && (
+        <CropDialog
+          open={true}
+          onOpenChange={(open) => { if (!open) setCropIndex(null); }}
+          imageSrc={photos[cropIndex]?.preview || ""}
+          onCrop={handleCrop}
+        />
       )}
     </div>
   );
