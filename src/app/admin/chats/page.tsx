@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,9 @@ import {
   Bot,
   Headset,
   ArrowLeft,
+  XCircle,
+  RotateCcw,
+  Circle,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 
@@ -34,6 +37,7 @@ interface ChatSession {
   } | null;
   created_at: string;
   updated_at: string;
+  admin_last_read_at: string | null;
   message_count: number;
   last_message: {
     content: string;
@@ -56,6 +60,12 @@ const STATUS_COLORS: Record<string, string> = {
   escalated: "bg-amber-100 text-amber-800",
   closed: "bg-gray-100 text-gray-600",
 };
+
+function isUnread(session: ChatSession): boolean {
+  if (session.status === "closed") return false;
+  if (!session.admin_last_read_at) return true;
+  return new Date(session.updated_at) > new Date(session.admin_last_read_at);
+}
 
 function timeAgo(dateStr: string): string {
   const now = new Date();
@@ -96,12 +106,13 @@ export default function ChatsPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [selectedSession, setSelectedSession] = useState<ChatSession | null>(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
-  // Mobile: show messages panel when session selected
   const [mobileView, setMobileView] = useState<"list" | "chat">("list");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const fetchSessions = useCallback(async () => {
-    setLoading(true);
+  const fetchSessions = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const params = new URLSearchParams();
       if (statusFilter !== "all") params.set("status", statusFilter);
@@ -110,14 +121,20 @@ export default function ChatsPage() {
       const data = await res.json();
       setSessions(data.sessions || []);
     } catch {
-      setSessions([]);
+      if (!silent) setSessions([]);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [statusFilter, search]);
 
   useEffect(() => {
     fetchSessions();
+  }, [fetchSessions]);
+
+  // Poll sessions every 15 seconds
+  useEffect(() => {
+    const interval = setInterval(() => fetchSessions(true), 15000);
+    return () => clearInterval(interval);
   }, [fetchSessions]);
 
   const selectSession = async (session: ChatSession) => {
@@ -129,11 +146,61 @@ export default function ChatsPage() {
       const res = await fetch(`/api/admin/chats/${session.id}`);
       const data = await res.json();
       setMessages(data.messages || []);
+      // Update local session to mark as read
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === session.id
+            ? { ...s, admin_last_read_at: new Date().toISOString() }
+            : s
+        )
+      );
     } catch {
       setMessages([]);
     } finally {
       setLoadingMessages(false);
     }
+  };
+
+  // Poll messages for selected session every 10 seconds
+  useEffect(() => {
+    if (!selectedId) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/admin/chats/${selectedId}`);
+        const data = await res.json();
+        setMessages(data.messages || []);
+        if (data.session) {
+          setSelectedSession(data.session);
+        }
+      } catch {}
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [selectedId]);
+
+  // Scroll to bottom on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const updateSessionStatus = async (status: string) => {
+    if (!selectedId) return;
+    setUpdatingStatus(true);
+    try {
+      const res = await fetch(`/api/admin/chats/${selectedId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) {
+        setSelectedSession((prev) => prev ? { ...prev, status: status as ChatSession["status"] } : null);
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.id === selectedId ? { ...s, status: status as ChatSession["status"] } : s
+          )
+        );
+      }
+    } catch {}
+    setUpdatingStatus(false);
   };
 
   const statusCounts = {
@@ -199,61 +266,67 @@ export default function ChatsPage() {
             }`}
           >
             <div className="divide-y max-h-[calc(100vh-240px)] overflow-y-auto">
-              {sessions.map((session) => (
-                <button
-                  key={session.id}
-                  onClick={() => selectSession(session)}
-                  className={`w-full text-left p-3 hover:bg-muted/50 transition-colors ${
-                    selectedId === session.id ? "bg-muted" : ""
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm truncate">
-                          {session.part_context?.name || "No part context"}
-                        </span>
-                        <Badge
-                          variant="secondary"
-                          className={`text-[10px] px-1.5 py-0 shrink-0 ${
-                            STATUS_COLORS[session.status] || ""
-                          }`}
-                        >
-                          {session.status}
-                        </Badge>
+              {sessions.map((session) => {
+                const unread = isUnread(session);
+                return (
+                  <button
+                    key={session.id}
+                    onClick={() => selectSession(session)}
+                    className={`w-full text-left p-3 hover:bg-muted/50 transition-colors ${
+                      selectedId === session.id ? "bg-muted" : ""
+                    } ${unread ? "bg-blue-50/50" : ""}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          {unread && (
+                            <Circle className="h-2 w-2 fill-blue-500 text-blue-500 shrink-0" />
+                          )}
+                          <span className={`text-sm truncate ${unread ? "font-bold" : "font-medium"}`}>
+                            {session.part_context?.name || "No part context"}
+                          </span>
+                          <Badge
+                            variant="secondary"
+                            className={`text-[10px] px-1.5 py-0 shrink-0 ${
+                              STATUS_COLORS[session.status] || ""
+                            }`}
+                          >
+                            {session.status}
+                          </Badge>
+                        </div>
+                        {session.part_context?.price && (
+                          <p className="text-xs text-muted-foreground">
+                            {formatPrice(session.part_context.price)}
+                            {session.part_context.make &&
+                              ` · ${[session.part_context.year, session.part_context.make, session.part_context.model].filter(Boolean).join(" ")}`}
+                          </p>
+                        )}
+                        {session.last_message && (
+                          <p className={`text-xs mt-1 truncate ${unread ? "text-foreground" : "text-muted-foreground"}`}>
+                            <span className="font-medium">
+                              {session.last_message.role === "user"
+                                ? "Buyer"
+                                : session.last_message.role === "operator"
+                                  ? "You"
+                                  : "Bot"}
+                              :
+                            </span>{" "}
+                            {session.last_message.content.slice(0, 80)}
+                          </p>
+                        )}
                       </div>
-                      {session.part_context?.price && (
-                        <p className="text-xs text-muted-foreground">
-                          {formatPrice(session.part_context.price)}
-                          {session.part_context.make &&
-                            ` · ${[session.part_context.year, session.part_context.make, session.part_context.model].filter(Boolean).join(" ")}`}
+                      <div className="text-right shrink-0">
+                        <p className="text-[10px] text-muted-foreground">
+                          {timeAgo(session.updated_at)}
                         </p>
-                      )}
-                      {session.last_message && (
-                        <p className="text-xs text-muted-foreground mt-1 truncate">
-                          <span className="font-medium">
-                            {session.last_message.role === "user"
-                              ? "Buyer"
-                              : session.last_message.role === "operator"
-                                ? "You"
-                                : "Bot"}
-                            :
-                          </span>{" "}
-                          {session.last_message.content.slice(0, 80)}
+                        <p className="text-[10px] text-muted-foreground">
+                          {session.message_count} msgs
                         </p>
-                      )}
+                      </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-[10px] text-muted-foreground">
-                        {timeAgo(session.updated_at)}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {session.message_count} msgs
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           </Card>
 
@@ -295,12 +368,37 @@ export default function ChatsPage() {
                       Visitor: {selectedSession?.visitor_id?.slice(0, 8)}...
                     </p>
                   </div>
-                  <Badge
-                    variant="secondary"
-                    className={STATUS_COLORS[selectedSession?.status || "closed"]}
-                  >
-                    {selectedSession?.status}
-                  </Badge>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Badge
+                      variant="secondary"
+                      className={STATUS_COLORS[selectedSession?.status || "closed"]}
+                    >
+                      {selectedSession?.status}
+                    </Badge>
+                    {selectedSession?.status !== "closed" ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => updateSessionStatus("closed")}
+                        disabled={updatingStatus}
+                      >
+                        <XCircle className="h-3 w-3 mr-1" />
+                        Close
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => updateSessionStatus("active")}
+                        disabled={updatingStatus}
+                      >
+                        <RotateCcw className="h-3 w-3 mr-1" />
+                        Reopen
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Messages */}
@@ -369,6 +467,7 @@ export default function ChatsPage() {
                           )}
                         </div>
                       ))}
+                      <div ref={messagesEndRef} />
                     </>
                   )}
                 </div>

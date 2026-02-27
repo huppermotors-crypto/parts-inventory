@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -82,6 +82,23 @@ export default function AdminLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [unreadChats, setUnreadChats] = useState(0);
+
+  const fetchUnread = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/chats/unread");
+      if (res.ok) {
+        const { count } = await res.json();
+        setUnreadChats(count || 0);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000);
+    return () => clearInterval(interval);
+  }, [fetchUnread]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -123,6 +140,11 @@ export default function AdminLayout({
           >
             <item.icon className="h-4 w-4" />
             {item.label}
+            {item.href === "/admin/chats" && unreadChats > 0 && (
+              <span className="ml-auto bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1">
+                {unreadChats > 99 ? "99+" : unreadChats}
+              </span>
+            )}
           </Link>
         ))}
       </nav>

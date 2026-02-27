@@ -13,14 +13,18 @@ function getAdminClient() {
   return createClient(url, key);
 }
 
+async function checkAdmin() {
+  const supabase = await createServerSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.email === ADMIN_EMAIL;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user || user.email !== ADMIN_EMAIL) {
+    if (!(await checkAdmin())) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -47,6 +51,12 @@ export async function GET(
 
     if (error) throw error;
 
+    // Mark as read
+    await adminClient
+      .from("chat_sessions")
+      .update({ admin_last_read_at: new Date().toISOString() })
+      .eq("id", sessionId);
+
     return NextResponse.json({
       session: session || null,
       messages: messages || [],
@@ -54,5 +64,41 @@ export async function GET(
   } catch (err) {
     console.error("Admin chat messages error:", err);
     return NextResponse.json({ messages: [] });
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ sessionId: string }> }
+) {
+  try {
+    if (!(await checkAdmin())) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const adminClient = getAdminClient();
+    if (!adminClient) {
+      return NextResponse.json({ error: "Server error" }, { status: 500 });
+    }
+
+    const { sessionId } = await params;
+    const body = await request.json();
+    const { status } = body;
+
+    if (!["active", "escalated", "closed"].includes(status)) {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    }
+
+    const { error } = await adminClient
+      .from("chat_sessions")
+      .update({ status })
+      .eq("id", sessionId);
+
+    if (error) throw error;
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("Admin chat status update error:", err);
+    return NextResponse.json({ error: "Failed to update" }, { status: 500 });
   }
 }
