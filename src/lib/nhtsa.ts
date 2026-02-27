@@ -1,9 +1,9 @@
-import { NHTSADecodeResult } from "@/types/database";
+import { NHTSADecodeResult, NHTSAFullDecodeResult } from "@/types/database";
 import { normalizeMakeModel } from "@/lib/utils";
 
 const NHTSA_API_BASE = "https://vpic.nhtsa.dot.gov/api/vehicles";
 
-export async function decodeVIN(vin: string): Promise<NHTSADecodeResult> {
+async function fetchNHTSA(vin: string): Promise<Record<string, string>> {
   const response = await fetch(
     `${NHTSA_API_BASE}/DecodeVinValues/${vin}?format=json`
   );
@@ -19,11 +19,34 @@ export async function decodeVIN(vin: string): Promise<NHTSADecodeResult> {
     throw new Error("No results found for this VIN");
   }
 
-  const result = data.Results[0];
+  return data.Results[0];
+}
+
+export async function decodeVIN(vin: string): Promise<NHTSADecodeResult> {
+  const result = await fetchNHTSA(vin);
 
   return {
     year: result.ModelYear ? parseInt(result.ModelYear, 10) : null,
     make: result.Make ? normalizeMakeModel(result.Make) : null,
     model: result.Model ? normalizeMakeModel(result.Model) : null,
+  };
+}
+
+export async function decodeVINFull(vin: string): Promise<NHTSAFullDecodeResult> {
+  const result = await fetchNHTSA(vin);
+
+  const displacementL = result.DisplacementL ? `${parseFloat(result.DisplacementL).toFixed(1)}L` : null;
+
+  return {
+    year: result.ModelYear ? parseInt(result.ModelYear, 10) : null,
+    make: result.Make ? normalizeMakeModel(result.Make) : null,
+    model: result.Model ? normalizeMakeModel(result.Model) : null,
+    body_class: result.BodyClass || null,
+    engine_displacement: displacementL,
+    engine_cylinders: result.EngineCylinders ? parseInt(result.EngineCylinders, 10) : null,
+    engine_hp: result.EngineHP || null,
+    engine_turbo: result.Turbo === "Yes",
+    drive_type: result.DriveType || null,
+    fuel_type: result.FuelTypePrimary || null,
   };
 }

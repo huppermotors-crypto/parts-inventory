@@ -1,13 +1,13 @@
 import { memo } from "react";
 import { Part, PriceRule } from "@/types/database";
-import { getCategoryLabel, getConditionLabel } from "@/lib/constants";
 import { conditionColors, formatPrice, formatVehicle } from "@/lib/utils";
 import { applyPriceRules } from "@/lib/price-rules";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Package } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 
 interface PartCardProps {
   part: Part;
@@ -16,11 +16,16 @@ interface PartCardProps {
 }
 
 export const PartCard = memo(function PartCard({ part, priceRules, compact }: PartCardProps) {
+  const t = useTranslations('storefront');
+  const tCat = useTranslations('categories');
+  const tCond = useTranslations('conditions');
   const vehicle = formatVehicle(part.year, part.make, part.model);
   const qty = part.quantity || 1;
-  // Apply price rules to part.price directly (the entered price, whether per item or per lot)
   const pr = priceRules && priceRules.length > 0 ? applyPriceRules(part, priceRules) : null;
   const displayPrice = pr && (pr.hasDiscount || pr.hasMarkup) ? pr.finalPrice : part.price;
+
+  const getCatLabel = (value: string) => { try { return tCat(value); } catch { return value; } };
+  const getCondLabel = (value: string) => { try { return tCond(value); } catch { return value; } };
 
   return (
     <Link href={`/parts/${part.id}`}>
@@ -42,7 +47,7 @@ export const PartCard = memo(function PartCard({ part, priceRules, compact }: Pa
           {!compact && (
             <div className="absolute top-2 left-2">
               <Badge variant="secondary" className="text-xs bg-white/90 text-black shadow-sm">
-                {getCategoryLabel(part.category).split(" / ")[0]}
+                {getCatLabel(part.category).split(" / ")[0]}
               </Badge>
             </div>
           )}
@@ -75,7 +80,7 @@ export const PartCard = memo(function PartCard({ part, priceRules, compact }: Pa
               </div>
               {qty > 1 && (
                 <p className={`text-muted-foreground ${compact ? "text-[10px]" : "text-xs"}`}>
-                  Lot of {qty}
+                  {t('lotOf', { count: qty })}
                 </p>
               )}
             </div>
@@ -84,7 +89,7 @@ export const PartCard = memo(function PartCard({ part, priceRules, compact }: Pa
                 variant="secondary"
                 className={`text-xs ${conditionColors[part.condition] || ""}`}
               >
-                {getConditionLabel(part.condition)}
+                {getCondLabel(part.condition)}
               </Badge>
             )}
           </div>

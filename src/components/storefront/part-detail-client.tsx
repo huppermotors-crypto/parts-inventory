@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Part, PriceRule } from "@/types/database";
 import { applyPriceRules } from "@/lib/price-rules";
-import { getCategoryLabel, getConditionLabel } from "@/lib/constants";
 import { conditionColors, formatPrice, formatVehicle } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -30,7 +30,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 const CONTACT_EMAIL = "hupper.motors@gmail.com";
 
@@ -40,6 +40,10 @@ interface PartDetailClientProps {
 }
 
 export function PartDetailClient({ initialPart, priceRules = [] }: PartDetailClientProps) {
+  const t = useTranslations('partDetail');
+  const tCat = useTranslations('categories');
+  const tCond = useTranslations('conditions');
+  const tFooter = useTranslations('footer');
   const [part, setPart] = useState<Part | null>(initialPart);
   const [activePhoto, setActivePhoto] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -99,9 +103,9 @@ export function PartDetailClient({ initialPart, priceRules = [] }: PartDetailCli
   const getMailtoLink = () => {
     if (!part) return "#";
     const pageUrl = typeof window !== "undefined" ? window.location.href : "";
-    const subject = encodeURIComponent(`Interest in: ${part.name}`);
+    const subject = encodeURIComponent(t('emailSubject', { name: part.name }));
     const body = encodeURIComponent(
-      `Hi, I'm interested in buying this part: ${part.name}\n\nLink: ${pageUrl}`
+      t('emailBody', { name: part.name, url: pageUrl })
     );
     return `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`;
   };
@@ -110,14 +114,14 @@ export function PartDetailClient({ initialPart, priceRules = [] }: PartDetailCli
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-center px-4">
         <Package className="h-16 w-16 text-muted-foreground/50 mb-4" />
-        <h1 className="text-2xl font-bold">Part Not Found</h1>
+        <h1 className="text-2xl font-bold">{t('notFoundTitle')}</h1>
         <p className="text-muted-foreground mt-2">
-          This part may have been removed or is no longer available.
+          {t('notFoundDescription')}
         </p>
         <Link href="/" className="mt-6">
           <Button>
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Catalog
+            {t('backToCatalog')}
           </Button>
         </Link>
       </div>
@@ -160,7 +164,7 @@ export function PartDetailClient({ initialPart, priceRules = [] }: PartDetailCli
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Catalog
+            {t('backToCatalog')}
           </Link>
           <div className="flex-1" />
           {isAdmin && (
@@ -171,12 +175,12 @@ export function PartDetailClient({ initialPart, priceRules = [] }: PartDetailCli
               onClick={() => setEditOpen(true)}
             >
               <Pencil className="h-4 w-4" />
-              Edit
+              {t('edit')}
             </Button>
           )}
           <Link href="/" className="flex items-center gap-2">
             <Package className="h-5 w-5" />
-            <span className="text-sm font-bold hidden sm:inline">Auto Parts</span>
+            <span className="text-sm font-bold hidden sm:inline">{t('autoParts')}</span>
           </Link>
         </div>
       </header>
@@ -269,17 +273,17 @@ export function PartDetailClient({ initialPart, priceRules = [] }: PartDetailCli
             <div>
               <div className="flex flex-wrap gap-2 mb-3">
                 <Badge variant="outline" className="text-xs">
-                  {getCategoryLabel(part.category).split(" / ")[0]}
+                  {(() => { try { return tCat(part.category); } catch { return part.category; } })().split(" / ")[0]}
                 </Badge>
                 <Badge
                   variant="secondary"
                   className={`text-xs ${conditionColors[part.condition] || ""}`}
                 >
-                  {getConditionLabel(part.condition)}
+                  {(() => { try { return tCond(part.condition); } catch { return part.condition; } })()}
                 </Badge>
                 {(part.quantity || 1) > 1 && (
                   <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800">
-                    Lot of {part.quantity}
+                    {t('lotOf', { count: part.quantity })}
                   </Badge>
                 )}
               </div>
@@ -304,7 +308,7 @@ export function PartDetailClient({ initialPart, priceRules = [] }: PartDetailCli
                     )}
                     {qty > 1 && (
                       <p className="text-sm text-muted-foreground mt-1">
-                        Lot of {qty}
+                        {t('lotOf', { count: qty })}
                       </p>
                     )}
                   </div>
@@ -326,7 +330,7 @@ export function PartDetailClient({ initialPart, priceRules = [] }: PartDetailCli
               <div className="flex items-center gap-3 text-sm">
                 <Hash className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span>
-                  VIN: <span className="font-mono">{part.vin}</span>
+                  {t('vin')} <span className="font-mono">{part.vin}</span>
                 </span>
               </div>
             )}
@@ -335,7 +339,7 @@ export function PartDetailClient({ initialPart, priceRules = [] }: PartDetailCli
               <div className="flex items-center gap-3 text-sm">
                 <Hash className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span>
-                  Stock #: <span className="font-mono">{part.stock_number}</span>
+                  {t('stockNumber')} <span className="font-mono">{part.stock_number}</span>
                 </span>
               </div>
             )}
@@ -344,25 +348,24 @@ export function PartDetailClient({ initialPart, priceRules = [] }: PartDetailCli
               <div className="flex items-center gap-3 text-sm">
                 <Tag className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span>
-                  S/N: <span className="font-mono">{part.serial_number}</span>
+                  {t('serialNumber')} <span className="font-mono">{part.serial_number}</span>
                 </span>
               </div>
             )}
 
             <div className="flex items-center gap-3 text-sm">
               <Layers className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span>{getCategoryLabel(part.category)}</span>
+              <span>{(() => { try { return tCat(part.category); } catch { return part.category; } })()}</span>
             </div>
 
             <div className="flex items-center gap-3 text-sm">
               <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
               <span>
-                Listed{" "}
-                {new Date(part.created_at).toLocaleDateString("en-US", {
+                {t('listed', { date: new Date(part.created_at).toLocaleDateString("en-US", {
                   year: "numeric",
                   month: "long",
                   day: "numeric",
-                })}
+                }) })}
               </span>
             </div>
 
@@ -371,7 +374,7 @@ export function PartDetailClient({ initialPart, priceRules = [] }: PartDetailCli
               <>
                 <Separator />
                 <div>
-                  <h2 className="font-semibold mb-2">Description</h2>
+                  <h2 className="font-semibold mb-2">{t('description')}</h2>
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
                     {part.description}
                   </p>
@@ -392,12 +395,12 @@ export function PartDetailClient({ initialPart, priceRules = [] }: PartDetailCli
                 }}
               >
                 <MessageCircle className="h-5 w-5" />
-                Chat with Us
+                {t('chatWithUs')}
               </Button>
               <a href={getMailtoLink()}>
                 <Button size="lg" variant="outline" className="w-full text-base gap-2">
                   <Mail className="h-5 w-5" />
-                  Contact via Email
+                  {t('contactViaEmail')}
                 </Button>
               </a>
             </div>
@@ -479,10 +482,9 @@ export function PartDetailClient({ initialPart, priceRules = [] }: PartDetailCli
       <footer className="border-t mt-auto">
         <div className="container mx-auto px-4 py-6 text-center text-sm text-muted-foreground">
           <p>
-            &copy; {new Date().getFullYear()} HuppeR Auto Parts. All rights
-            reserved.
+            {tFooter('copyright', { year: new Date().getFullYear() })}
             {" | "}
-            <a href="/privacy" className="underline hover:text-foreground">Privacy Policy</a>
+            <Link href="/privacy" className="underline hover:text-foreground">{tFooter('privacy')}</Link>
           </p>
         </div>
       </footer>

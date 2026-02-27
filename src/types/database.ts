@@ -47,3 +47,33 @@ export interface NHTSADecodeResult {
   make: string | null;
   model: string | null;
 }
+
+export interface NHTSAFullDecodeResult extends NHTSADecodeResult {
+  body_class: string | null;
+  engine_displacement: string | null;
+  engine_cylinders: number | null;
+  engine_hp: string | null;
+  engine_turbo: boolean;
+  drive_type: string | null;
+  fuel_type: string | null;
+}
+
+export interface Vehicle {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  vin: string;
+  year: number | null;
+  make: string | null;
+  model: string | null;
+  body_class: string | null;
+  engine_displacement: string | null;
+  engine_cylinders: number | null;
+  engine_hp: string | null;
+  engine_turbo: boolean;
+  drive_type: string | null;
+  fuel_type: string | null;
+  purchase_price: number | null;
+  notes: string | null;
+  photos: string[];
+}

@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
-import { PageViewTracker } from "@/components/analytics/page-view-tracker";
-import { ChatWidget } from "@/components/chat/chat-widget";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -34,14 +31,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} font-[family-name:var(--font-geist-sans)] antialiased`}
       >
         {children}
-        <PageViewTracker />
-        <ChatWidget />
-        <Toaster />
       </body>
     </html>
   );

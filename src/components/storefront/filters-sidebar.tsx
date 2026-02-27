@@ -1,12 +1,14 @@
 "use client";
 
-import { PART_CATEGORIES, PART_CONDITIONS, getCategoryLabel, getConditionLabel } from "@/lib/constants";
+import { PART_CATEGORIES } from "@/lib/constants";
+import { useTranslatedConditions } from "@/hooks/use-translated-constants";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { X, CarFront, Layers, SlidersHorizontal, Shield, DollarSign } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface FiltersSidebarProps {
   makes: string[];
@@ -41,6 +43,9 @@ export function FiltersSidebar({
   totalCount,
   filteredCount,
 }: FiltersSidebarProps) {
+  const t = useTranslations('filters');
+  const tCat = useTranslations('categories');
+  const translatedConditions = useTranslatedConditions();
   const hasFilters = selectedMake || selectedCategory || selectedCondition || priceMin || priceMax;
 
   const clearAll = () => {
@@ -51,6 +56,10 @@ export function FiltersSidebar({
     onPriceMaxChange("");
   };
 
+  const getCatLabel = (value: string) => {
+    try { return tCat(value); } catch { return value; }
+  };
+
   return (
     <aside className="space-y-6">
       {/* Active filters */}
@@ -59,7 +68,7 @@ export function FiltersSidebar({
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium flex items-center gap-1.5">
               <SlidersHorizontal className="h-4 w-4" />
-              Active Filters
+              {t('activeFilters')}
             </h3>
             <Button
               variant="ghost"
@@ -67,7 +76,7 @@ export function FiltersSidebar({
               className="h-7 text-xs"
               onClick={clearAll}
             >
-              Clear all
+              {t('clearAll')}
             </Button>
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -84,7 +93,7 @@ export function FiltersSidebar({
             )}
             {selectedCategory && (
               <Badge variant="secondary" className="gap-1 pr-1">
-                {getCategoryLabel(selectedCategory)}
+                {getCatLabel(selectedCategory)}
                 <button
                   onClick={() => onCategoryChange(null)}
                   className="ml-1 rounded-full hover:bg-muted-foreground/20 p-0.5"
@@ -95,7 +104,7 @@ export function FiltersSidebar({
             )}
             {selectedCondition && (
               <Badge variant="secondary" className="gap-1 pr-1">
-                {getConditionLabel(selectedCondition)}
+                {translatedConditions.find(c => c.value === selectedCondition)?.label || selectedCondition}
                 <button
                   onClick={() => onConditionChange(null)}
                   className="ml-1 rounded-full hover:bg-muted-foreground/20 p-0.5"
@@ -117,7 +126,7 @@ export function FiltersSidebar({
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            Showing {filteredCount} of {totalCount} parts
+            {t('showing', { filtered: filteredCount, total: totalCount })}
           </p>
           <Separator />
         </div>
@@ -127,7 +136,7 @@ export function FiltersSidebar({
       <div className="space-y-3">
         <h3 className="text-sm font-medium flex items-center gap-1.5">
           <CarFront className="h-4 w-4" />
-          Make
+          {t('make')}
         </h3>
         <div className="space-y-1">
           {makes.map((make) => (
@@ -146,7 +155,7 @@ export function FiltersSidebar({
             </button>
           ))}
           {makes.length === 0 && (
-            <p className="text-xs text-muted-foreground px-3">No makes available</p>
+            <p className="text-xs text-muted-foreground px-3">{t('noMakes')}</p>
           )}
         </div>
       </div>
@@ -157,7 +166,7 @@ export function FiltersSidebar({
       <div className="space-y-3">
         <h3 className="text-sm font-medium flex items-center gap-1.5">
           <Layers className="h-4 w-4" />
-          Category
+          {t('category')}
         </h3>
         <div className="space-y-1">
           {PART_CATEGORIES.filter((c) => categories.includes(c.value)).map(
@@ -175,13 +184,13 @@ export function FiltersSidebar({
                     : "hover:bg-muted text-foreground"
                 }`}
               >
-                {cat.label}
+                {getCatLabel(cat.value)}
               </button>
             )
           )}
           {categories.length === 0 && (
             <p className="text-xs text-muted-foreground px-3">
-              No categories available
+              {t('noCategories')}
             </p>
           )}
         </div>
@@ -193,10 +202,10 @@ export function FiltersSidebar({
       <div className="space-y-3">
         <h3 className="text-sm font-medium flex items-center gap-1.5">
           <Shield className="h-4 w-4" />
-          Condition
+          {t('condition')}
         </h3>
         <div className="space-y-1">
-          {PART_CONDITIONS.map((cond) => (
+          {translatedConditions.map((cond) => (
             <button
               key={cond.value}
               onClick={() =>
@@ -222,11 +231,11 @@ export function FiltersSidebar({
       <div className="space-y-3">
         <h3 className="text-sm font-medium flex items-center gap-1.5">
           <DollarSign className="h-4 w-4" />
-          Price Range
+          {t('priceRange')}
         </h3>
         <div className="flex gap-2 items-center">
           <div className="flex-1">
-            <Label className="text-xs text-muted-foreground">Min</Label>
+            <Label className="text-xs text-muted-foreground">{t('priceMin')}</Label>
             <Input
               type="number"
               placeholder="0"
@@ -238,10 +247,10 @@ export function FiltersSidebar({
           </div>
           <span className="text-muted-foreground mt-4">–</span>
           <div className="flex-1">
-            <Label className="text-xs text-muted-foreground">Max</Label>
+            <Label className="text-xs text-muted-foreground">{t('priceMax')}</Label>
             <Input
               type="number"
-              placeholder="Any"
+              placeholder={t('priceAny')}
               value={priceMax}
               onChange={(e) => onPriceMaxChange(e.target.value)}
               min={0}

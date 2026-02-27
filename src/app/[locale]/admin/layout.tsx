@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import {
   LayoutDashboard,
@@ -28,48 +29,17 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 const navItems = [
-  {
-    label: "Dashboard",
-    href: "/admin/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    label: "Add Part",
-    href: "/admin/add",
-    icon: PlusCircle,
-  },
-  {
-    label: "Lookup",
-    href: "/admin/lookup",
-    icon: Search,
-  },
-  {
-    label: "Analytics",
-    href: "/admin/analytics",
-    icon: BarChart3,
-  },
-  {
-    label: "Pricing",
-    href: "/admin/pricing",
-    icon: Percent,
-  },
-  {
-    label: "Listings",
-    href: "/admin/listings",
-    icon: ShoppingBag,
-  },
-  {
-    label: "Stats",
-    href: "/admin/stats",
-    icon: DollarSign,
-  },
-  {
-    label: "Chats",
-    href: "/admin/chats",
-    icon: MessageCircle,
-  },
+  { key: "dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
+  { key: "addPart", href: "/admin/add", icon: PlusCircle },
+  { key: "lookup", href: "/admin/lookup", icon: Search },
+  { key: "analytics", href: "/admin/analytics", icon: BarChart3 },
+  { key: "pricing", href: "/admin/pricing", icon: Percent },
+  { key: "listings", href: "/admin/listings", icon: ShoppingBag },
+  { key: "stats", href: "/admin/stats", icon: DollarSign },
+  { key: "chats", href: "/admin/chats", icon: MessageCircle },
 ];
 
 const supabase = createClient();
@@ -79,6 +49,7 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const t = useTranslations('admin.nav');
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -139,7 +110,7 @@ export default function AdminLayout({
             )}
           >
             <item.icon className="h-4 w-4" />
-            {item.label}
+            {t(item.key)}
             {item.href === "/admin/chats" && unreadChats > 0 && (
               <span className="ml-auto bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1">
                 {unreadChats > 99 ? "99+" : unreadChats}
@@ -156,7 +127,7 @@ export default function AdminLayout({
           className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors min-h-[44px]"
         >
           <ExternalLink className="h-4 w-4" />
-          View Storefront
+          {t('viewStorefront')}
         </Link>
         <a
           href="/extension.zip"
@@ -164,15 +135,18 @@ export default function AdminLayout({
           className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors min-h-[44px]"
         >
           <Download className="h-4 w-4" />
-          Chrome Extension
+          {t('chromeExtension')}
         </a>
+        <div className="px-3 py-2">
+          <LanguageSwitcher className="w-full h-9 text-sm" />
+        </div>
         <Button
           variant="ghost"
           className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground min-h-[44px]"
           onClick={handleLogout}
         >
           <LogOut className="h-4 w-4" />
-          Logout
+          {t('logout')}
         </Button>
       </div>
     </>
@@ -187,7 +161,7 @@ export default function AdminLayout({
           size="icon"
           className="h-10 w-10"
           onClick={() => setSidebarOpen(true)}
-          aria-label="Open navigation menu"
+          aria-label={t('openMenu')}
         >
           <Menu className="h-5 w-5" />
         </Button>
@@ -207,7 +181,7 @@ export default function AdminLayout({
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent side="left" className="w-72 p-0 overflow-y-auto">
           <SheetHeader className="sr-only">
-            <SheetTitle>Navigation</SheetTitle>
+            <SheetTitle>{t('navigation')}</SheetTitle>
           </SheetHeader>
           <div className="flex flex-col h-full">{sidebarContent}</div>
         </SheetContent>

@@ -150,6 +150,56 @@ CREATE POLICY "Admin can delete part photos"
   );
 
 -- ============================================
+-- Vehicles table (for Stats → Vehicles tab)
+-- ============================================
+CREATE TABLE vehicles (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  vin VARCHAR(17) NOT NULL UNIQUE,
+  year INTEGER,
+  make VARCHAR(100),
+  model VARCHAR(100),
+  body_class VARCHAR(100),
+  engine_displacement VARCHAR(20),
+  engine_cylinders INTEGER,
+  engine_hp VARCHAR(20),
+  engine_turbo BOOLEAN DEFAULT FALSE,
+  drive_type VARCHAR(50),
+  fuel_type VARCHAR(50),
+  purchase_price DECIMAL(10,2),
+  notes TEXT,
+  photos TEXT[] DEFAULT '{}'
+);
+
+CREATE INDEX idx_vehicles_vin ON vehicles (vin);
+CREATE INDEX idx_vehicles_make ON vehicles (make);
+
+CREATE TRIGGER update_vehicles_updated_at
+  BEFORE UPDATE ON vehicles
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE vehicles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admin can view vehicles"
+  ON vehicles FOR SELECT TO authenticated
+  USING (auth.jwt() ->> 'email' = 'nvn9586@gmail.com');
+
+CREATE POLICY "Admin can insert vehicles"
+  ON vehicles FOR INSERT TO authenticated
+  WITH CHECK (auth.jwt() ->> 'email' = 'nvn9586@gmail.com');
+
+CREATE POLICY "Admin can update vehicles"
+  ON vehicles FOR UPDATE TO authenticated
+  USING (auth.jwt() ->> 'email' = 'nvn9586@gmail.com')
+  WITH CHECK (auth.jwt() ->> 'email' = 'nvn9586@gmail.com');
+
+CREATE POLICY "Admin can delete vehicles"
+  ON vehicles FOR DELETE TO authenticated
+  USING (auth.jwt() ->> 'email' = 'nvn9586@gmail.com');
+
+-- ============================================
 -- Analytics: page_views table
 -- ============================================
 CREATE TABLE page_views (

@@ -1,9 +1,11 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import Image from "next/image";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { useTranslations } from "next-intl";
 
 interface HeaderProps {
   search: string;
@@ -11,6 +13,8 @@ interface HeaderProps {
 }
 
 export function StorefrontHeader({ search, onSearchChange }: HeaderProps) {
+  const t = useTranslations('header');
+
   return (
     <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4 h-16 flex items-center gap-6">
@@ -29,7 +33,7 @@ export function StorefrontHeader({ search, onSearchChange }: HeaderProps) {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search parts, make, model..."
+            placeholder={t('searchPlaceholder')}
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             className="pl-9"
@@ -38,11 +42,13 @@ export function StorefrontHeader({ search, onSearchChange }: HeaderProps) {
 
         <div className="flex-1" />
 
+        <LanguageSwitcher />
+
         <Link
           href="/admin/dashboard"
           className="text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
-          Admin
+          {t('admin')}
         </Link>
       </div>
     </header>

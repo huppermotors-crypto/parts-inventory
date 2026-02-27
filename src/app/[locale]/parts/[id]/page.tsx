@@ -6,7 +6,7 @@ import { applyPriceRules } from "@/lib/price-rules";
 import { PriceRule } from "@/types/database";
 
 interface Props {
-  params: Promise<{ id: string }>;
+  params: Promise<{ id: string; locale: string }>;
 }
 
 async function getPart(id: string) {

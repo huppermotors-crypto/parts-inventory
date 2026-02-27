@@ -7,11 +7,11 @@ import { applyPriceRules } from "@/lib/price-rules";
 import { StorefrontHeader } from "@/components/storefront/header";
 import { PartCard } from "@/components/storefront/part-card";
 import { FiltersSidebar } from "@/components/storefront/filters-sidebar";
-import { getCategoryLabel, getConditionLabel } from "@/lib/constants";
 import { conditionColors, formatPrice, formatVehicle } from "@/lib/utils";
 import { Package, Loader2, SlidersHorizontal, X, ArrowUpDown, LayoutGrid, List, Grid3X3, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -36,6 +36,10 @@ const PAGE_SIZE = 20;
 const supabase = createClient();
 
 export default function StorefrontPage() {
+  const t = useTranslations('storefront');
+  const tCat = useTranslations('categories');
+  const tCond = useTranslations('conditions');
+  const tFooter = useTranslations('footer');
   const [parts, setParts] = useState<Part[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -186,7 +190,7 @@ export default function StorefrontPage() {
             {/* Mobile filter button + sort */}
             <div className="flex items-center justify-between gap-2 lg:hidden">
               <p className="text-sm text-muted-foreground shrink-0">
-                {filteredParts.length} part{filteredParts.length !== 1 ? "s" : ""}
+                {t('partsCount', { count: filteredParts.length })}
               </p>
               <div className="flex items-center gap-2">
               <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
@@ -195,10 +199,10 @@ export default function StorefrontPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="newest">Newest</SelectItem>
-                  <SelectItem value="price_asc">Price: Low-High</SelectItem>
-                  <SelectItem value="price_desc">Price: High-Low</SelectItem>
-                  <SelectItem value="name_asc">Name: A-Z</SelectItem>
+                  <SelectItem value="newest">{t('sortNewestShort')}</SelectItem>
+                  <SelectItem value="price_asc">{t('sortPriceAscShort')}</SelectItem>
+                  <SelectItem value="price_desc">{t('sortPriceDescShort')}</SelectItem>
+                  <SelectItem value="name_asc">{t('sortNameAscShort')}</SelectItem>
                 </SelectContent>
               </Select>
               <Sheet
@@ -208,7 +212,7 @@ export default function StorefrontPage() {
                 <SheetTrigger asChild>
                   <Button variant="outline" size="sm" className="gap-2">
                     <SlidersHorizontal className="h-4 w-4" />
-                    Filters
+                    {t('filters')}
                     {activeFiltersCount > 0 && (
                       <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs">
                         {activeFiltersCount}
@@ -218,7 +222,7 @@ export default function StorefrontPage() {
                 </SheetTrigger>
                 <SheetContent side="left" className="w-80 overflow-y-auto">
                   <SheetHeader>
-                    <SheetTitle>Filters</SheetTitle>
+                    <SheetTitle>{t('filtersTitle')}</SheetTitle>
                   </SheetHeader>
                   <div className="mt-6">
                     <FiltersSidebar
@@ -246,7 +250,7 @@ export default function StorefrontPage() {
             {/* Results count + sort + view toggle for desktop */}
             <div className="hidden lg:flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
-                {filteredParts.length} part{filteredParts.length !== 1 ? "s" : ""} found
+                {t('partsFound', { count: filteredParts.length })}
               </p>
               <div className="flex items-center gap-2">
                 <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
@@ -255,10 +259,10 @@ export default function StorefrontPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="newest">Newest First</SelectItem>
-                    <SelectItem value="price_asc">Price: Low to High</SelectItem>
-                    <SelectItem value="price_desc">Price: High to Low</SelectItem>
-                    <SelectItem value="name_asc">Name: A to Z</SelectItem>
+                    <SelectItem value="newest">{t('sortNewest')}</SelectItem>
+                    <SelectItem value="price_asc">{t('sortPriceAsc')}</SelectItem>
+                    <SelectItem value="price_desc">{t('sortPriceDesc')}</SelectItem>
+                    <SelectItem value="name_asc">{t('sortNameAsc')}</SelectItem>
                   </SelectContent>
                 </Select>
                 <div className="flex border rounded-md">
@@ -267,7 +271,7 @@ export default function StorefrontPage() {
                     size="icon"
                     className="h-9 w-9 rounded-r-none"
                     onClick={() => setViewMode("grid")}
-                    title="Large cards"
+                    title={t('viewLargeCards')}
                   >
                     <LayoutGrid className="h-4 w-4" />
                   </Button>
@@ -276,7 +280,7 @@ export default function StorefrontPage() {
                     size="icon"
                     className="h-9 w-9 rounded-none border-x"
                     onClick={() => setViewMode("compact")}
-                    title="Compact cards"
+                    title={t('viewCompactCards')}
                   >
                     <Grid3X3 className="h-4 w-4" />
                   </Button>
@@ -285,7 +289,7 @@ export default function StorefrontPage() {
                     size="icon"
                     className="h-9 w-9 rounded-l-none hidden sm:inline-flex"
                     onClick={() => setViewMode("list")}
-                    title="List view"
+                    title={t('viewList')}
                   >
                     <List className="h-4 w-4" />
                   </Button>
@@ -301,11 +305,11 @@ export default function StorefrontPage() {
             ) : filteredParts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <Package className="h-16 w-16 text-muted-foreground/50 mb-4" />
-                <h3 className="text-lg font-medium">No parts found</h3>
+                <h3 className="text-lg font-medium">{t('noPartsTitle')}</h3>
                 <p className="text-muted-foreground mt-1 max-w-sm">
                   {search || activeFiltersCount > 0
-                    ? "Try adjusting your search or filters to find what you're looking for."
-                    : "No parts are available at the moment. Check back soon!"}
+                    ? t('noPartsWithFilters')
+                    : t('noPartsEmpty')}
                 </p>
                 {(search || activeFiltersCount > 0) && (
                   <Button
@@ -321,7 +325,7 @@ export default function StorefrontPage() {
                     }}
                   >
                     <X className="h-4 w-4 mr-2" />
-                    Clear all filters
+                    {t('clearAllFilters')}
                   </Button>
                 )}
               </div>
@@ -366,13 +370,13 @@ export default function StorefrontPage() {
                           )}
                           <div className="flex items-center gap-2 mt-1">
                             <Badge variant="outline" className="text-xs">
-                              {getCategoryLabel(part.category).split(" / ")[0]}
+                              {(() => { try { return tCat(part.category); } catch { return part.category; } })().split(" / ")[0]}
                             </Badge>
                             <Badge
                               variant="secondary"
                               className={`text-xs ${conditionColors[part.condition] || ""}`}
                             >
-                              {getConditionLabel(part.condition)}
+                              {(() => { try { return tCond(part.condition); } catch { return part.condition; } })()}
                             </Badge>
                           </div>
                         </div>
@@ -393,13 +397,13 @@ export default function StorefrontPage() {
                                   <span className="text-lg font-bold">{formatPrice(displayPrice)}</span>
                                 )}
                                 {qty > 1 && (
-                                  <p className="text-xs text-muted-foreground">Lot of {qty}</p>
+                                  <p className="text-xs text-muted-foreground">{t('lotOf', { count: qty })}</p>
                                 )}
                               </div>
                             );
                           })()}
                           {part.photos && part.photos.length > 1 && (
-                            <p className="text-xs text-muted-foreground">{part.photos.length} photos</p>
+                            <p className="text-xs text-muted-foreground">{t('photos', { count: part.photos.length })}</p>
                           )}
                         </div>
                       </div>
@@ -426,7 +430,7 @@ export default function StorefrontPage() {
                     disabled={currentPage === 1}
                   >
                     <ChevronLeft className="h-4 w-4 mr-1" />
-                    Previous
+                    {t('previous')}
                   </Button>
                   <span className="text-sm text-muted-foreground">
                     {currentPage} / {totalPages}
@@ -440,7 +444,7 @@ export default function StorefrontPage() {
                     }}
                     disabled={currentPage === totalPages}
                   >
-                    Next
+                    {t('next')}
                     <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
                 </div>
@@ -454,11 +458,11 @@ export default function StorefrontPage() {
       <footer className="border-t mt-auto">
         <div className="container mx-auto px-4 py-6 text-center text-sm text-muted-foreground">
           <p>
-            &copy; {new Date().getFullYear()} HuppeR Auto Parts. All rights reserved.
+            {tFooter('copyright', { year: new Date().getFullYear() })}
             {" | "}
-            <a href="/shipping" className="underline hover:text-foreground">Shipping &amp; Payment</a>
+            <Link href="/shipping" className="underline hover:text-foreground">{tFooter('shipping')}</Link>
             {" | "}
-            <a href="/privacy" className="underline hover:text-foreground">Privacy Policy</a>
+            <Link href="/privacy" className="underline hover:text-foreground">{tFooter('privacy')}</Link>
           </p>
         </div>
       </footer>
