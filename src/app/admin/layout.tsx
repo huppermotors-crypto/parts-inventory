@@ -17,6 +17,7 @@ import {
   Percent,
   DollarSign,
   ShoppingBag,
+  MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -63,6 +64,11 @@ const navItems = [
     label: "Stats",
     href: "/admin/stats",
     icon: DollarSign,
+  },
+  {
+    label: "Chats",
+    href: "/admin/chats",
+    icon: MessageCircle,
   },
 ];
 
