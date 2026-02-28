@@ -4,6 +4,9 @@ import { PartDetailClient } from "@/components/storefront/part-detail-client";
 import { getConditionLabel } from "@/lib/constants";
 import { applyPriceRules } from "@/lib/price-rules";
 import { PriceRule } from "@/types/database";
+import { routing } from "@/i18n/routing";
+
+const BASE_URL = "https://parts-inventory.onrender.com";
 
 interface Props {
   params: Promise<{ id: string; locale: string }>;
@@ -30,7 +33,7 @@ async function getActivePriceRules(): Promise<PriceRule[]> {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params;
+  const { id, locale } = await params;
   const part = await getPart(id);
 
   if (!part) {
@@ -43,9 +46,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ? part.description.slice(0, 160)
     : `${part.name} for sale.${vehicle ? ` Fits ${vehicle}.` : ""} Condition: ${part.condition}. $${part.price}.`;
 
+  const alternates: Record<string, string> = {};
+  for (const loc of routing.locales) {
+    alternates[loc] = `${BASE_URL}/${loc}/parts/${id}`;
+  }
+
   return {
     title,
     description,
+    alternates: {
+      canonical: `${BASE_URL}/${locale}/parts/${id}`,
+      languages: alternates,
+    },
     openGraph: {
       title,
       description,
@@ -64,7 +76,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function PartDetailPage({ params }: Props) {
-  const { id } = await params;
+  const { id, locale } = await params;
   const [part, priceRules] = await Promise.all([
     getPart(id),
     getActivePriceRules(),
@@ -105,12 +117,39 @@ export default async function PartDetailPage({ params }: Props) {
       }
     : null;
 
+  const breadcrumbJsonLd = part
+    ? {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Home",
+            item: `${BASE_URL}/${locale}`,
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: part.name,
+            item: `${BASE_URL}/${locale}/parts/${id}`,
+          },
+        ],
+      }
+    : null;
+
   return (
     <>
       {jsonLd && (
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
+      {breadcrumbJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
         />
       )}
       <PartDetailClient initialPart={part} priceRules={priceRules} />

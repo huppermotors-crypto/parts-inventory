@@ -428,45 +428,30 @@ export default function AnalyticsPage() {
             </Card>
           )}
 
-          {/* Tables Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Main Grid — 4 columns */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             {/* Top Pages */}
-            <Card className="lg:col-span-2">
+            <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base font-medium">
-                  Top Pages
-                </CardTitle>
+                <CardTitle className="text-sm font-medium">Top Pages</CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Page</TableHead>
-                      <TableHead className="text-right w-20">Views</TableHead>
-                    </TableRow>
-                  </TableHeader>
                   <TableBody>
                     {topPages.map((page) => (
                       <TableRow key={page.path}>
-                        <TableCell>
-                          <div className="min-w-0">
-                            <a
-                              href={page.path}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm font-medium hover:underline flex items-center gap-1.5"
-                            >
-                              <span className="truncate">
-                                {page.title || (page.path === "/" ? "Home" : page.path)}
-                              </span>
-                              <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" />
-                            </a>
-                            <span className="text-xs text-muted-foreground truncate block">
-                              {page.path}
-                            </span>
-                          </div>
+                        <TableCell className="py-1.5 px-3">
+                          <a
+                            href={page.path}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-medium hover:underline flex items-center gap-1 truncate"
+                          >
+                            {page.title || (page.path === "/" ? "Home" : page.path)}
+                            <ExternalLink className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+                          </a>
                         </TableCell>
-                        <TableCell className="text-right font-medium">
+                        <TableCell className="text-right font-medium text-xs py-1.5 px-3 w-12">
                           {page.count.toLocaleString()}
                         </TableCell>
                       </TableRow>
@@ -479,35 +464,20 @@ export default function AnalyticsPage() {
             {/* Referrers */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base font-medium">
-                  Referrers
-                </CardTitle>
+                <CardTitle className="text-sm font-medium">Referrers</CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Source</TableHead>
-                      <TableHead className="text-right w-16">Views</TableHead>
-                    </TableRow>
-                  </TableHeader>
                   <TableBody>
                     {referrers.length === 0 ? (
                       <TableRow>
-                        <TableCell
-                          colSpan={2}
-                          className="text-center text-muted-foreground"
-                        >
-                          No referrer data
-                        </TableCell>
+                        <TableCell className="text-center text-muted-foreground text-xs py-4">No referrer data</TableCell>
                       </TableRow>
                     ) : (
                       referrers.map((ref) => (
                         <TableRow key={ref.domain}>
-                          <TableCell className="text-sm truncate">
-                            {ref.domain}
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
+                          <TableCell className="text-xs truncate py-1.5 px-3">{ref.domain}</TableCell>
+                          <TableCell className="text-right font-medium text-xs py-1.5 px-3 w-12">
                             {ref.count.toLocaleString()}
                           </TableCell>
                         </TableRow>
@@ -517,117 +487,72 @@ export default function AnalyticsPage() {
                 </Table>
               </CardContent>
             </Card>
-          </div>
 
-          {/* Devices & Countries */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Devices */}
+            {/* Devices + Browsers + OS */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base font-medium">
-                  Devices
-                </CardTitle>
+                <CardTitle className="text-sm font-medium">Devices</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-2 pt-0">
                 {devices.map((d) => (
-                  <div key={d.type} className="space-y-1">
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2 capitalize">
+                  <div key={d.type} className="space-y-0.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5 capitalize">
                         {deviceIcon(d.type)}
                         {d.type}
                       </div>
                       <span className="text-muted-foreground">
-                        {d.percent}% ({d.count.toLocaleString()})
+                        {d.percent}%
                       </span>
                     </div>
-                    <div className="h-2 bg-muted rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary rounded-full"
-                        style={{ width: `${d.percent}%` }}
-                      />
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-primary rounded-full" style={{ width: `${d.percent}%` }} />
                     </div>
                   </div>
                 ))}
-              </CardContent>
-            </Card>
-
-            {/* Browsers & OS */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base font-medium">
-                  Browsers &amp; OS
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Browser</TableHead>
-                      <TableHead className="text-right w-16">Views</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {browsers.map((b) => (
-                      <TableRow key={b.name}>
-                        <TableCell className="text-sm">{b.name}</TableCell>
-                        <TableCell className="text-right font-medium">
-                          {b.count.toLocaleString()}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                <div className="border-t" />
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>OS</TableHead>
-                      <TableHead className="text-right w-16">Views</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {operatingSystems.map((o) => (
-                      <TableRow key={o.name}>
-                        <TableCell className="text-sm">{o.name}</TableCell>
-                        <TableCell className="text-right font-medium">
-                          {o.count.toLocaleString()}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <div className="border-t pt-2 mt-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">Browsers</p>
+                  {browsers.slice(0, 5).map((b) => (
+                    <div key={b.name} className="flex justify-between text-xs py-0.5">
+                      <span className="truncate">{b.name}</span>
+                      <span className="text-muted-foreground font-medium ml-2">{b.count.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t pt-2 mt-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">OS</p>
+                  {operatingSystems.slice(0, 5).map((o) => (
+                    <div key={o.name} className="flex justify-between text-xs py-0.5">
+                      <span className="truncate">{o.name}</span>
+                      <span className="text-muted-foreground font-medium ml-2">{o.count.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
 
             {/* Countries */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base font-medium">
-                  Countries
-                </CardTitle>
+                <CardTitle className="text-sm font-medium">Countries</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-2 pt-0">
                 {countries.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No country data
-                  </p>
+                  <p className="text-xs text-muted-foreground text-center py-4">No country data</p>
                 ) : (
                   countries.slice(0, 10).map((c) => (
-                    <div key={c.country} className="space-y-1">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="flex items-center">
+                    <div key={c.country} className="space-y-0.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="flex items-center truncate">
                           <CountryBadge code={c.code} />
                           {c.country}
                         </span>
-                        <span className="text-muted-foreground">
-                          {c.percent}% ({c.count.toLocaleString()})
+                        <span className="text-muted-foreground ml-1 shrink-0">
+                          {c.percent}%
                         </span>
                       </div>
-                      <div className="h-2 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-primary rounded-full"
-                          style={{ width: `${c.percent}%` }}
-                        />
+                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full bg-primary rounded-full" style={{ width: `${c.percent}%` }} />
                       </div>
                     </div>
                   ))

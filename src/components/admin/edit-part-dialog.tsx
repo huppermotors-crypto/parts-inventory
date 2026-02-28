@@ -28,7 +28,8 @@ import { PhotoUploader, PhotoFile } from "@/components/admin/photo-uploader";
 import { EbayPriceSearch } from "@/components/admin/ebay-price-search";
 import { rotateImage } from "@/lib/rotate-image";
 import { CropDialog } from "./crop-dialog";
-import { Loader2, Save, X, ImageIcon, RotateCw, GripVertical, Crop } from "lucide-react";
+import { Loader2, Save, X, ImageIcon, RotateCw, GripVertical, Crop, Search } from "lucide-react";
+import { decodeVINFull } from "@/lib/nhtsa";
 import Image from "next/image";
 
 const supabase = createClient();
@@ -69,6 +70,7 @@ export function EditPartDialog({
   const [driveType, setDriveType] = useState("");
   const [fuelType, setFuelType] = useState("");
   const [isPublished, setIsPublished] = useState(true);
+  const [decoding, setDecoding] = useState(false);
 
   // Photo state
   const [existingPhotos, setExistingPhotos] = useState<string[]>([]);
@@ -100,6 +102,32 @@ export function EditPartDialog({
       setNewPhotos([]);
     }
   }, [part]);
+
+  const handleLookupVIN = async () => {
+    if (!vin || vin.length !== 17) {
+      toast({ title: "VIN must be 17 characters", variant: "destructive" });
+      return;
+    }
+    setDecoding(true);
+    try {
+      const result = await decodeVINFull(vin);
+      if (result.year) setYear(result.year.toString());
+      if (result.make) setMake(result.make);
+      if (result.model) setModel(result.model);
+      if (result.body_class) setBodyClass(result.body_class);
+      if (result.engine_displacement) setEngineDisplacement(result.engine_displacement);
+      if (result.engine_cylinders) setEngineCylinders(result.engine_cylinders.toString());
+      if (result.engine_hp) setEngineHp(result.engine_hp);
+      setEngineTurbo(result.engine_turbo);
+      if (result.drive_type) setDriveType(result.drive_type);
+      if (result.fuel_type) setFuelType(result.fuel_type);
+      toast({ title: "VIN decoded successfully" });
+    } catch {
+      toast({ title: "Failed to decode VIN", variant: "destructive" });
+    } finally {
+      setDecoding(false);
+    }
+  };
 
   const removeExistingPhoto = useCallback(
     (index: number) => {
@@ -342,14 +370,31 @@ export function EditPartDialog({
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="space-y-2 sm:col-span-4">
               <Label>VIN</Label>
-              <Input
-                value={vin}
-                onChange={(e) =>
-                  setVin(e.target.value.toUpperCase().slice(0, 17))
-                }
-                maxLength={17}
-                className="font-mono"
-              />
+              <div className="flex gap-2">
+                <Input
+                  value={vin}
+                  onChange={(e) =>
+                    setVin(e.target.value.toUpperCase().slice(0, 17))
+                  }
+                  maxLength={17}
+                  className="font-mono"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 h-9"
+                  onClick={handleLookupVIN}
+                  disabled={decoding || !vin || vin.length !== 17}
+                >
+                  {decoding ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Search className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  Lookup
+                </Button>
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Year</Label>

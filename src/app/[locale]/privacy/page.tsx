@@ -3,6 +3,9 @@ import { Link } from "@/i18n/navigation";
 import Image from "next/image";
 import { ArrowLeft } from "lucide-react";
 import { getTranslations } from "next-intl/server";
+import { routing } from "@/i18n/routing";
+
+const BASE_URL = "https://parts-inventory.onrender.com";
 
 interface Props {
   params: Promise<{ locale: string }>;
@@ -11,9 +14,19 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'privacy' });
+
+  const alternates: Record<string, string> = {};
+  for (const loc of routing.locales) {
+    alternates[loc] = `${BASE_URL}/${loc}/privacy`;
+  }
+
   return {
     title: t('title'),
     description: t('metaDescription'),
+    alternates: {
+      canonical: `${BASE_URL}/${locale}/privacy`,
+      languages: alternates,
+    },
   };
 }
 

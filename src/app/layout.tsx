@@ -14,6 +14,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://parts-inventory.onrender.com"),
   title: {
     default: "HuppeR Auto Parts - Quality Used Auto Parts",
     template: "%s | HuppeR Auto Parts",
@@ -22,6 +23,22 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: "HuppeR Auto Parts",
+    locale: "en_US",
+    images: [{ url: "/logo.png", width: 512, height: 512, alt: "HuppeR Auto Parts" }],
+  },
+  twitter: {
+    card: "summary",
+    title: "HuppeR Auto Parts",
+    description: "Quality used auto parts at great prices.",
+    images: ["/logo.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
   },
 };
 
