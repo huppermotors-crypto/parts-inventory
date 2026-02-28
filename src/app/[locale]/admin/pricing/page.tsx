@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { PriceRule } from "@/types/database";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -73,6 +74,8 @@ const defaultForm: RuleForm = {
 };
 
 export default function PricingPage() {
+  const t = useTranslations('admin.pricing');
+  const tc = useTranslations('admin.common');
   const [rules, setRules] = useState<PriceRule[]>([]);
   const [allParts, setAllParts] = useState<Part[]>([]);
   const [loading, setLoading] = useState(true);
@@ -201,7 +204,7 @@ export default function PricingPage() {
       if (error) {
         toast({ title: "Error", description: error.message, variant: "destructive" });
       } else {
-        toast({ title: "Rule updated" });
+        toast({ title: t('ruleSaved') });
         setRules((prev) =>
           prev.map((r) => (r.id === editingRule.id ? { ...r, ...record } as PriceRule : r))
         );
@@ -216,7 +219,7 @@ export default function PricingPage() {
       if (error) {
         toast({ title: "Error", description: error.message, variant: "destructive" });
       } else if (data) {
-        toast({ title: "Rule created" });
+        toast({ title: t('ruleSaved') });
         setRules((prev) => [data, ...prev]);
       }
     }
@@ -256,7 +259,7 @@ export default function PricingPage() {
       setRules(snapshot);
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Rule deleted" });
+      toast({ title: t('ruleDeleted') });
     }
   };
 
@@ -282,7 +285,7 @@ export default function PricingPage() {
 
   const scopeLabel = (scope: string, value: string | null) => {
     switch (scope) {
-      case "all": return "All Parts";
+      case "all": return t('scopeAll');
       case "make": return value || "—";
       case "model": return value || "—";
       case "vin": return value || "—";
@@ -299,14 +302,14 @@ export default function PricingPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Pricing Rules</h1>
+          <h1 className="text-2xl font-bold">{t('title')}</h1>
           <p className="text-muted-foreground text-sm">
-            Manage discounts and markups for your inventory
+            {t('subtitle')}
           </p>
         </div>
         <Button onClick={openCreate}>
           <Plus className="h-4 w-4 mr-2" />
-          Add Rule
+          {t('addRule')}
         </Button>
       </div>
 
@@ -315,7 +318,7 @@ export default function PricingPage() {
         <Card>
           <CardHeader className="py-3 px-4">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Tag className="h-4 w-4" /> Total Rules
+              <Tag className="h-4 w-4" /> {t('title')}
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-3">
@@ -325,7 +328,7 @@ export default function PricingPage() {
         <Card>
           <CardHeader className="py-3 px-4">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <ToggleRight className="h-4 w-4 text-green-600" /> Active
+              <ToggleRight className="h-4 w-4 text-green-600" /> {t('active')}
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-3">
@@ -335,7 +338,7 @@ export default function PricingPage() {
         <Card>
           <CardHeader className="py-3 px-4">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <TrendingDown className="h-4 w-4 text-red-600" /> Discounts
+              <TrendingDown className="h-4 w-4 text-red-600" /> {t('discount')}
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-3">
@@ -345,7 +348,7 @@ export default function PricingPage() {
         <Card>
           <CardHeader className="py-3 px-4">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-blue-600" /> Markups
+              <TrendingUp className="h-4 w-4 text-blue-600" /> {t('markup')}
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-3">
@@ -364,21 +367,21 @@ export default function PricingPage() {
           ) : rules.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
               <Percent className="h-10 w-10 mb-3" />
-              <p className="text-sm">No pricing rules yet</p>
+              <p className="text-sm">{t('noRules')}</p>
               <Button variant="outline" size="sm" className="mt-3" onClick={openCreate}>
-                <Plus className="h-4 w-4 mr-1" /> Create first rule
+                <Plus className="h-4 w-4 mr-1" /> {t('addRule')}
               </Button>
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Scope</TableHead>
-                  <TableHead>Target</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t('type')}</TableHead>
+                  <TableHead>{t('scope')}</TableHead>
+                  <TableHead>{t('scopeValue')}</TableHead>
+                  <TableHead>{t('amount')}</TableHead>
+                  <TableHead>{t('active')}</TableHead>
+                  <TableHead className="text-right">{tc('edit')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -387,11 +390,11 @@ export default function PricingPage() {
                     <TableCell>
                       {rule.type === "discount" ? (
                         <Badge variant="destructive" className="text-xs">
-                          <TrendingDown className="h-3 w-3 mr-1" /> Discount
+                          <TrendingDown className="h-3 w-3 mr-1" /> {t('discount')}
                         </Badge>
                       ) : (
                         <Badge className="text-xs bg-blue-600">
-                          <TrendingUp className="h-3 w-3 mr-1" /> Markup
+                          <TrendingUp className="h-3 w-3 mr-1" /> {t('markup')}
                         </Badge>
                       )}
                     </TableCell>
@@ -458,17 +461,17 @@ export default function PricingPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center gap-2">
               <Package className="h-5 w-5" />
-              Affected Parts ({affectedParts.length})
+              {t('preview')} ({affectedParts.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Part</TableHead>
-                  <TableHead>Rule</TableHead>
-                  <TableHead className="text-right">Original</TableHead>
-                  <TableHead className="text-right">Final Price</TableHead>
+                  <TableHead>{t('scopePart')}</TableHead>
+                  <TableHead>{t('type')}</TableHead>
+                  <TableHead className="text-right">{t('originalPrice')}</TableHead>
+                  <TableHead className="text-right">{t('newPrice')}</TableHead>
                   <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -558,14 +561,14 @@ export default function PricingPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editingRule ? "Edit Rule" : "Create Pricing Rule"}
+              {editingRule ? t('editRule') : t('addRule')}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             {/* Type */}
             <div className="space-y-2">
-              <Label>Type</Label>
+              <Label>{t('type')}</Label>
               <Select
                 value={form.type}
                 onValueChange={(v) => setForm((f) => ({ ...f, type: v as "discount" | "markup" }))}
@@ -576,12 +579,12 @@ export default function PricingPage() {
                 <SelectContent>
                   <SelectItem value="discount">
                     <span className="flex items-center gap-2">
-                      <TrendingDown className="h-3.5 w-3.5 text-red-600" /> Discount (price goes down)
+                      <TrendingDown className="h-3.5 w-3.5 text-red-600" /> {t('discount')}
                     </span>
                   </SelectItem>
                   <SelectItem value="markup">
                     <span className="flex items-center gap-2">
-                      <TrendingUp className="h-3.5 w-3.5 text-blue-600" /> Markup (price goes up)
+                      <TrendingUp className="h-3.5 w-3.5 text-blue-600" /> {t('markup')}
                     </span>
                   </SelectItem>
                 </SelectContent>
@@ -590,7 +593,7 @@ export default function PricingPage() {
 
             {/* Scope */}
             <div className="space-y-2">
-              <Label>Apply to</Label>
+              <Label>{t('scope')}</Label>
               <Select
                 value={form.scope}
                 onValueChange={(v) =>
@@ -606,11 +609,11 @@ export default function PricingPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Parts</SelectItem>
-                  <SelectItem value="part">Specific Part</SelectItem>
-                  <SelectItem value="make">Specific Brand (Make)</SelectItem>
-                  <SelectItem value="model">Specific Model</SelectItem>
-                  <SelectItem value="vin">Specific VIN</SelectItem>
+                  <SelectItem value="all">{t('scopeAll')}</SelectItem>
+                  <SelectItem value="part">{t('scopePart')}</SelectItem>
+                  <SelectItem value="make">{t('scopeMake')}</SelectItem>
+                  <SelectItem value="model">{t('scopeModel')}</SelectItem>
+                  <SelectItem value="vin">{t('scopeVin')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -618,9 +621,7 @@ export default function PricingPage() {
             {/* Scope Value */}
             {form.scope !== "all" && form.scope !== "part" && (
               <div className="space-y-2">
-                <Label>
-                  {form.scope === "make" ? "Brand Name" : form.scope === "model" ? "Model Name" : "VIN Number"}
-                </Label>
+                <Label>{t('scopeValue')}</Label>
                 <Input
                   value={form.scope_value}
                   onChange={(e) => setForm((f) => ({ ...f, scope_value: e.target.value }))}
@@ -638,7 +639,7 @@ export default function PricingPage() {
             {/* Part Search */}
             {form.scope === "part" && (
               <div className="space-y-2">
-                <Label>Search Part</Label>
+                <Label>{tc('search')}</Label>
                 {form.part_name ? (
                   <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">
                     <span className="text-sm font-medium flex-1 truncate">{form.part_name}</span>
@@ -702,7 +703,7 @@ export default function PricingPage() {
             {/* Amount */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>Amount</Label>
+                <Label>{t('amount')}</Label>
                 <div className="relative">
                   <Input
                     type="number"
@@ -719,7 +720,7 @@ export default function PricingPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Amount Type</Label>
+                <Label>{t('amountType')}</Label>
                 <Select
                   value={form.amount_type}
                   onValueChange={(v) =>
@@ -732,12 +733,12 @@ export default function PricingPage() {
                   <SelectContent>
                     <SelectItem value="percent">
                       <span className="flex items-center gap-1.5">
-                        <Percent className="h-3.5 w-3.5" /> Percentage
+                        <Percent className="h-3.5 w-3.5" /> {t('percent')}
                       </span>
                     </SelectItem>
                     <SelectItem value="fixed">
                       <span className="flex items-center gap-1.5">
-                        <DollarSign className="h-3.5 w-3.5" /> Fixed ($)
+                        <DollarSign className="h-3.5 w-3.5" /> {t('fixed')}
                       </span>
                     </SelectItem>
                   </SelectContent>
@@ -748,11 +749,11 @@ export default function PricingPage() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancel
+              {tc('cancel')}
             </Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {editingRule ? "Save Changes" : "Create Rule"}
+              {tc('save')}
             </Button>
           </DialogFooter>
         </DialogContent>

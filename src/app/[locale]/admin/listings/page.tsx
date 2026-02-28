@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { Part } from "@/types/database";
 import { formatPrice, getLotPrice } from "@/lib/utils";
@@ -125,6 +126,8 @@ function SpeedBadge({ part }: { part: Part }) {
 }
 
 export default function ListingsPage() {
+  const t = useTranslations('admin.listings');
+  const td = useTranslations('admin.dashboard');
   const [parts, setParts] = useState<Part[]>([]);
   const [loading, setLoading] = useState(true);
   const [platform, setPlatform] = useState<PlatformFilter>("all");
@@ -264,9 +267,9 @@ export default function ListingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Listings Tracker</h1>
+        <h1 className="text-2xl font-bold">{t('title')}</h1>
         <p className="text-muted-foreground text-sm">
-          Track when parts were posted to FB & eBay and how fast they sell
+          {t('subtitle')}
         </p>
       </div>
 
@@ -275,7 +278,7 @@ export default function ListingsPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Listed
+              {t('title')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -285,7 +288,7 @@ export default function ListingsPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              On Facebook
+              {t('fbOnly')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -295,7 +298,7 @@ export default function ListingsPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              On eBay
+              eBay
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -305,7 +308,7 @@ export default function ListingsPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Avg Days to Sell
+              {t('daysListed')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -320,17 +323,17 @@ export default function ListingsPage() {
       <div className="flex flex-col sm:flex-row gap-3">
         <Tabs value={platform} onValueChange={(v) => setPlatform(v as PlatformFilter)}>
           <TabsList>
-            <TabsTrigger value="all">All Listed</TabsTrigger>
-            <TabsTrigger value="fb">Facebook</TabsTrigger>
-            <TabsTrigger value="ebay">eBay</TabsTrigger>
-            <TabsTrigger value="none">Not Listed</TabsTrigger>
+            <TabsTrigger value="all">{t('allPlatforms')}</TabsTrigger>
+            <TabsTrigger value="fb">{t('fbOnly')}</TabsTrigger>
+            <TabsTrigger value="ebay">{t('ebayOnly')}</TabsTrigger>
+            <TabsTrigger value="none">{t('notListed')}</TabsTrigger>
           </TabsList>
         </Tabs>
         <Tabs value={status} onValueChange={(v) => setStatus(v as StatusFilter)}>
           <TabsList>
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="active">Active</TabsTrigger>
-            <TabsTrigger value="sold">Sold</TabsTrigger>
+            <TabsTrigger value="all">{t('allPlatforms')}</TabsTrigger>
+            <TabsTrigger value="active">{t('activeOnly')}</TabsTrigger>
+            <TabsTrigger value="sold">{t('soldOnly')}</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
@@ -343,20 +346,20 @@ export default function ListingsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="min-w-[200px]">
-                    <SortButton column="name">Part</SortButton>
+                    <SortButton column="name">{td('name')}</SortButton>
                   </TableHead>
                   <TableHead className="text-right">
-                    <SortButton column="price">Price</SortButton>
+                    <SortButton column="price">{td('price')}</SortButton>
                   </TableHead>
                   <TableHead>
-                    <SortButton column="date">FB Posted</SortButton>
+                    <SortButton column="date">FB</SortButton>
                   </TableHead>
                   <TableHead>
-                    <SortButton column="date">eBay Posted</SortButton>
+                    <SortButton column="date">eBay</SortButton>
                   </TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{td('status')}</TableHead>
                   <TableHead>
-                    <SortButton column="days">Speed</SortButton>
+                    <SortButton column="days">{t('daysListed')}</SortButton>
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -364,7 +367,7 @@ export default function ListingsPage() {
                 {filteredParts.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      No parts match the selected filters
+                      {t('noListings')}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -406,15 +409,15 @@ export default function ListingsPage() {
                       <TableCell>
                         {part.is_sold ? (
                           <span className="inline-flex items-center text-xs font-medium text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
-                            Sold
+                            {t('soldOnly')}
                           </span>
                         ) : part.fb_posted_at || part.ebay_listed_at ? (
                           <span className="inline-flex items-center text-xs font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">
-                            Active
+                            {t('activeOnly')}
                           </span>
                         ) : (
                           <span className="inline-flex items-center text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                            Not listed
+                            {t('notListed')}
                           </span>
                         )}
                       </TableCell>

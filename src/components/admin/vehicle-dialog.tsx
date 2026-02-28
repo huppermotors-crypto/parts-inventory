@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { decodeVINFull } from "@/lib/nhtsa";
 import { Vehicle, NHTSAFullDecodeResult } from "@/types/database";
@@ -30,6 +31,8 @@ interface VehicleDialogProps {
 }
 
 export function VehicleDialog({ open, onOpenChange, vehicle, onSaved }: VehicleDialogProps) {
+  const t = useTranslations('admin.vehicles');
+  const tc = useTranslations('admin.common');
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [decoding, setDecoding] = useState(false);
@@ -96,7 +99,7 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onSaved }: VehicleD
   const handleDecode = async () => {
     const cleanVin = vin.trim().toUpperCase();
     if (cleanVin.length !== 17) {
-      toast({ title: "VIN must be 17 characters", variant: "destructive" });
+      toast({ title: t('vinMustBe17'), variant: "destructive" });
       return;
     }
 
@@ -113,9 +116,9 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onSaved }: VehicleD
       setEngineTurbo(result.engine_turbo);
       if (result.drive_type) setDriveType(result.drive_type);
       if (result.fuel_type) setFuelType(result.fuel_type);
-      toast({ title: "VIN decoded successfully" });
+      toast({ title: t('vinDecodedSuccess') });
     } catch {
-      toast({ title: "Failed to decode VIN", variant: "destructive" });
+      toast({ title: t('vinDecodeFailed'), variant: "destructive" });
     } finally {
       setDecoding(false);
     }
@@ -155,7 +158,7 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onSaved }: VehicleD
   const handleSave = async () => {
     const cleanVin = vin.trim().toUpperCase();
     if (cleanVin.length !== 17) {
-      toast({ title: "VIN must be 17 characters", variant: "destructive" });
+      toast({ title: t('vinMustBe17'), variant: "destructive" });
       return;
     }
 
@@ -196,26 +199,26 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onSaved }: VehicleD
           .update(record)
           .eq("id", vehicle.id);
         if (error) throw error;
-        toast({ title: "Vehicle updated" });
+        toast({ title: t('vehicleUpdated') });
       } else {
         const { error } = await supabase
           .from("vehicles")
           .insert(record);
         if (error) {
           if (error.code === "23505") {
-            toast({ title: "Vehicle with this VIN already exists", variant: "destructive" });
+            toast({ title: t('vinExists'), variant: "destructive" });
             return;
           }
           throw error;
         }
-        toast({ title: "Vehicle added" });
+        toast({ title: t('vehicleAdded') });
       }
 
       onOpenChange(false);
       onSaved();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error";
-      toast({ title: "Error saving vehicle", description: message, variant: "destructive" });
+      toast({ title: t('saveError'), description: message, variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -230,13 +233,13 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onSaved }: VehicleD
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{vehicle ? "Edit Vehicle" : "Add Vehicle"}</DialogTitle>
+          <DialogTitle>{vehicle ? t('editVehicle') : t('addVehicle')}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           {/* VIN + Decode */}
           <div>
-            <Label>VIN</Label>
+            <Label>{t('vin')}</Label>
             <div className="flex gap-2 mt-1">
               <Input
                 value={vin}
@@ -253,7 +256,7 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onSaved }: VehicleD
                 disabled={decoding || vin.trim().length !== 17}
               >
                 {decoding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                <span className="ml-1">Decode</span>
+                <span className="ml-1">{t('decode')}</span>
               </Button>
             </div>
           </div>
@@ -261,15 +264,15 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onSaved }: VehicleD
           {/* Year / Make / Model */}
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <Label>Year</Label>
+              <Label>{t('year')}</Label>
               <Input value={year} onChange={(e) => setYear(e.target.value)} placeholder="2021" className="mt-1" />
             </div>
             <div>
-              <Label>Make</Label>
+              <Label>{t('make')}</Label>
               <Input value={make} onChange={(e) => setMake(e.target.value)} placeholder="Ford" className="mt-1" />
             </div>
             <div>
-              <Label>Model</Label>
+              <Label>{t('model')}</Label>
               <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="F-150" className="mt-1" />
             </div>
           </div>
@@ -277,11 +280,11 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onSaved }: VehicleD
           {/* Extended info */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Body</Label>
+              <Label>{t('body')}</Label>
               <Input value={bodyClass} onChange={(e) => setBodyClass(e.target.value)} placeholder="Pickup" className="mt-1" />
             </div>
             <div>
-              <Label>Drive Type</Label>
+              <Label>{t('driveType')}</Label>
               <Input value={driveType} onChange={(e) => setDriveType(e.target.value)} placeholder="4WD" className="mt-1" />
             </div>
           </div>
@@ -289,19 +292,19 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onSaved }: VehicleD
           {/* Engine row */}
           <div className="grid grid-cols-4 gap-3">
             <div>
-              <Label>Engine</Label>
+              <Label>{t('engine')}</Label>
               <Input value={engineDisplacement} onChange={(e) => setEngineDisplacement(e.target.value)} placeholder="3.5L" className="mt-1" />
             </div>
             <div>
-              <Label>Cylinders</Label>
+              <Label>{t('cylinders')}</Label>
               <Input value={engineCylinders} onChange={(e) => setEngineCylinders(e.target.value)} placeholder="6" className="mt-1" />
             </div>
             <div>
-              <Label>HP</Label>
+              <Label>{t('hp')}</Label>
               <Input value={engineHp} onChange={(e) => setEngineHp(e.target.value)} placeholder="375" className="mt-1" />
             </div>
             <div>
-              <Label>Fuel</Label>
+              <Label>{t('fuel')}</Label>
               <Input value={fuelType} onChange={(e) => setFuelType(e.target.value)} placeholder="Gasoline" className="mt-1" />
             </div>
           </div>
@@ -315,12 +318,12 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onSaved }: VehicleD
               onChange={(e) => setEngineTurbo(e.target.checked)}
               className="h-4 w-4 rounded border-gray-300"
             />
-            <Label htmlFor="turbo" className="cursor-pointer">Turbo</Label>
+            <Label htmlFor="turbo" className="cursor-pointer">{t('turbo')}</Label>
           </div>
 
           {/* Purchase Price */}
           <div>
-            <Label>Purchase Price ($)</Label>
+            <Label>{t('purchasePrice')}</Label>
             <Input
               value={purchasePrice}
               onChange={(e) => setPurchasePrice(e.target.value)}
@@ -334,11 +337,11 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onSaved }: VehicleD
 
           {/* Notes */}
           <div>
-            <Label>Notes</Label>
+            <Label>{t('notes')}</Label>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Any notes about the vehicle..."
+              placeholder={t('notesPlaceholder')}
               rows={3}
               className="mt-1"
             />
@@ -347,7 +350,7 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onSaved }: VehicleD
           {/* Existing photos */}
           {existingPhotos.length > 0 && (
             <div>
-              <Label>Current Photos</Label>
+              <Label>{t('currentPhotos')}</Label>
               <div className="grid grid-cols-5 gap-2 mt-1">
                 {existingPhotos.map((url) => (
                   <div key={url} className="relative group aspect-square">
@@ -373,7 +376,7 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onSaved }: VehicleD
 
           {/* New photos */}
           <div>
-            <Label>{existingPhotos.length > 0 ? "Add More Photos" : "Photos"}</Label>
+            <Label>{existingPhotos.length > 0 ? t('addMorePhotos') : t('photos')}</Label>
             <div className="mt-1">
               <PhotoUploader
                 photos={newPhotos}
@@ -386,11 +389,11 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onSaved }: VehicleD
           {/* Save button */}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-              Cancel
+              {tc('cancel')}
             </Button>
             <Button onClick={handleSave} disabled={saving || vin.trim().length !== 17}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-              {vehicle ? "Update" : "Save"}
+              {vehicle ? t('update') : tc('save')}
             </Button>
           </div>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { Part, Vehicle } from "@/types/database";
 import { formatPrice, getLotPrice, normalizeMakeModel } from "@/lib/utils";
@@ -62,6 +63,7 @@ interface VehicleWithParts extends Vehicle {
 }
 
 export default function StatsPage() {
+  const t = useTranslations('admin.stats');
   const { toast } = useToast();
   const [mainTab, setMainTab] = useState("statistics");
 
@@ -151,7 +153,7 @@ export default function StatsPage() {
 
   // ── Delete vehicle ──
   const handleDelete = async (v: Vehicle) => {
-    if (!confirm(`Delete ${v.year} ${v.make} ${v.model} (${v.vin})?`)) return;
+    if (!confirm(t('deleteVehicle', { year: v.year || '', make: v.make || '', model: v.model || '', vin: v.vin }))) return;
 
     // Delete vehicle photos from storage
     if (v.photos && v.photos.length > 0) {
@@ -165,9 +167,9 @@ export default function StatsPage() {
 
     const { error } = await supabase.from("vehicles").delete().eq("id", v.id);
     if (error) {
-      toast({ title: "Error deleting vehicle", variant: "destructive" });
+      toast({ title: t('vehicleDeleteError'), variant: "destructive" });
     } else {
-      toast({ title: "Vehicle deleted" });
+      toast({ title: t('vehicleDeleted') });
       fetchVehicles();
     }
   };
@@ -247,6 +249,14 @@ export default function StatsPage() {
     else { setSortKey(key); setSortDir("desc"); }
   };
 
+  const sortLabels: Record<string, string> = {
+    "key": groupBy === "vin" ? "VIN" : groupBy === "make" ? t('brand') : t('byModel'),
+    "partCount": t('parts'),
+    "inStockValue": t('inStockValue'),
+    "soldValue": t('soldValue'),
+    "totalValue": t('totalDollar'),
+  };
+
   const SortHeader = ({ label, field }: { label: string; field: SortKey }) => (
     <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => handleSort(field)}>
       {label}
@@ -265,17 +275,17 @@ export default function StatsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">Inventory Statistics</h1>
+        <h1 className="text-2xl font-bold">{t('title')}</h1>
         <p className="text-muted-foreground text-sm">
-          Value breakdown by vehicle, brand, and model
+          {t('subtitle')}
         </p>
       </div>
 
       {/* Main tabs: Statistics / Vehicles */}
       <Tabs value={mainTab} onValueChange={setMainTab}>
         <TabsList>
-          <TabsTrigger value="statistics">Statistics</TabsTrigger>
-          <TabsTrigger value="vehicles">Vehicles</TabsTrigger>
+          <TabsTrigger value="statistics">{t('statistics')}</TabsTrigger>
+          <TabsTrigger value="vehicles">{t('vehicles')}</TabsTrigger>
         </TabsList>
 
         {/* ═══════════ STATISTICS TAB ═══════════ */}
@@ -285,7 +295,7 @@ export default function StatsPage() {
             <Card>
               <CardHeader className="py-3 px-4">
                 <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Package className="h-4 w-4" /> Total Parts
+                  <Package className="h-4 w-4" /> {t('totalParts')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-3">
@@ -295,7 +305,7 @@ export default function StatsPage() {
             <Card>
               <CardHeader className="py-3 px-4">
                 <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <DollarSign className="h-4 w-4" /> Total Value
+                  <DollarSign className="h-4 w-4" /> {t('totalValue')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-3">
@@ -305,7 +315,7 @@ export default function StatsPage() {
             <Card>
               <CardHeader className="py-3 px-4">
                 <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-green-600" /> In Stock
+                  <TrendingUp className="h-4 w-4 text-green-600" /> {t('inStock')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-3">
@@ -316,7 +326,7 @@ export default function StatsPage() {
             <Card>
               <CardHeader className="py-3 px-4">
                 <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <ShoppingCart className="h-4 w-4 text-amber-600" /> Sold
+                  <ShoppingCart className="h-4 w-4 text-amber-600" /> {t('soldLabel')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-3">
@@ -330,31 +340,31 @@ export default function StatsPage() {
           <Card>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Breakdown</CardTitle>
+                <CardTitle className="text-lg">{t('breakdown')}</CardTitle>
                 <Tabs value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
                   <TabsList>
-                    <TabsTrigger value="make">By Brand</TabsTrigger>
-                    <TabsTrigger value="model">By Model</TabsTrigger>
-                    <TabsTrigger value="vin">By VIN</TabsTrigger>
+                    <TabsTrigger value="make">{t('byBrand')}</TabsTrigger>
+                    <TabsTrigger value="model">{t('byModel')}</TabsTrigger>
+                    <TabsTrigger value="vin">{t('byVin')}</TabsTrigger>
                   </TabsList>
                 </Tabs>
               </div>
             </CardHeader>
             <CardContent className="p-0">
               {groupedStats.length === 0 ? (
-                <div className="py-12 text-center text-muted-foreground text-sm">No data available</div>
+                <div className="py-12 text-center text-muted-foreground text-sm">{t('noVehicles')}</div>
               ) : (
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>
-                          <SortHeader label={groupBy === "vin" ? "VIN" : groupBy === "make" ? "Brand" : "Model"} field="key" />
+                          <SortHeader label={sortLabels.key} field="key" />
                         </TableHead>
-                        <TableHead><div className="flex justify-end"><SortHeader label="Parts" field="partCount" /></div></TableHead>
-                        <TableHead><div className="flex justify-end"><SortHeader label="In Stock ($)" field="inStockValue" /></div></TableHead>
-                        <TableHead><div className="flex justify-end"><SortHeader label="Sold ($)" field="soldValue" /></div></TableHead>
-                        <TableHead><div className="flex justify-end"><SortHeader label="Total ($)" field="totalValue" /></div></TableHead>
+                        <TableHead><div className="flex justify-end"><SortHeader label={t('parts')} field="partCount" /></div></TableHead>
+                        <TableHead><div className="flex justify-end"><SortHeader label={t('inStockValue')} field="inStockValue" /></div></TableHead>
+                        <TableHead><div className="flex justify-end"><SortHeader label={t('soldValue')} field="soldValue" /></div></TableHead>
+                        <TableHead><div className="flex justify-end"><SortHeader label={t('totalDollar')} field="totalValue" /></div></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -386,9 +396,9 @@ export default function StatsPage() {
               {groupedStats.length > 0 && (
                 <div className="border-t px-4 py-3 flex items-center justify-between bg-muted/30">
                   <span className="text-sm font-medium text-muted-foreground">
-                    {groupedStats.length} group{groupedStats.length !== 1 ? "s" : ""}
+                    {t('groups', { count: groupedStats.length })}
                   </span>
-                  <span className="text-sm font-bold">Total: {formatPrice(overallStats.totalValue)}</span>
+                  <span className="text-sm font-bold">{t('total')}: {formatPrice(overallStats.totalValue)}</span>
                 </div>
               )}
             </CardContent>
@@ -400,7 +410,7 @@ export default function StatsPage() {
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">{vehicles.length} vehicle{vehicles.length !== 1 ? "s" : ""}</p>
             <Button onClick={() => { setEditVehicle(null); setDialogOpen(true); }}>
-              <Plus className="h-4 w-4 mr-2" /> Add Vehicle
+              <Plus className="h-4 w-4 mr-2" /> {t('addVehicle')}
             </Button>
           </div>
 
@@ -412,7 +422,7 @@ export default function StatsPage() {
             <Card>
               <CardContent className="py-12 text-center text-muted-foreground">
                 <Car className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                <p>No vehicles yet. Add your first vehicle to track purchase costs and parts.</p>
+                <p>{t('noVehicles')}</p>
               </CardContent>
             </Card>
           ) : (
@@ -422,7 +432,7 @@ export default function StatsPage() {
                 <Card>
                   <CardHeader className="py-3 px-4">
                     <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                      <DollarSign className="h-4 w-4" /> Total Invested
+                      <DollarSign className="h-4 w-4" /> {t('totalInvested')}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="px-4 pb-3">
@@ -434,7 +444,7 @@ export default function StatsPage() {
                 <Card>
                   <CardHeader className="py-3 px-4">
                     <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-green-600" /> Parts In Stock
+                      <TrendingUp className="h-4 w-4 text-green-600" /> {t('partsInStock')}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="px-4 pb-3">
@@ -446,7 +456,7 @@ export default function StatsPage() {
                 <Card>
                   <CardHeader className="py-3 px-4">
                     <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                      <ShoppingCart className="h-4 w-4 text-amber-600" /> Parts Sold
+                      <ShoppingCart className="h-4 w-4 text-amber-600" /> {t('partsSold')}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="px-4 pb-3">
@@ -458,7 +468,7 @@ export default function StatsPage() {
                 <Card>
                   <CardHeader className="py-3 px-4">
                     <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4" /> Total Profit
+                      <TrendingUp className="h-4 w-4" /> {t('totalProfit')}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="px-4 pb-3">
@@ -525,18 +535,18 @@ export default function StatsPage() {
                       {/* Values */}
                       <div className="text-right flex-shrink-0 space-y-0.5">
                         <div className="text-sm">
-                          <span className="text-muted-foreground">Paid: </span>
+                          <span className="text-muted-foreground">{t('paid')}: </span>
                           <span className="font-mono font-bold">{v.purchase_price ? formatPrice(v.purchase_price) : "—"}</span>
                         </div>
                         <div className="text-sm">
-                          <span className="text-muted-foreground">Parts: </span>
+                          <span className="text-muted-foreground">{t('parts')}: </span>
                           <span className="font-mono">{v.partsCount}</span>
                           <span className="text-muted-foreground ml-1">
                             ({formatPrice(v.partsInStockValue + v.partsSoldValue)})
                           </span>
                         </div>
                         <div className="text-sm">
-                          <span className="text-muted-foreground">Profit: </span>
+                          <span className="text-muted-foreground">{t('profit')}: </span>
                           <span className={`font-mono font-bold ${profit >= 0 ? "text-green-600" : "text-red-600"}`}>
                             {profit >= 0 ? "+" : ""}{formatPrice(profit)}
                           </span>
@@ -599,11 +609,11 @@ export default function StatsPage() {
 
                         {/* Parts from this VIN */}
                         <div>
-                          <p className="text-sm font-medium mb-2">Parts from this vehicle</p>
+                          <p className="text-sm font-medium mb-2">{t('partsFromVehicle')}</p>
                           {!vehicleParts[v.id] ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : vehicleParts[v.id].length === 0 ? (
-                            <p className="text-sm text-muted-foreground">No parts found for this VIN</p>
+                            <p className="text-sm text-muted-foreground">{t('noPartsForVin')}</p>
                           ) : (
                             <div className="overflow-x-auto">
                               <Table>
@@ -627,7 +637,7 @@ export default function StatsPage() {
                                       </TableCell>
                                       <TableCell>
                                         <span className={`text-xs px-2 py-0.5 rounded-full ${p.is_sold ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700"}`}>
-                                          {p.is_sold ? "Sold" : "In Stock"}
+                                          {p.is_sold ? t('soldLabel') : t('inStock')}
                                         </span>
                                       </TableCell>
                                     </TableRow>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { decodeVIN } from "@/lib/nhtsa";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,9 @@ const supabase = createClient();
 export default function AddPartPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const t = useTranslations('admin.addPart');
+  const tCat = useTranslations('categories');
+  const tCond = useTranslations('conditions');
 
   // Form state
   const [vin, setVin] = useState("");

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { formatVehicle } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,7 +19,7 @@ import {
   ChevronRight,
   Loader2,
 } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import Image from "next/image";
 import type { Part } from "@/types/database";
 
@@ -33,6 +34,9 @@ interface VehicleFilter {
 }
 
 export default function LookupPage() {
+  const t = useTranslations('admin.lookup');
+  const tc = useTranslations('admin.common');
+  const td = useTranslations('admin.dashboard');
   const [mode, setMode] = useState<SearchMode>("vehicle");
 
   // Vehicle search
@@ -155,9 +159,9 @@ export default function LookupPage() {
   return (
     <div className="space-y-4 max-w-4xl">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Parts Lookup</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t('title')}</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Find parts by vehicle or VIN
+          {t('subtitle')}
         </p>
       </div>
 
@@ -170,7 +174,7 @@ export default function LookupPage() {
           className="gap-2"
         >
           <Car className="h-4 w-4" />
-          By Vehicle
+          {t('byVehicle')}
         </Button>
         <Button
           variant={mode === "vin" ? "default" : "outline"}
@@ -179,7 +183,7 @@ export default function LookupPage() {
           className="gap-2"
         >
           <QrCode className="h-4 w-4" />
-          By VIN
+          {t('byVin')}
         </Button>
       </div>
 
@@ -190,13 +194,13 @@ export default function LookupPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {/* Year */}
               <div className="space-y-1">
-                <label className="text-xs text-muted-foreground font-medium">Year</label>
+                <label className="text-xs text-muted-foreground font-medium">{t('year')}</label>
                 <select
                   value={filter.year}
                   onChange={(e) => setFilter((f) => ({ ...f, year: e.target.value, model: "" }))}
                   className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
                 >
-                  <option value="">Any year</option>
+                  <option value="">{t('anyYear')}</option>
                   {years.map((y) => (
                     <option key={y} value={y}>{y}</option>
                   ))}
@@ -205,13 +209,13 @@ export default function LookupPage() {
 
               {/* Make */}
               <div className="space-y-1">
-                <label className="text-xs text-muted-foreground font-medium">Make</label>
+                <label className="text-xs text-muted-foreground font-medium">{t('make')}</label>
                 <select
                   value={filter.make}
                   onChange={(e) => setFilter((f) => ({ ...f, make: e.target.value, model: "" }))}
                   className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
                 >
-                  <option value="">Any make</option>
+                  <option value="">{t('anyMake')}</option>
                   {makes.map((m) => (
                     <option key={m} value={m}>{m}</option>
                   ))}
@@ -220,21 +224,21 @@ export default function LookupPage() {
 
               {/* Model */}
               <div className="space-y-1">
-                <label className="text-xs text-muted-foreground font-medium">Model</label>
+                <label className="text-xs text-muted-foreground font-medium">{t('model')}</label>
                 {models.length > 0 ? (
                   <select
                     value={filter.model}
                     onChange={(e) => setFilter((f) => ({ ...f, model: e.target.value }))}
                     className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
                   >
-                    <option value="">Any model</option>
+                    <option value="">{t('anyModel')}</option>
                     {models.map((m) => (
                       <option key={m} value={m}>{m}</option>
                     ))}
                   </select>
                 ) : (
                   <Input
-                    placeholder="Any model"
+                    placeholder={t('anyModel')}
                     value={filter.model}
                     onChange={(e) => setFilter((f) => ({ ...f, model: e.target.value }))}
                     onKeyDown={(e) => e.key === "Enter" && searchByVehicle()}
@@ -246,7 +250,7 @@ export default function LookupPage() {
             <div className="flex gap-2">
               <Button onClick={searchByVehicle} disabled={!hasVehicleFilter || loading} className="gap-2">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                Search
+                {t('search')}
               </Button>
               {hasVehicleFilter && (
                 <Button variant="ghost" size="icon" onClick={clearVehicle}>
@@ -264,17 +268,17 @@ export default function LookupPage() {
           <CardContent className="pt-4 space-y-3">
             {vinList.length === 0 ? (
               <p className="text-sm text-muted-foreground py-2">
-                No VINs found in inventory. Add parts with VIN numbers first.
+                {t('noVins')}
               </p>
             ) : (
               <>
                 <div className="space-y-1">
                   <label className="text-xs text-muted-foreground font-medium">
-                    Filter VINs ({vinList.length} donor cars)
+                    {t('filterVins', { count: vinList.length })}
                   </label>
                   <input
                     type="text"
-                    placeholder="Type to filter..."
+                    placeholder={t('typeToFilter')}
                     value={vinFilter}
                     onChange={(e) => setVinFilter(e.target.value.toUpperCase())}
                     className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm font-mono"
@@ -297,7 +301,7 @@ export default function LookupPage() {
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-mono text-xs">{v.vin}</span>
                           <Badge variant={selectedVin === v.vin ? "secondary" : "outline"} className="text-xs shrink-0">
-                            {v.count} {v.count === 1 ? "part" : "parts"}
+                            {tc('parts', { count: v.count })}
                           </Badge>
                         </div>
                         {(v.year || v.make || v.model) && (
@@ -320,7 +324,7 @@ export default function LookupPage() {
           <Separator />
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {loading ? "Searching..." : `Found ${parts.length} part${parts.length !== 1 ? "s" : ""}`}
+              {loading ? t('searching') : t('found', { count: parts.length })}
             </p>
           </div>
 
@@ -331,9 +335,9 @@ export default function LookupPage() {
           ) : parts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <Package className="h-12 w-12 text-muted-foreground mb-3" />
-              <p className="font-medium">No parts found</p>
+              <p className="font-medium">{t('noPartsFound')}</p>
               <p className="text-sm text-muted-foreground mt-1">
-                Try a different vehicle or check your inventory
+                {t('tryDifferent')}
               </p>
             </div>
           ) : (
@@ -366,7 +370,7 @@ export default function LookupPage() {
                             <div className="min-w-0">
                               <p className="font-medium text-sm truncate">{part.name}</p>
                               <p className="text-xs text-muted-foreground">
-                                {formatVehicle(part.year, part.make, part.model) || "No vehicle info"}
+                                {formatVehicle(part.year, part.make, part.model) || td('noVehicleInfo')}
                               </p>
                               {part.stock_number && (
                                 <p className="text-xs text-muted-foreground">#{part.stock_number}</p>
@@ -379,10 +383,10 @@ export default function LookupPage() {
                               </span>
                               <div className="flex gap-1">
                                 {part.is_sold && (
-                                  <Badge variant="secondary" className="text-xs">Sold</Badge>
+                                  <Badge variant="secondary" className="text-xs">{td('sold')}</Badge>
                                 )}
                                 {!part.is_published && (
-                                  <Badge variant="outline" className="text-xs">Hidden</Badge>
+                                  <Badge variant="outline" className="text-xs">{td('hidden')}</Badge>
                                 )}
                                 {part.category && (
                                   <Badge variant="outline" className="text-xs">{part.category}</Badge>

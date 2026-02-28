@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -97,6 +98,7 @@ function formatDate(dateStr: string): string {
 }
 
 export default function ChatsPage() {
+  const t = useTranslations('admin.chats');
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -213,9 +215,9 @@ export default function ChatsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">Chat History</h1>
+        <h1 className="text-2xl font-bold">{t('title')}</h1>
         <p className="text-muted-foreground text-sm">
-          Review conversations with buyers
+          {t('subtitle')}
         </p>
       </div>
 
@@ -224,7 +226,7 @@ export default function ChatsPage() {
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search chats..."
+            placeholder={t('searchChats')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -235,10 +237,10 @@ export default function ChatsPage() {
           onValueChange={(v) => setStatusFilter(v as StatusFilter)}
         >
           <TabsList>
-            <TabsTrigger value="all">All ({statusCounts.all})</TabsTrigger>
-            <TabsTrigger value="active">Active ({statusCounts.active})</TabsTrigger>
-            <TabsTrigger value="escalated">Escalated ({statusCounts.escalated})</TabsTrigger>
-            <TabsTrigger value="closed">Closed ({statusCounts.closed})</TabsTrigger>
+            <TabsTrigger value="all">{t('allChats')} ({statusCounts.all})</TabsTrigger>
+            <TabsTrigger value="active">{t('activeChats')} ({statusCounts.active})</TabsTrigger>
+            <TabsTrigger value="escalated">{t('escalatedChats')} ({statusCounts.escalated})</TabsTrigger>
+            <TabsTrigger value="closed">{t('closedChats')} ({statusCounts.closed})</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
@@ -251,9 +253,9 @@ export default function ChatsPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium">No chats found</h3>
+            <h3 className="text-lg font-medium">{t('noChats')}</h3>
             <p className="text-muted-foreground mt-1">
-              Chat sessions will appear here when buyers use the chat widget.
+              {t('noChatsDesc')}
             </p>
           </CardContent>
         </Card>
@@ -340,7 +342,7 @@ export default function ChatsPage() {
               <div className="flex-1 flex items-center justify-center text-muted-foreground">
                 <div className="text-center">
                   <MessageCircle className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm">Select a chat to view messages</p>
+                  <p className="text-sm">{t('noChats')}</p>
                 </div>
               </div>
             ) : (
@@ -365,7 +367,7 @@ export default function ChatsPage() {
                       {selectedSession?.part_context?.make &&
                         ` · ${[selectedSession.part_context.year, selectedSession.part_context.make, selectedSession.part_context.model].filter(Boolean).join(" ")}`}
                       {" · "}
-                      Visitor: {selectedSession?.visitor_id?.slice(0, 8)}...
+                      {t('visitor')}: {selectedSession?.visitor_id?.slice(0, 8)}...
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -384,7 +386,7 @@ export default function ChatsPage() {
                         disabled={updatingStatus}
                       >
                         <XCircle className="h-3 w-3 mr-1" />
-                        Close
+                        {t('closeChat')}
                       </Button>
                     ) : (
                       <Button
@@ -395,7 +397,7 @@ export default function ChatsPage() {
                         disabled={updatingStatus}
                       >
                         <RotateCcw className="h-3 w-3 mr-1" />
-                        Reopen
+                        {t('reopenChat')}
                       </Button>
                     )}
                   </div>
@@ -478,7 +480,7 @@ export default function ChatsPage() {
                     <span>
                       Started: {formatDate(selectedSession.created_at)}
                     </span>
-                    <span>{messages.length} messages</span>
+                    <span>{t('messages', { count: messages.length })}</span>
                   </div>
                 )}
               </>

@@ -1,13 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { Part } from "@/types/database";
-import {
-  PART_CATEGORIES,
-  getCategoryLabel,
-  getConditionLabel,
-} from "@/lib/constants";
+import { PART_CATEGORIES } from "@/lib/constants";
 import { conditionColors, formatPrice, formatVehicle, normalizeMakeModel, getLotPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,7 +73,7 @@ import {
   ShoppingBag,
   Merge,
 } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import Image from "next/image";
 
 
@@ -89,6 +86,10 @@ const PAGE_SIZE = 25;
 const supabase = createClient();
 
 export default function DashboardPage() {
+  const t = useTranslations('admin.dashboard');
+  const tc = useTranslations('admin.common');
+  const tCat = useTranslations('categories');
+  const tCond = useTranslations('conditions');
   const [parts, setParts] = useState<Part[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -143,7 +144,7 @@ export default function DashboardPage() {
 
     if (error) {
       console.error("Error fetching parts:", error);
-      toast({ title: "Error", description: "Failed to load parts. Try refreshing.", variant: "destructive" });
+      toast({ title: tc('error'), description: t('failedLoad'), variant: "destructive" });
     } else {
       setParts(data || []);
     }
@@ -366,8 +367,8 @@ export default function DashboardPage() {
     if (error) {
       setParts(previousParts);
       toast({
-        title: "Error",
-        description: "Failed to update status. Reverted.",
+        title: tc('error'),
+        description: t('failedUpdate'),
         variant: "destructive",
       });
     }
@@ -409,27 +410,27 @@ export default function DashboardPage() {
 
       if (error) {
         setParts(previousParts);
-        toast({ title: "Error", description: "Failed to mark as sold.", variant: "destructive" });
+        toast({ title: tc('error'), description: t('failedSold'), variant: "destructive" });
         return;
       }
 
       toast({
-        title: "Sold!",
-        description: `"${part.name}" sold for $${confirmedPrice.toFixed(2)}`,
+        title: t('soldToast'),
+        description: t('soldDesc', { name: part.name, price: confirmedPrice.toFixed(2) }),
       });
 
       if (part.fb_posted_at) {
         toast({
-          title: "Update Facebook!",
-          description: `"${part.name}" was posted on FB — mark it as sold there too.`,
+          title: t('updateFB'),
+          description: t('updateFBDesc', { name: part.name }),
           duration: 10000,
         });
         window.open("https://www.facebook.com/marketplace/you/selling", "_blank");
       }
       if (part.ebay_listing_url) {
         toast({
-          title: "Update eBay!",
-          description: `"${part.name}" was listed on eBay — mark it as sold there too.`,
+          title: t('updateEbay'),
+          description: t('updateEbayDesc', { name: part.name }),
           duration: 10000,
         });
         window.open(part.ebay_listing_url, "_blank");
@@ -479,7 +480,7 @@ export default function DashboardPage() {
 
     if (insertError) {
       setParts(previousParts);
-      toast({ title: "Error", description: "Failed to create sold record.", variant: "destructive" });
+      toast({ title: tc('error'), description: t('failedSoldRecord'), variant: "destructive" });
       return;
     }
 
@@ -501,29 +502,29 @@ export default function DashboardPage() {
     if (updateError) {
       await supabase.from("parts").delete().eq("id", soldRecord.id);
       setParts(previousParts);
-      toast({ title: "Error", description: "Failed to update original part.", variant: "destructive" });
+      toast({ title: tc('error'), description: t('failedUpdateOriginal'), variant: "destructive" });
       return;
     }
 
     setParts((prev) => [soldRecord, ...prev]);
 
     toast({
-      title: "Partial Sale Recorded",
-      description: `Sold ${soldQty} of "${part.name}" for $${confirmedPrice.toFixed(2)}. ${allSold ? "All sold." : `${remainingQty} remaining.`}`,
+      title: t('partialSale'),
+      description: t('partialSaleDesc', { qty: soldQty, name: part.name, price: confirmedPrice.toFixed(2), remaining: allSold ? t('allSoldSuffix') : t('remainingSuffix', { count: remainingQty }) }),
     });
 
     if (part.fb_posted_at && allSold) {
       toast({
-        title: "Update Facebook!",
-        description: `"${part.name}" was posted on FB — all items are now sold.`,
+        title: t('updateFB'),
+        description: t('fbAllSold', { name: part.name }),
         duration: 10000,
       });
       window.open("https://www.facebook.com/marketplace/you/selling", "_blank");
     }
     if (part.ebay_listing_url && allSold) {
       toast({
-        title: "Update eBay!",
-        description: `"${part.name}" was listed on eBay — all items are now sold.`,
+        title: t('updateEbay'),
+        description: t('ebayAllSold', { name: part.name }),
         duration: 10000,
       });
       window.open(part.ebay_listing_url, "_blank");
@@ -559,9 +560,9 @@ export default function DashboardPage() {
 
     if (error) {
       setParts(previousParts);
-      toast({ title: "Error", description: "Bulk sold failed. Reverted.", variant: "destructive" });
+      toast({ title: tc('error'), description: t('bulkSoldFailed'), variant: "destructive" });
     } else {
-      toast({ title: "Bulk Update", description: `${ids.length} parts marked as sold.` });
+      toast({ title: t('bulkUpdate'), description: t('bulkSold', { count: ids.length }) });
     }
   };
 
@@ -583,9 +584,9 @@ export default function DashboardPage() {
 
     if (error) {
       setParts(previousParts);
-      toast({ title: "Error", description: "Bulk update failed. Reverted.", variant: "destructive" });
+      toast({ title: tc('error'), description: t('bulkUpdateFailed'), variant: "destructive" });
     } else {
-      toast({ title: "Bulk Update", description: `${ids.length} parts marked available.` });
+      toast({ title: t('bulkUpdate'), description: t('bulkAvailable', { count: ids.length }) });
     }
   };
 
@@ -611,10 +612,10 @@ export default function DashboardPage() {
       const { error } = await supabase.from("parts").delete().in("id", ids);
       if (error) throw error;
 
-      toast({ title: "Bulk Delete", description: `${ids.length} parts deleted.` });
+      toast({ title: t('bulkDelete'), description: t('bulkDeleted', { count: ids.length }) });
     } catch {
       setParts(previousParts);
-      toast({ title: "Error", description: "Bulk delete failed. Reverted.", variant: "destructive" });
+      toast({ title: tc('error'), description: t('bulkDeleteFailed'), variant: "destructive" });
     }
   };
 
@@ -652,10 +653,10 @@ export default function DashboardPage() {
         if (failed) throw new Error("Some updates failed");
       }
 
-      toast({ title: "Prices Updated", description: `${ids.length} parts updated.` });
+      toast({ title: t('pricesUpdated'), description: t('pricesUpdatedDesc', { count: ids.length }) });
     } catch {
       setParts(previousParts);
-      toast({ title: "Error", description: "Price update failed. Reverted.", variant: "destructive" });
+      toast({ title: tc('error'), description: t('priceUpdateFailed'), variant: "destructive" });
     }
   };
 
@@ -701,10 +702,10 @@ export default function DashboardPage() {
         .in("id", mergedIds);
       if (deleteErr) throw deleteErr;
 
-      toast({ title: "Merged", description: `${mergedIds.length + 1} parts merged into 1 lot.` });
+      toast({ title: t('merged'), description: t('mergedDesc', { count: mergedIds.length + 1 }) });
     } catch {
       setParts(previousParts);
-      toast({ title: "Error", description: "Merge failed. Reverted.", variant: "destructive" });
+      toast({ title: tc('error'), description: t('mergeFailed'), variant: "destructive" });
     }
   };
 
@@ -761,21 +762,21 @@ export default function DashboardPage() {
 
     if (error) {
       console.error("FB status update failed:", error);
-      toast({ title: "Error", description: "Failed to save FB status to database.", variant: "destructive" });
+      toast({ title: tc('error'), description: t('fbStatusFailed'), variant: "destructive" });
       return;
     }
 
     setSelectedIds(new Set());
     toast({
-      title: "Posting to FB Marketplace",
+      title: t('postingToFB'),
       description: mergedCount > 0
-        ? `"${part.name}" with ${allPhotos.length} photos from ${mergedCount + 1} parts — extension will open Facebook.`
-        : `"${part.name}" — extension will open Facebook and fill the form.`,
+        ? t('postingToFBMerged', { name: part.name, photoCount: allPhotos.length, partCount: mergedCount + 1 })
+        : t('postingToFBDesc', { name: part.name }),
     });
   };
 
   const resetFBStatus = async (part: Part) => {
-    if (!confirm(`Remove "${part.name}" from Facebook?`)) return;
+    if (!confirm(t('removeFB', { name: part.name }))) return;
     setParts((prev) =>
       prev.map((p) => (p.id === part.id ? { ...p, fb_posted_at: null } : p))
     );
@@ -785,8 +786,8 @@ export default function DashboardPage() {
       .eq("id", part.id);
 
     toast({
-      title: "FB Status Reset",
-      description: `"${part.name}" — removed from Facebook.`,
+      title: t('fbStatusReset'),
+      description: t('fbStatusResetDesc', { name: part.name }),
     });
   };
 
@@ -842,21 +843,21 @@ export default function DashboardPage() {
 
     if (error) {
       console.error("eBay status update failed:", error);
-      toast({ title: "Error", description: "Failed to save eBay status to database.", variant: "destructive" });
+      toast({ title: tc('error'), description: t('ebayStatusFailed'), variant: "destructive" });
       return;
     }
 
     setSelectedIds(new Set());
     toast({
-      title: "Posting to eBay",
+      title: t('postingToEbay'),
       description: mergedCount > 0
-        ? `"${part.name}" with ${allPhotos.length} photos from ${mergedCount + 1} parts — extension will open eBay.`
-        : `"${part.name}" — extension will open eBay.`,
+        ? t('postingToEbayMerged', { name: part.name, photoCount: allPhotos.length, partCount: mergedCount + 1 })
+        : t('postingToEbayDesc', { name: part.name }),
     });
   };
 
   const resetEbayStatus = async (part: Part) => {
-    if (!confirm(`Remove "${part.name}" from eBay?`)) return;
+    if (!confirm(t('removeEbay', { name: part.name }))) return;
     setParts((prev) =>
       prev.map((p) =>
         p.id === part.id
@@ -870,8 +871,8 @@ export default function DashboardPage() {
       .eq("id", part.id);
 
     toast({
-      title: "eBay Status Reset",
-      description: `"${part.name}" — removed from eBay.`,
+      title: t('ebayStatusReset'),
+      description: t('ebayStatusResetDesc', { name: part.name }),
     });
   };
 
@@ -881,12 +882,12 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t('title')}</h1>
         </div>
         <Link href="/admin/add">
           <Button>
             <PlusCircle className="mr-2 h-4 w-4" />
-            Add Part
+            {t('addPart')}
           </Button>
         </Link>
       </div>
@@ -898,7 +899,7 @@ export default function DashboardPage() {
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-muted-foreground mb-1">
                 <Package className="h-4 w-4" />
-                <span className="text-sm">Total</span>
+                <span className="text-sm">{t('total')}</span>
               </div>
               <p className="text-2xl font-bold">{stats.total}</p>
             </CardContent>
@@ -907,7 +908,7 @@ export default function DashboardPage() {
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-green-600 mb-1">
                 <Eye className="h-4 w-4" />
-                <span className="text-sm">On Sale</span>
+                <span className="text-sm">{t('onSale')}</span>
               </div>
               <p className="text-2xl font-bold text-green-600">{stats.live}</p>
             </CardContent>
@@ -916,7 +917,7 @@ export default function DashboardPage() {
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-amber-600 mb-1">
                 <BadgeDollarSign className="h-4 w-4" />
-                <span className="text-sm">Sold</span>
+                <span className="text-sm">{t('sold')}</span>
               </div>
               <p className="text-2xl font-bold text-amber-600">{stats.sold}</p>
             </CardContent>
@@ -925,7 +926,7 @@ export default function DashboardPage() {
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-muted-foreground mb-1">
                 <TrendingUp className="h-4 w-4" />
-                <span className="text-sm">Inventory</span>
+                <span className="text-sm">{t('inventory')}</span>
               </div>
               <p className="text-2xl font-bold">{formatPrice(stats.inventoryValue)}</p>
             </CardContent>
@@ -934,7 +935,7 @@ export default function DashboardPage() {
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-muted-foreground mb-1">
                 <BarChart3 className="h-4 w-4" />
-                <span className="text-sm">Sold Value</span>
+                <span className="text-sm">{t('soldValue')}</span>
               </div>
               <p className="text-2xl font-bold">{formatPrice(stats.soldValue)}</p>
             </CardContent>
@@ -945,9 +946,9 @@ export default function DashboardPage() {
       {/* Status Tabs */}
       <Tabs value={filterStatus} onValueChange={(v) => setFilterStatus(v as StatusFilter)}>
         <TabsList>
-          <TabsTrigger value="all">All ({statusCounts.all})</TabsTrigger>
-          <TabsTrigger value="live">Live ({statusCounts.live})</TabsTrigger>
-          <TabsTrigger value="sold">Sold ({statusCounts.sold})</TabsTrigger>
+          <TabsTrigger value="all">{t('all')} ({statusCounts.all})</TabsTrigger>
+          <TabsTrigger value="live">{t('live')} ({statusCounts.live})</TabsTrigger>
+          <TabsTrigger value="sold">{t('sold')} ({statusCounts.sold})</TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -957,7 +958,7 @@ export default function DashboardPage() {
         <div className="relative w-full sm:flex-1 sm:min-w-[200px] sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search parts..."
+            placeholder={t('searchParts')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -968,10 +969,10 @@ export default function DashboardPage() {
         <Select value={filterMake} onValueChange={setFilterMake}>
           <SelectTrigger className="w-full sm:w-[180px]">
             <CarFront className="h-4 w-4 mr-2 text-muted-foreground" />
-            <SelectValue placeholder="All Makes" />
+            <SelectValue placeholder="{t('allMakes')}" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Makes</SelectItem>
+            <SelectItem value="all">{t('allMakes')}</SelectItem>
             {uniqueMakes.map((make) => (
               <SelectItem key={make} value={make}>
                 {make}
@@ -984,14 +985,14 @@ export default function DashboardPage() {
         <Select value={filterCategory} onValueChange={setFilterCategory}>
           <SelectTrigger className="w-full sm:w-[240px]">
             <Layers className="h-4 w-4 mr-2 text-muted-foreground" />
-            <SelectValue placeholder="All Categories" />
+            <SelectValue placeholder="{t('allCategories')}" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
+            <SelectItem value="all">{t('allCategories')}</SelectItem>
             {PART_CATEGORIES.filter((c) => usedCategories.includes(c.value)).map(
               (cat) => (
                 <SelectItem key={cat.value} value={cat.value}>
-                  {cat.label}
+                  {tCat(cat.value)}
                 </SelectItem>
               )
             )}
@@ -1004,35 +1005,35 @@ export default function DashboardPage() {
             checked={filterNoVin}
             onCheckedChange={(checked) => setFilterNoVin(checked === true)}
           />
-          No VIN
+          {t('noVin')}
         </label>
         <label className="flex items-center gap-2 cursor-pointer text-sm whitespace-nowrap">
           <Checkbox
             checked={filterOtherCategory}
             onCheckedChange={(checked) => setFilterOtherCategory(checked === true)}
           />
-          Other
+          {t('otherCategory')}
         </label>
         <label className="flex items-center gap-2 cursor-pointer text-sm whitespace-nowrap">
           <Checkbox
             checked={filterNotOnFB}
             onCheckedChange={(checked) => setFilterNotOnFB(checked === true)}
           />
-          Not on FB
+          {t('notOnFB')}
         </label>
         <label className="flex items-center gap-2 cursor-pointer text-sm whitespace-nowrap">
           <Checkbox
             checked={filterNotOnEbay}
             onCheckedChange={(checked) => setFilterNotOnEbay(checked === true)}
           />
-          Not on eBay
+          {t('notOnEbay')}
         </label>
 
         {/* Clear filters */}
         {activeFiltersCount > 0 && (
           <Button variant="ghost" size="sm" onClick={clearFilters}>
             <X className="h-4 w-4 mr-1" />
-            Clear filters
+            {t('clearFilters')}
           </Button>
         )}
 
@@ -1046,7 +1047,7 @@ export default function DashboardPage() {
             size="icon"
             className="h-9 w-9 rounded-r-none hidden sm:inline-flex"
             onClick={() => setViewMode("table")}
-            title="Table"
+            title={t('table')}
           >
             <LayoutList className="h-4 w-4" />
           </Button>
@@ -1055,7 +1056,7 @@ export default function DashboardPage() {
             size="icon"
             className="h-9 w-9 rounded-none sm:border-x"
             onClick={() => setViewMode("grid")}
-            title="Grid"
+            title={t('grid')}
           >
             <LayoutGrid className="h-4 w-4" />
           </Button>
@@ -1064,7 +1065,7 @@ export default function DashboardPage() {
             size="icon"
             className="h-9 w-9 rounded-none border-x sm:border-x-0 sm:border-r"
             onClick={() => setViewMode("compact")}
-            title="Compact"
+            title={t('compact')}
           >
             <Grid3X3 className="h-4 w-4" />
           </Button>
@@ -1073,7 +1074,7 @@ export default function DashboardPage() {
             size="icon"
             className="h-9 w-9 rounded-l-none"
             onClick={() => setViewMode("list")}
-            title="List"
+            title={t('list')}
           >
             <List className="h-4 w-4" />
           </Button>
@@ -1085,35 +1086,35 @@ export default function DashboardPage() {
         <Card className="border-primary">
           <CardContent className="py-3 px-4 flex flex-wrap items-center gap-3">
             <span className="text-sm font-medium">
-              {selectedIds.size} selected
+              {t('selected', { count: selectedIds.size })}
             </span>
             <Separator orientation="vertical" className="h-6" />
             <Button variant="outline" size="sm" onClick={bulkMarkSold}>
               <BadgeDollarSign className="h-4 w-4 mr-1" />
-              Mark Sold
+              {t('markSold')}
             </Button>
             <Button variant="outline" size="sm" onClick={bulkMarkAvailable}>
               <Undo2 className="h-4 w-4 mr-1" />
-              Mark Available
+              {t('markAvailable')}
             </Button>
             <Button variant="outline" size="sm" onClick={() => setBulkPriceOpen(true)}>
               <DollarSign className="h-4 w-4 mr-1" />
-              Change Price
+              {t('changePrice')}
             </Button>
             {selectedIds.size >= 2 && (
               <Button variant="outline" size="sm" onClick={() => setMergeLotOpen(true)}>
                 <Merge className="h-4 w-4 mr-1" />
-                Merge Lot
+                {t('mergeLot')}
               </Button>
             )}
             <Button variant="destructive" size="sm" onClick={bulkDelete}>
               <Trash2 className="h-4 w-4 mr-1" />
-              Delete
+              {tc('delete')}
             </Button>
             <div className="flex-1" />
             <Button variant="ghost" size="sm" onClick={clearSelection}>
               <X className="h-4 w-4 mr-1" />
-              Clear
+              {tc('clear')}
             </Button>
           </CardContent>
         </Card>
@@ -1127,21 +1128,21 @@ export default function DashboardPage() {
       ) : sortedParts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <Package className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium">No parts found</h3>
+          <h3 className="text-lg font-medium">{t('noPartsFound')}</h3>
           <p className="text-muted-foreground mt-1">
             {search || activeFiltersCount > 0
-              ? "Try adjusting your search or filters."
-              : "Get started by adding your first part."}
+              ? t('adjustFilters')
+              : t('getStarted')}
           </p>
           {search || activeFiltersCount > 0 ? (
             <Button variant="outline" className="mt-4" onClick={clearFilters}>
-              Clear all filters
+              {t('clearAllFilters')}
             </Button>
           ) : (
             <Link href="/admin/add" className="mt-4">
               <Button>
                 <PlusCircle className="mr-2 h-4 w-4" />
-                Add Part
+                {t('addPart')}
               </Button>
             </Link>
           )}
@@ -1161,36 +1162,36 @@ export default function DashboardPage() {
                       aria-label="Select all"
                     />
                   </TableHead>
-                  <TableHead className="w-[92px]">Photo</TableHead>
+                  <TableHead className="w-[92px]">{t('photo')}</TableHead>
                   <TableHead className="w-16">#</TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => handleSort("name")}>
                     <div className="flex items-center gap-1">
-                      Name {renderSortIcon("name")}
+                      {t('name')} {renderSortIcon("name")}
                     </div>
                   </TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => handleSort("category")}>
                     <div className="flex items-center gap-1">
-                      Category {renderSortIcon("category")}
+                      {t('category')} {renderSortIcon("category")}
                     </div>
                   </TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => handleSort("make")}>
                     <div className="flex items-center gap-1">
-                      Vehicle {renderSortIcon("make")}
+                      {t('vehicle')} {renderSortIcon("make")}
                     </div>
                   </TableHead>
-                  <TableHead>Condition</TableHead>
+                  <TableHead>{t('condition')}</TableHead>
                   <TableHead className="text-right cursor-pointer select-none" onClick={() => handleSort("price")}>
                     <div className="flex items-center gap-1 justify-end">
-                      Price {renderSortIcon("price")}
+                      {t('price')} {renderSortIcon("price")}
                     </div>
                   </TableHead>
-                  <TableHead className="w-20">Status</TableHead>
+                  <TableHead className="w-20">{t('status')}</TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => handleSort("created_at")}>
                     <div className="flex items-center gap-1">
-                      Date {renderSortIcon("created_at")}
+                      {t('date')} {renderSortIcon("created_at")}
                     </div>
                   </TableHead>
-                  <TableHead className="w-40">Actions</TableHead>
+                  <TableHead className="w-40">{t('actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1245,7 +1246,7 @@ export default function DashboardPage() {
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-xs font-normal">
-                        {getCategoryLabel(part.category)}
+                        {tCat(part.category)}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -1264,7 +1265,7 @@ export default function DashboardPage() {
                         variant="secondary"
                         className={conditionColors[part.condition] || ""}
                       >
-                        {getConditionLabel(part.condition)}
+                        {tCond(part.condition)}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right font-medium">
@@ -1282,17 +1283,17 @@ export default function DashboardPage() {
                         {part.is_sold ? (
                           <Badge variant="secondary" className="bg-amber-100 text-amber-800">
                             <BadgeDollarSign className="h-3 w-3 mr-1" />
-                            Sold
+                            {t('sold')}
                           </Badge>
                         ) : part.is_published ? (
                           <Badge variant="default" className="bg-green-600">
                             <Eye className="h-3 w-3 mr-1" />
-                            Live
+                            {t('live')}
                           </Badge>
                         ) : (
                           <Badge variant="secondary">
                             <EyeOff className="h-3 w-3 mr-1" />
-                            Hidden
+                            {t('hidden')}
                           </Badge>
                         )}
                         {part.fb_posted_at && (
@@ -1338,8 +1339,8 @@ export default function DashboardPage() {
                             </TooltipTrigger>
                             <TooltipContent>
                               {part.fb_posted_at
-                                ? `On FB (${new Date(part.fb_posted_at).toLocaleDateString()}) — click to reset`
-                                : "Post to FB"}
+                                ? t('onFB', { date: new Date(part.fb_posted_at).toLocaleDateString() })
+                                : t('postToFB')}
                             </TooltipContent>
                           </Tooltip>
                           <Tooltip>
@@ -1363,8 +1364,8 @@ export default function DashboardPage() {
                             </TooltipTrigger>
                             <TooltipContent>
                               {part.ebay_listed_at
-                                ? `On eBay (${new Date(part.ebay_listed_at).toLocaleDateString()}) — click to reset`
-                                : "Post to eBay"}
+                                ? t('onEbay', { date: new Date(part.ebay_listed_at).toLocaleDateString() })
+                                : t('postToEbay')}
                             </TooltipContent>
                           </Tooltip>
                           <Tooltip>
@@ -1381,7 +1382,7 @@ export default function DashboardPage() {
                                 <Pencil className="h-4 w-4" />
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent>Edit</TooltipContent>
+                            <TooltipContent>{tc('edit')}</TooltipContent>
                           </Tooltip>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -1403,7 +1404,7 @@ export default function DashboardPage() {
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>
-                              {part.is_sold ? "Mark as Available" : "Mark as Sold"}
+                              {part.is_sold ? t('markAsAvailable') : t('markAsSold')}
                             </TooltipContent>
                           </Tooltip>
                           <Tooltip>
@@ -1420,7 +1421,7 @@ export default function DashboardPage() {
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent>Delete</TooltipContent>
+                            <TooltipContent>{tc('delete')}</TooltipContent>
                           </Tooltip>
                         </div>
                       </TooltipProvider>
@@ -1482,20 +1483,20 @@ export default function DashboardPage() {
                   )}
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <Badge variant="outline" className="text-xs">
-                      {getCategoryLabel(part.category)}
+                      {tCat(part.category)}
                     </Badge>
                     <Badge
                       variant="secondary"
                       className={`text-xs ${conditionColors[part.condition] || ""}`}
                     >
-                      {getConditionLabel(part.condition)}
+                      {tCond(part.condition)}
                     </Badge>
                     {part.is_sold ? (
-                      <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800">Sold</Badge>
+                      <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800">{t('sold')}</Badge>
                     ) : part.is_published ? (
-                      <Badge variant="default" className="text-xs bg-green-600">Live</Badge>
+                      <Badge variant="default" className="text-xs bg-green-600">{t('live')}</Badge>
                     ) : (
-                      <Badge variant="secondary" className="text-xs">Hidden</Badge>
+                      <Badge variant="secondary" className="text-xs">{t('hidden')}</Badge>
                     )}
                     {part.fb_posted_at && (
                       <Badge variant="outline" className="text-xs text-blue-600 border-blue-300">
@@ -1535,7 +1536,7 @@ export default function DashboardPage() {
                           <Pencil className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Edit</TooltipContent>
+                      <TooltipContent>{tc('edit')}</TooltipContent>
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -1548,7 +1549,7 @@ export default function DashboardPage() {
                           {part.is_sold ? <Undo2 className="h-4 w-4" /> : <BadgeDollarSign className="h-4 w-4" />}
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>{part.is_sold ? "Mark Available" : "Mark Sold"}</TooltipContent>
+                      <TooltipContent>{part.is_sold ? t('markAsAvailable') : t('markAsSold')}</TooltipContent>
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -1564,7 +1565,7 @@ export default function DashboardPage() {
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Delete</TooltipContent>
+                      <TooltipContent>{tc('delete')}</TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 </div>
@@ -1593,10 +1594,10 @@ export default function DashboardPage() {
                 )}
                 <div className="absolute top-1 left-1 flex gap-1">
                   {part.is_sold && (
-                    <Badge variant="secondary" className="text-[10px] bg-amber-100 text-amber-800 px-1 py-0">Sold</Badge>
+                    <Badge variant="secondary" className="text-[10px] bg-amber-100 text-amber-800 px-1 py-0">{t('sold')}</Badge>
                   )}
                   {!part.is_sold && !part.is_published && (
-                    <Badge variant="secondary" className="text-[10px] px-1 py-0">Hidden</Badge>
+                    <Badge variant="secondary" className="text-[10px] px-1 py-0">{t('hidden')}</Badge>
                   )}
                 </div>
                 <div className="absolute top-1 right-1 flex gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
@@ -1618,7 +1619,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between mt-1">
                   <span className="font-bold text-sm">{formatPrice(partLotPrice(part))}</span>
                   <Badge variant="secondary" className={`text-[10px] ${conditionColors[part.condition] || ""}`}>
-                    {getConditionLabel(part.condition)}
+                    {tCond(part.condition)}
                   </Badge>
                 </div>
               </CardContent>
@@ -1648,12 +1649,12 @@ export default function DashboardPage() {
                 <div className="absolute top-2 left-2 flex gap-1.5">
                   {part.is_sold ? (
                     <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800">
-                      Sold
+                      {t('sold')}
                     </Badge>
                   ) : !part.is_published ? (
                     <Badge variant="secondary" className="text-xs">
                       <EyeOff className="h-3 w-3 mr-1" />
-                      Hidden
+                      {t('hidden')}
                     </Badge>
                   ) : null}
                   {part.fb_posted_at && (
@@ -1669,7 +1670,7 @@ export default function DashboardPage() {
                     </Badge>
                   )}
                   <Badge variant="secondary" className="text-xs bg-white/80 text-black">
-                    {getCategoryLabel(part.category)}
+                    {tCat(part.category)}
                   </Badge>
                 </div>
                 {/* Action buttons */}
@@ -1718,7 +1719,7 @@ export default function DashboardPage() {
                 )}
                 <h3 className="font-medium truncate">{part.name}</h3>
                 <p className="text-sm text-muted-foreground">
-                  {formatVehicle(part.year, part.make, part.model) || "No vehicle info"}
+                  {formatVehicle(part.year, part.make, part.model) || t('noVehicleInfo')}
                 </p>
                 <div className="flex items-center justify-between mt-2">
                   <div>
@@ -1731,7 +1732,7 @@ export default function DashboardPage() {
                     variant="secondary"
                     className={`text-xs ${conditionColors[part.condition] || ""}`}
                   >
-                    {getConditionLabel(part.condition)}
+                    {tCond(part.condition)}
                   </Badge>
                 </div>
               </CardContent>
@@ -1754,7 +1755,7 @@ export default function DashboardPage() {
               disabled={currentPage === 1}
             >
               <ChevronLeft className="h-4 w-4 mr-1" />
-              Previous
+              {tc('previous')}
             </Button>
             <span className="text-sm text-muted-foreground">
               {currentPage} / {totalPages}
@@ -1765,7 +1766,7 @@ export default function DashboardPage() {
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
             >
-              Next
+              {tc('next')}
               <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
