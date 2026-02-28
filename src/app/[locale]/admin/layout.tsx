@@ -20,6 +20,7 @@ import {
   ShoppingBag,
   MessageCircle,
   Globe2,
+  Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -30,7 +31,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { LanguageSwitcher } from "@/components/language-switcher";
 
 const navItems = [
   { key: "dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
@@ -42,6 +42,7 @@ const navItems = [
   { key: "stats", href: "/admin/stats", icon: DollarSign },
   { key: "chats", href: "/admin/chats", icon: MessageCircle },
   { key: "seo", href: "/admin/seo", icon: Globe2 },
+  { key: "settings", href: "/admin/settings", icon: Settings },
 ];
 
 const supabase = createClient();
@@ -139,9 +140,6 @@ export default function AdminLayout({
           <Download className="h-4 w-4" />
           {t('chromeExtension')}
         </a>
-        <div className="px-3 py-2">
-          <LanguageSwitcher className="w-full h-9 text-sm" />
-        </div>
         <Button
           variant="ghost"
           className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground min-h-[44px]"
