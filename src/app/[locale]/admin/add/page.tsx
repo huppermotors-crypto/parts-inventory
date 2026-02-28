@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
-import { decodeVIN } from "@/lib/nhtsa";
+import { decodeVIN, decodeVINFull } from "@/lib/nhtsa";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,6 +72,13 @@ export default function AddPartPage() {
   const [pricePer, setPricePer] = useState<"lot" | "item">("lot");
   const [condition, setCondition] = useState("used");
   const [category, setCategory] = useState("other");
+  const [bodyClass, setBodyClass] = useState("");
+  const [engineDisplacement, setEngineDisplacement] = useState("");
+  const [engineCylinders, setEngineCylinders] = useState("");
+  const [engineHp, setEngineHp] = useState("");
+  const [engineTurbo, setEngineTurbo] = useState(false);
+  const [driveType, setDriveType] = useState("");
+  const [fuelType, setFuelType] = useState("");
   const [photos, setPhotos] = useState<PhotoFile[]>([]);
 
   // UI state
@@ -215,7 +222,7 @@ export default function AddPartPage() {
 
     setDecoding(true);
     try {
-      const result = await decodeVIN(vin);
+      const result = await decodeVINFull(vin);
       const newYear = result.year?.toString() || "";
       const newMake = result.make || "";
       const newModel = result.model || "";
@@ -223,6 +230,13 @@ export default function AddPartPage() {
       if (result.year) setYear(newYear);
       if (result.make) setMake(newMake);
       if (result.model) setModel(newModel);
+      if (result.body_class) setBodyClass(result.body_class);
+      if (result.engine_displacement) setEngineDisplacement(result.engine_displacement);
+      if (result.engine_cylinders) setEngineCylinders(result.engine_cylinders.toString());
+      if (result.engine_hp) setEngineHp(result.engine_hp);
+      setEngineTurbo(result.engine_turbo);
+      if (result.drive_type) setDriveType(result.drive_type);
+      if (result.fuel_type) setFuelType(result.fuel_type);
 
       const newName = updateNamePrefix(newYear, newMake, newModel);
       updateAutoDescription(newName, serialNumber, newYear, newMake, newModel);
@@ -319,6 +333,13 @@ export default function AddPartPage() {
         year: year ? parseInt(year, 10) : null,
         make: make ? normalizeMakeModel(make) : null,
         model: model ? normalizeMakeModel(model) : null,
+        body_class: bodyClass.trim() || null,
+        engine_displacement: engineDisplacement.trim() || null,
+        engine_cylinders: engineCylinders ? parseInt(engineCylinders, 10) : null,
+        engine_hp: engineHp.trim() || null,
+        engine_turbo: engineTurbo,
+        drive_type: driveType.trim() || null,
+        fuel_type: fuelType.trim() || null,
         name: name.trim(),
         description: description.trim() || null,
         serial_number: serialNumber.trim() || null,
@@ -497,6 +518,51 @@ export default function AddPartPage() {
                 />
               </div>
             </div>
+
+            {/* Extended vehicle info (from VIN decode) */}
+            {(bodyClass || engineDisplacement || driveType || fuelType) && (
+              <>
+                <Separator />
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="space-y-2">
+                    <Label>Body</Label>
+                    <Input value={bodyClass} onChange={(e) => setBodyClass(e.target.value)} placeholder="Sedan" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Drive</Label>
+                    <Input value={driveType} onChange={(e) => setDriveType(e.target.value)} placeholder="AWD" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Engine</Label>
+                    <Input value={engineDisplacement} onChange={(e) => setEngineDisplacement(e.target.value)} placeholder="3.5L" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Fuel</Label>
+                    <Input value={fuelType} onChange={(e) => setFuelType(e.target.value)} placeholder="Gasoline" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                  <div className="space-y-2">
+                    <Label>Cylinders</Label>
+                    <Input value={engineCylinders} onChange={(e) => setEngineCylinders(e.target.value)} placeholder="6" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>HP</Label>
+                    <Input value={engineHp} onChange={(e) => setEngineHp(e.target.value)} placeholder="375" />
+                  </div>
+                  <div className="flex items-center gap-2 pt-6">
+                    <input
+                      type="checkbox"
+                      id="turbo-add"
+                      checked={engineTurbo}
+                      onChange={(e) => setEngineTurbo(e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300"
+                    />
+                    <Label htmlFor="turbo-add" className="cursor-pointer">Turbo</Label>
+                  </div>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 

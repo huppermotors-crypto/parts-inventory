@@ -20,6 +20,13 @@ export interface Part {
   is_sold: boolean;
   sold_price: number | null;
   sold_at: string | null;
+  body_class: string | null;
+  engine_displacement: string | null;
+  engine_cylinders: number | null;
+  engine_hp: string | null;
+  engine_turbo: boolean;
+  drive_type: string | null;
+  fuel_type: string | null;
   fb_posted_at: string | null;
   ebay_listing_id: string | null;
   ebay_offer_id: string | null;

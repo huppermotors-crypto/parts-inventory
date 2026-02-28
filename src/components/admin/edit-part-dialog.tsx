@@ -61,6 +61,13 @@ export function EditPartDialog({
   const [pricePer, setPricePer] = useState<"lot" | "item">("lot");
   const [condition, setCondition] = useState("used");
   const [category, setCategory] = useState("other");
+  const [bodyClass, setBodyClass] = useState("");
+  const [engineDisplacement, setEngineDisplacement] = useState("");
+  const [engineCylinders, setEngineCylinders] = useState("");
+  const [engineHp, setEngineHp] = useState("");
+  const [engineTurbo, setEngineTurbo] = useState(false);
+  const [driveType, setDriveType] = useState("");
+  const [fuelType, setFuelType] = useState("");
   const [isPublished, setIsPublished] = useState(true);
 
   // Photo state
@@ -81,6 +88,13 @@ export function EditPartDialog({
       setPricePer(part.price_per || "lot");
       setCondition(part.condition);
       setCategory(part.category || "other");
+      setBodyClass(part.body_class || "");
+      setEngineDisplacement(part.engine_displacement || "");
+      setEngineCylinders(part.engine_cylinders?.toString() || "");
+      setEngineHp(part.engine_hp || "");
+      setEngineTurbo(part.engine_turbo || false);
+      setDriveType(part.drive_type || "");
+      setFuelType(part.fuel_type || "");
       setIsPublished(part.is_published);
       setExistingPhotos(part.photos || []);
       setNewPhotos([]);
@@ -272,6 +286,13 @@ export function EditPartDialog({
           year: year ? parseInt(year, 10) : null,
           make: make ? normalizeMakeModel(make) : null,
           model: model ? normalizeMakeModel(model) : null,
+          body_class: bodyClass.trim() || null,
+          engine_displacement: engineDisplacement.trim() || null,
+          engine_cylinders: engineCylinders ? parseInt(engineCylinders, 10) : null,
+          engine_hp: engineHp.trim() || null,
+          engine_turbo: engineTurbo,
+          drive_type: driveType.trim() || null,
+          fuel_type: fuelType.trim() || null,
           name: name.trim(),
           description: description.trim() || null,
           serial_number: serialNumber.trim() || null,
@@ -345,6 +366,46 @@ export function EditPartDialog({
             <div className="space-y-2 sm:col-span-2">
               <Label>Model</Label>
               <Input value={model} onChange={(e) => setModel(e.target.value)} />
+            </div>
+          </div>
+
+          {/* Extended vehicle info */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label>Body</Label>
+              <Input value={bodyClass} onChange={(e) => setBodyClass(e.target.value)} placeholder="Sedan" />
+            </div>
+            <div className="space-y-2">
+              <Label>Drive</Label>
+              <Input value={driveType} onChange={(e) => setDriveType(e.target.value)} placeholder="AWD" />
+            </div>
+            <div className="space-y-2">
+              <Label>Engine</Label>
+              <Input value={engineDisplacement} onChange={(e) => setEngineDisplacement(e.target.value)} placeholder="3.5L" />
+            </div>
+            <div className="space-y-2">
+              <Label>Fuel</Label>
+              <Input value={fuelType} onChange={(e) => setFuelType(e.target.value)} placeholder="Gasoline" />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label>Cylinders</Label>
+              <Input value={engineCylinders} onChange={(e) => setEngineCylinders(e.target.value)} placeholder="6" />
+            </div>
+            <div className="space-y-2">
+              <Label>HP</Label>
+              <Input value={engineHp} onChange={(e) => setEngineHp(e.target.value)} placeholder="375" />
+            </div>
+            <div className="flex items-center gap-2 pt-6">
+              <input
+                type="checkbox"
+                id="turbo-edit"
+                checked={engineTurbo}
+                onChange={(e) => setEngineTurbo(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <Label htmlFor="turbo-edit" className="cursor-pointer">Turbo</Label>
             </div>
           </div>
 

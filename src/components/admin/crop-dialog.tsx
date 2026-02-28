@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import Cropper from "react-easy-crop";
-import type { Area } from "react-easy-crop";
+import { useState, useRef, useCallback } from "react";
+import ReactCrop, { type Crop, type PixelCrop } from "react-image-crop";
+import "react-image-crop/dist/ReactCrop.css";
 import {
   Dialog,
   DialogContent,
@@ -22,20 +22,40 @@ interface CropDialogProps {
 }
 
 export function CropDialog({ open, onOpenChange, imageSrc, onCrop }: CropDialogProps) {
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [croppedArea, setCroppedArea] = useState<Area | null>(null);
+  const [crop, setCrop] = useState<Crop>();
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
   const [saving, setSaving] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
 
-  const onCropComplete = useCallback((_: Area, croppedAreaPixels: Area) => {
-    setCroppedArea(croppedAreaPixels);
+  const onImageLoad = useCallback(() => {
+    // Set a default crop region (center 80%)
+    const newCrop: Crop = {
+      unit: "%",
+      x: 10,
+      y: 10,
+      width: 80,
+      height: 80,
+    };
+    setCrop(newCrop);
   }, []);
 
   const handleCrop = async () => {
-    if (!croppedArea) return;
+    if (!completedCrop || !imgRef.current) return;
     setSaving(true);
     try {
-      const blob = await cropImage(imageSrc, croppedArea);
+      // Convert displayed pixel crop to natural image pixel crop
+      const img = imgRef.current;
+      const scaleX = img.naturalWidth / img.width;
+      const scaleY = img.naturalHeight / img.height;
+
+      const naturalCrop = {
+        x: Math.round(completedCrop.x * scaleX),
+        y: Math.round(completedCrop.y * scaleY),
+        width: Math.round(completedCrop.width * scaleX),
+        height: Math.round(completedCrop.height * scaleY),
+      };
+
+      const blob = await cropImage(imageSrc, naturalCrop);
       onCrop(blob);
       onOpenChange(false);
     } catch (err) {
@@ -47,9 +67,8 @@ export function CropDialog({ open, onOpenChange, imageSrc, onCrop }: CropDialogP
 
   const handleOpenChange = (v: boolean) => {
     if (!v) {
-      setCrop({ x: 0, y: 0 });
-      setZoom(1);
-      setCroppedArea(null);
+      setCrop(undefined);
+      setCompletedCrop(undefined);
     }
     onOpenChange(v);
   };
@@ -61,39 +80,33 @@ export function CropDialog({ open, onOpenChange, imageSrc, onCrop }: CropDialogP
           <DialogTitle>Crop Photo</DialogTitle>
         </DialogHeader>
 
-        <div className="relative w-full h-[400px] bg-black">
+        <div className="px-4 flex justify-center bg-black/5">
           {imageSrc && (
-            <Cropper
-              image={imageSrc}
+            <ReactCrop
               crop={crop}
-              zoom={zoom}
-              aspect={undefined}
-              onCropChange={setCrop}
-              onZoomChange={setZoom}
-              onCropComplete={onCropComplete}
-              showGrid
-            />
+              onChange={(c) => setCrop(c)}
+              onComplete={(c) => setCompletedCrop(c)}
+              minWidth={20}
+              minHeight={20}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                ref={imgRef}
+                src={imageSrc}
+                alt="Crop"
+                onLoad={onImageLoad}
+                style={{ maxHeight: "60vh", maxWidth: "100%" }}
+                crossOrigin="anonymous"
+              />
+            </ReactCrop>
           )}
         </div>
 
-        <div className="px-4 py-3 flex items-center gap-3">
-          <span className="text-sm text-muted-foreground whitespace-nowrap">Zoom</span>
-          <input
-            type="range"
-            value={zoom}
-            onChange={(e) => setZoom(Number(e.target.value))}
-            min={1}
-            max={3}
-            step={0.1}
-            className="flex-1 accent-primary"
-          />
-        </div>
-
-        <DialogFooter className="p-4 pt-0">
+        <DialogFooter className="p-4 pt-3">
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleCrop} disabled={saving || !croppedArea}>
+          <Button onClick={handleCrop} disabled={saving || !completedCrop}>
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Crop
           </Button>

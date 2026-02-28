@@ -30,7 +30,24 @@ export async function proxy(request: NextRequest) {
   const pathWithoutLocale = localeMatch ? (localeMatch[2] || '/') : pathname;
 
   if (pathWithoutLocale.startsWith('/admin') || pathWithoutLocale === '/login') {
-    return updateSession(request, pathWithoutLocale);
+    const authResponse = await updateSession(request, pathWithoutLocale);
+
+    // If auth did a redirect (e.g. to login), return it
+    if (authResponse.status >= 300 && authResponse.status < 400) {
+      return authResponse;
+    }
+
+    // Merge intl headers into auth response so locale is preserved
+    intlResponse.headers.forEach((value, key) => {
+      authResponse.headers.set(key, value);
+    });
+
+    // Also copy intl cookies
+    intlResponse.cookies.getAll().forEach((cookie) => {
+      authResponse.cookies.set(cookie.name, cookie.value);
+    });
+
+    return authResponse;
   }
 
   return intlResponse;

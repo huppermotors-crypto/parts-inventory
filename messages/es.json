@@ -497,7 +497,11 @@
       "noPartsForVin": "No se encontraron piezas para este VIN",
       "deleteVehicle": "¿Eliminar {year} {make} {model} ({vin})?",
       "vehicleDeleted": "Vehículo eliminado",
-      "vehicleDeleteError": "Error al eliminar vehículo"
+      "vehicleDeleteError": "Error al eliminar vehículo",
+      "redecodeAll": "Re-decodificar todos los VIN",
+      "redecodeNone": "Todas las partes ya tienen datos VIN extendidos",
+      "redecodeComplete": "Re-decodificación VIN completa",
+      "redecodeFailed": "Error en re-decodificación"
     },
     "vehicles": {
       "addVehicle": "Agregar vehículo",

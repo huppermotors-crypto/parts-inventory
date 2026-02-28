@@ -33,6 +33,7 @@ import {
   Gauge,
   Cog,
 } from "lucide-react";
+import { decodeVINFull } from "@/lib/nhtsa";
 import { VehicleDialog } from "@/components/admin/vehicle-dialog";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
@@ -81,6 +82,76 @@ export default function StatsPage() {
   const [editVehicle, setEditVehicle] = useState<Vehicle | null>(null);
   const [expandedVehicle, setExpandedVehicle] = useState<string | null>(null);
   const [vehicleParts, setVehicleParts] = useState<Record<string, Part[]>>({});
+
+  // ── Re-decode state ──
+  const [redecoding, setRedecoding] = useState(false);
+  const [redecodeProgress, setRedecodeProgress] = useState("");
+
+  const handleRedecodeAll = async () => {
+    setRedecoding(true);
+    try {
+      // Fetch all parts with VIN that have no body_class yet
+      const { data, error } = await supabase
+        .from("parts")
+        .select("id, vin")
+        .not("vin", "is", null)
+        .neq("vin", "")
+        .is("body_class", null);
+
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        toast({ title: t('redecodeNone') });
+        setRedecoding(false);
+        return;
+      }
+
+      // Deduplicate by VIN to avoid redundant API calls
+      const vinMap = new Map<string, string[]>();
+      for (const row of data) {
+        const v = (row.vin as string).trim().toUpperCase();
+        if (v.length === 17) {
+          const ids = vinMap.get(v) || [];
+          ids.push(row.id);
+          vinMap.set(v, ids);
+        }
+      }
+
+      let done = 0;
+      const total = vinMap.size;
+
+      for (const [vin, ids] of vinMap) {
+        setRedecodeProgress(`${done + 1} / ${total}`);
+        try {
+          const result = await decodeVINFull(vin);
+          await supabase
+            .from("parts")
+            .update({
+              body_class: result.body_class,
+              engine_displacement: result.engine_displacement,
+              engine_cylinders: result.engine_cylinders,
+              engine_hp: result.engine_hp,
+              engine_turbo: result.engine_turbo,
+              drive_type: result.drive_type,
+              fuel_type: result.fuel_type,
+            })
+            .in("id", ids);
+        } catch {
+          // Skip failed VINs
+        }
+        done++;
+        // Rate limit: ~3 req/sec
+        await new Promise((r) => setTimeout(r, 350));
+      }
+
+      toast({ title: t('redecodeComplete'), description: `${done} VINs` });
+      fetchParts();
+    } catch {
+      toast({ title: t('redecodeFailed'), variant: "destructive" });
+    } finally {
+      setRedecoding(false);
+      setRedecodeProgress("");
+    }
+  };
 
   // ── Fetch parts (statistics) ──
   const fetchParts = useCallback(async () => {
@@ -290,6 +361,25 @@ export default function StatsPage() {
 
         {/* ═══════════ STATISTICS TAB ═══════════ */}
         <TabsContent value="statistics" className="space-y-4 mt-4">
+          {/* Re-decode button */}
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRedecodeAll}
+              disabled={redecoding || loading}
+            >
+              {redecoding ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {redecodeProgress}
+                </>
+              ) : (
+                t('redecodeAll')
+              )}
+            </Button>
+          </div>
+
           {/* Summary Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card>

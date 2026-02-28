@@ -1,6 +1,6 @@
 /**
  * Crops an image using Canvas.
- * Takes a source URL (blob or CDN) and pixel-based crop area from react-easy-crop.
+ * Takes a source URL (blob or CDN) and pixel-based crop area.
  */
 export async function cropImage(
   src: string,

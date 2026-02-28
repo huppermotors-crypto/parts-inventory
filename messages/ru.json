@@ -497,7 +497,11 @@
       "noPartsForVin": "Запчасти для этого VIN не найдены",
       "deleteVehicle": "Удалить {year} {make} {model} ({vin})?",
       "vehicleDeleted": "Автомобиль удалён",
-      "vehicleDeleteError": "Ошибка удаления автомобиля"
+      "vehicleDeleteError": "Ошибка удаления автомобиля",
+      "redecodeAll": "Перекодировать все VIN",
+      "redecodeNone": "Все запчасти уже имеют расширенные данные VIN",
+      "redecodeComplete": "Перекодирование VIN завершено",
+      "redecodeFailed": "Ошибка перекодирования"
     },
     "vehicles": {
       "addVehicle": "Добавить автомобиль",

@@ -497,7 +497,11 @@
       "noPartsForVin": "No parts found for this VIN",
       "deleteVehicle": "Delete {year} {make} {model} ({vin})?",
       "vehicleDeleted": "Vehicle deleted",
-      "vehicleDeleteError": "Error deleting vehicle"
+      "vehicleDeleteError": "Error deleting vehicle",
+      "redecodeAll": "Re-decode All VINs",
+      "redecodeNone": "All parts already have extended VIN data",
+      "redecodeComplete": "VIN re-decode complete",
+      "redecodeFailed": "Re-decode failed"
     },
     "vehicles": {
       "addVehicle": "Add Vehicle",
