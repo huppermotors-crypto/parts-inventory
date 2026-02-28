@@ -35,7 +35,6 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { key: "dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
   { key: "addPart", href: "/admin/add", icon: PlusCircle },
-  { key: "lookup", href: "/admin/lookup", icon: Search },
   { key: "analytics", href: "/admin/analytics", icon: BarChart3 },
   { key: "pricing", href: "/admin/pricing", icon: Percent },
   { key: "listings", href: "/admin/listings", icon: ShoppingBag },
