@@ -42,7 +42,11 @@
         "*://localhost/parts/*",
         "*://localhost:*/parts/*",
         "*://*.vercel.app/parts/*",
-        "*://*.onrender.com/parts/*"
+        "*://*.onrender.com/parts/*",
+        "*://localhost/*/parts/*",
+        "*://localhost:*/*/parts/*",
+        "*://*.vercel.app/*/parts/*",
+        "*://*.onrender.com/*/parts/*"
       ],
       "js": ["content-scraper.js"],
       "run_at": "document_idle"
@@ -52,7 +56,11 @@
         "*://localhost/admin/*",
         "*://localhost:*/admin/*",
         "*://*.vercel.app/admin/*",
-        "*://*.onrender.com/admin/*"
+        "*://*.onrender.com/admin/*",
+        "*://localhost/*/admin/*",
+        "*://localhost:*/*/admin/*",
+        "*://*.vercel.app/*/admin/*",
+        "*://*.onrender.com/*/admin/*"
       ],
       "js": ["content-admin.js"],
       "run_at": "document_idle"
