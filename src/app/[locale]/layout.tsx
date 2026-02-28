@@ -3,6 +3,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { routing } from '@/i18n/routing';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { Toaster } from "@/components/ui/toaster";
 import { PageViewTracker } from "@/components/analytics/page-view-tracker";
 import { ChatWidget } from "@/components/chat/chat-widget";
@@ -36,6 +37,22 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     alternates[loc] = `${BASE_URL}/${loc}`;
   }
 
+  // Check for custom favicon
+  let icons: Metadata["icons"] = undefined;
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data } = await supabase
+      .from("site_settings")
+      .select("value")
+      .eq("key", "favicon_url")
+      .single();
+    if (data?.value) {
+      icons = { icon: data.value, apple: data.value };
+    }
+  } catch {
+    // Use default from root layout
+  }
+
   return {
     title: meta.title,
     description: meta.description,
@@ -47,6 +64,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
       locale: meta.ogLocale,
       alternateLocale: routing.locales.filter((l) => l !== locale).map((l) => localeMeta[l]?.ogLocale || l),
     },
+    ...(icons ? { icons } : {}),
   };
 }
 

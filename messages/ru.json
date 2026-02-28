@@ -653,7 +653,17 @@
       "emailNotifications": "Email-уведомления о новых чатах",
       "soundNotifications": "Звуковые уведомления в админ-панели",
       "language": "Язык интерфейса",
-      "languageDesc": "Выберите язык отображения админ-панели"
+      "languageDesc": "Выберите язык отображения админ-панели",
+      "favicon": "Фавикон",
+      "faviconDesc": "Загрузите иконку для вкладки браузера",
+      "faviconCurrent": "Текущий фавикон",
+      "faviconUpload": "Загрузить новый",
+      "faviconHint": "PNG или ICO, рекомендуется 64×64 px или больше",
+      "faviconUploaded": "Фавикон обновлён",
+      "faviconFailed": "Не удалось загрузить фавикон",
+      "faviconRemove": "Удалить",
+      "faviconRemoved": "Фавикон удалён",
+      "faviconDefault": "По умолчанию"
     }
   },
   "metadata": {

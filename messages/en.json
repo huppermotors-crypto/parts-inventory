@@ -653,7 +653,17 @@
       "emailNotifications": "Email notifications for new chats",
       "soundNotifications": "Sound notifications in admin panel",
       "language": "Interface Language",
-      "languageDesc": "Choose admin panel display language"
+      "languageDesc": "Choose admin panel display language",
+      "favicon": "Favicon",
+      "faviconDesc": "Upload a custom favicon (browser tab icon)",
+      "faviconCurrent": "Current favicon",
+      "faviconUpload": "Upload new favicon",
+      "faviconHint": "PNG or ICO, recommended 64×64 px or larger",
+      "faviconUploaded": "Favicon updated",
+      "faviconFailed": "Failed to upload favicon",
+      "faviconRemove": "Remove custom",
+      "faviconRemoved": "Custom favicon removed",
+      "faviconDefault": "Default"
     }
   },
   "metadata": {

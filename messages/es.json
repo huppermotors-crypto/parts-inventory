@@ -653,7 +653,17 @@
       "emailNotifications": "Notificaciones por correo para nuevos chats",
       "soundNotifications": "Notificaciones de sonido en el panel de administración",
       "language": "Idioma de la interfaz",
-      "languageDesc": "Elige el idioma de visualización del panel de administración"
+      "languageDesc": "Elige el idioma de visualización del panel de administración",
+      "favicon": "Favicon",
+      "faviconDesc": "Sube un ícono personalizado para la pestaña del navegador",
+      "faviconCurrent": "Favicon actual",
+      "faviconUpload": "Subir nuevo",
+      "faviconHint": "PNG o ICO, recomendado 64×64 px o más",
+      "faviconUploaded": "Favicon actualizado",
+      "faviconFailed": "Error al subir el favicon",
+      "faviconRemove": "Eliminar",
+      "faviconRemoved": "Favicon eliminado",
+      "faviconDefault": "Predeterminado"
     }
   },
   "metadata": {

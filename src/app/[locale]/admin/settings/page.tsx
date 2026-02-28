@@ -25,7 +25,11 @@ import {
   BarChart3,
   Eye,
   EyeOff,
+  ImageIcon,
+  Upload,
+  Trash2,
 } from "lucide-react";
+import Image from "next/image";
 
 const supabase = createClient();
 
@@ -62,6 +66,10 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [downloadingBackup, setDownloadingBackup] = useState<string | null>(null);
 
+  // Favicon
+  const [faviconUrl, setFaviconUrl] = useState<string | null>(null);
+  const [uploadingFavicon, setUploadingFavicon] = useState(false);
+
   // Password change
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -80,6 +88,10 @@ export default function SettingsPage() {
       if (data && data.length > 0) {
         const loaded = { ...DEFAULT_SETTINGS };
         for (const row of data) {
+          if (row.key === "favicon_url") {
+            setFaviconUrl(row.value || null);
+            continue;
+          }
           const key = row.key as keyof SiteSettings;
           if (key in loaded) {
             const val = row.value;
@@ -124,6 +136,54 @@ export default function SettingsPage() {
       toast({ title: t("settingsFailed"), variant: "destructive" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleFaviconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingFavicon(true);
+    try {
+      const ext = file.name.split(".").pop() || "png";
+      const filePath = `site-assets/favicon.${ext}`;
+
+      // Remove old file if exists
+      await supabase.storage.from("part-photos").remove([filePath]);
+
+      const { error: uploadError } = await supabase.storage
+        .from("part-photos")
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("part-photos")
+        .getPublicUrl(filePath);
+
+      // Save URL to site_settings
+      await supabase
+        .from("site_settings")
+        .upsert({ key: "favicon_url", value: publicUrl }, { onConflict: "key" });
+
+      setFaviconUrl(publicUrl);
+      toast({ title: t("faviconUploaded") });
+    } catch {
+      toast({ title: t("faviconFailed"), variant: "destructive" });
+    } finally {
+      setUploadingFavicon(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleFaviconRemove = async () => {
+    try {
+      await supabase.storage.from("part-photos").remove(["site-assets/favicon.png", "site-assets/favicon.ico"]);
+      await supabase.from("site_settings").delete().eq("key", "favicon_url");
+      setFaviconUrl(null);
+      toast({ title: t("faviconRemoved") });
+    } catch {
+      toast({ title: t("faviconFailed"), variant: "destructive" });
     }
   };
 
@@ -466,6 +526,82 @@ export default function SettingsPage() {
               placeholder={t("phonePlaceholder")}
               value={settings.contact_phone}
               onChange={(e) => setSettings({ ...settings, contact_phone: e.target.value })}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Favicon */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ImageIcon className="h-5 w-5" />
+            {t("favicon")}
+          </CardTitle>
+          <CardDescription>{t("faviconDesc")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="relative w-16 h-16 rounded-lg border bg-muted flex items-center justify-center overflow-hidden">
+              {faviconUrl ? (
+                <Image
+                  src={faviconUrl}
+                  alt="Favicon"
+                  width={64}
+                  height={64}
+                  className="object-contain"
+                  unoptimized
+                />
+              ) : (
+                <Image
+                  src="/icon.png"
+                  alt="Default favicon"
+                  width={64}
+                  height={64}
+                  className="object-contain"
+                  unoptimized
+                />
+              )}
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">
+                {t("faviconCurrent")}: {faviconUrl ? "Custom" : t("faviconDefault")}
+              </p>
+              <p className="text-xs text-muted-foreground">{t("faviconHint")}</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              disabled={uploadingFavicon}
+              onClick={() => document.getElementById("favicon-input")?.click()}
+            >
+              {uploadingFavicon ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4" />
+              )}
+              {t("faviconUpload")}
+            </Button>
+            {faviconUrl && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-2 text-destructive"
+                onClick={handleFaviconRemove}
+              >
+                <Trash2 className="h-4 w-4" />
+                {t("faviconRemove")}
+              </Button>
+            )}
+            <input
+              id="favicon-input"
+              type="file"
+              accept="image/png,image/x-icon,image/svg+xml"
+              className="hidden"
+              onChange={handleFaviconUpload}
             />
           </div>
         </CardContent>
