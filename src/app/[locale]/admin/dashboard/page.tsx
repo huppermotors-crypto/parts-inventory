@@ -1441,133 +1441,142 @@ export default function DashboardPage() {
             return (
               <div
                 key={part.id}
-                className={`flex items-center gap-4 p-3 rounded-lg border hover:shadow-md transition-shadow ${selectedIds.has(part.id) ? "bg-muted/50 border-primary" : ""}`}
+                className={`p-3 rounded-lg border hover:shadow-md transition-shadow ${selectedIds.has(part.id) ? "bg-muted/50 border-primary" : ""}`}
               >
-                <Checkbox
-                  checked={selectedIds.has(part.id)}
-                  onCheckedChange={() => toggleSelect(part.id)}
-                  aria-label={`Select ${part.name}`}
-                />
-                <Link href={`/parts/${part.id}`} target="_blank" className="shrink-0">
-                  <div className="relative h-20 w-20 rounded-lg overflow-hidden bg-muted">
-                    {part.photos && part.photos.length > 0 ? (
-                      <Image
-                        src={part.photos[0]}
-                        alt={part.name}
-                        fill
-                        sizes="80px"
-                        className="object-cover"
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-full">
-                        <Package className="h-8 w-8 text-muted-foreground/50" />
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    checked={selectedIds.has(part.id)}
+                    onCheckedChange={() => toggleSelect(part.id)}
+                    aria-label={`Select ${part.name}`}
+                    className="mt-1"
+                  />
+                  <Link href={`/parts/${part.id}`} target="_blank" className="shrink-0">
+                    <div className="relative h-20 w-20 rounded-lg overflow-hidden bg-muted">
+                      {part.photos && part.photos.length > 0 ? (
+                        <Image
+                          src={part.photos[0]}
+                          alt={part.name}
+                          fill
+                          sizes="80px"
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full">
+                          <Package className="h-8 w-8 text-muted-foreground/50" />
+                        </div>
+                      )}
+                    </div>
+                  </Link>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/parts/${part.id}`}
+                            target="_blank"
+                            className="font-semibold truncate hover:text-primary hover:underline"
+                          >
+                            {part.name}
+                          </Link>
+                          {part.stock_number && (
+                            <span className="font-mono text-xs text-muted-foreground shrink-0">#{part.stock_number}</span>
+                          )}
+                        </div>
+                        {vehicle && (
+                          <p className="text-sm text-muted-foreground">{vehicle}</p>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </Link>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <Link
-                      href={`/parts/${part.id}`}
-                      target="_blank"
-                      className="font-semibold truncate hover:text-primary hover:underline"
-                    >
-                      {part.name}
-                    </Link>
-                    {part.stock_number && (
-                      <span className="font-mono text-xs text-muted-foreground shrink-0">#{part.stock_number}</span>
-                    )}
-                  </div>
-                  {vehicle && (
-                    <p className="text-sm text-muted-foreground">{vehicle}</p>
-                  )}
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <Badge variant="outline" className="text-xs">
-                      {tCat(part.category)}
-                    </Badge>
-                    <Badge
-                      variant="secondary"
-                      className={`text-xs ${conditionColors[part.condition] || ""}`}
-                    >
-                      {tCond(part.condition)}
-                    </Badge>
-                    {part.is_sold ? (
-                      <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800">{t('sold')}</Badge>
-                    ) : part.is_published ? (
-                      <Badge variant="default" className="text-xs bg-green-600">{t('live')}</Badge>
-                    ) : (
-                      <Badge variant="secondary" className="text-xs">{t('hidden')}</Badge>
-                    )}
-                    {part.fb_posted_at && (
-                      <Badge variant="outline" className="text-xs text-blue-600 border-blue-300">
-                        <Facebook className="h-2.5 w-2.5 mr-0.5" />
-                        FB
-                      </Badge>
-                    )}
-                    {part.ebay_listed_at && (
-                      <Badge variant="outline" className="text-xs text-orange-600 border-orange-300">
-                        <ShoppingBag className="h-2.5 w-2.5 mr-0.5" />
-                        eBay
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-                <div className="text-right shrink-0">
-                  <span className="font-bold">{formatPrice(partLotPrice(part))}</span>
-                  {(part.quantity || 1) > 1 && (
-                    <p className="text-[10px] text-muted-foreground">
-                      {part.quantity}× {formatPrice(part.price_per === "item" ? part.price : part.price / part.quantity)}/ea
-                    </p>
-                  )}
-                </div>
-                <div className="flex gap-1 shrink-0">
-                  <TooltipProvider delayDuration={300}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => {
-                            setEditPart(part);
-                            setEditOpen(true);
-                          }}
+                      <div className="text-right shrink-0">
+                        <span className="font-bold">{formatPrice(partLotPrice(part))}</span>
+                        {(part.quantity || 1) > 1 && (
+                          <p className="text-[10px] text-muted-foreground">
+                            {part.quantity}× {formatPrice(part.price_per === "item" ? part.price : part.price / part.quantity)}/ea
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Badge variant="outline" className="text-xs">
+                          {tCat(part.category)}
+                        </Badge>
+                        <Badge
+                          variant="secondary"
+                          className={`text-xs ${conditionColors[part.condition] || ""}`}
                         >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>{tc('edit')}</TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className={`h-8 w-8 ${part.is_sold ? "text-green-600" : "text-amber-600"}`}
-                          onClick={() => toggleSold(part)}
-                        >
-                          {part.is_sold ? <Undo2 className="h-4 w-4" /> : <BadgeDollarSign className="h-4 w-4" />}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>{part.is_sold ? t('markAsAvailable') : t('markAsSold')}</TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => {
-                            setDeletePart(part);
-                            setDeleteOpen(true);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>{tc('delete')}</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                          {tCond(part.condition)}
+                        </Badge>
+                        {part.is_sold ? (
+                          <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800">{t('sold')}</Badge>
+                        ) : part.is_published ? (
+                          <Badge variant="default" className="text-xs bg-green-600">{t('live')}</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">{t('hidden')}</Badge>
+                        )}
+                        {part.fb_posted_at && (
+                          <Badge variant="outline" className="text-xs text-blue-600 border-blue-300">
+                            <Facebook className="h-2.5 w-2.5 mr-0.5" />
+                            FB
+                          </Badge>
+                        )}
+                        {part.ebay_listed_at && (
+                          <Badge variant="outline" className="text-xs text-orange-600 border-orange-300">
+                            <ShoppingBag className="h-2.5 w-2.5 mr-0.5" />
+                            eBay
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <TooltipProvider delayDuration={300}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => {
+                                  setEditPart(part);
+                                  setEditOpen(true);
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{tc('edit')}</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className={`h-8 w-8 ${part.is_sold ? "text-green-600" : "text-amber-600"}`}
+                                onClick={() => toggleSold(part)}
+                              >
+                                {part.is_sold ? <Undo2 className="h-4 w-4" /> : <BadgeDollarSign className="h-4 w-4" />}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{part.is_sold ? t('markAsAvailable') : t('markAsSold')}</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                onClick={() => {
+                                  setDeletePart(part);
+                                  setDeleteOpen(true);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{tc('delete')}</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             );
