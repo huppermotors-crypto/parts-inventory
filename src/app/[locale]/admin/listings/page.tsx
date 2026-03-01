@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import Image from "next/image";
 
 const supabase = createClient();
 
@@ -378,6 +379,7 @@ export default function ListingsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[50px]"></TableHead>
                   <TableHead className="min-w-[200px]">
                     <SortButton column="name">{td('name')}</SortButton>
                   </TableHead>
@@ -400,13 +402,24 @@ export default function ListingsPage() {
               <TableBody>
                 {filteredParts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       {t('noListings')}
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredParts.map((part) => (
                     <TableRow key={part.id}>
+                      <TableCell className="p-1">
+                        {part.photos?.[0] ? (
+                          <div className="relative h-10 w-10 rounded overflow-hidden flex-shrink-0">
+                            <Image src={part.photos[0]} alt={part.name} fill className="object-cover" sizes="40px" />
+                          </div>
+                        ) : (
+                          <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
+                            <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <div className="font-medium text-sm">{part.name}</div>
                         <div className="text-xs text-muted-foreground">

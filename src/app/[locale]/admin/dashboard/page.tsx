@@ -95,7 +95,7 @@ export default function DashboardPage() {
   const [search, setSearch] = useState("");
   const [filterMake, setFilterMake] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
-  const [filterStatus, setFilterStatus] = useState<StatusFilter>("all");
+  const [filterStatus, setFilterStatus] = useState<StatusFilter>("live");
   const [filterNoVin, setFilterNoVin] = useState(false);
   const [filterOtherCategory, setFilterOtherCategory] = useState(false);
   const [filterNotOnFB, setFilterNotOnFB] = useState(false);
