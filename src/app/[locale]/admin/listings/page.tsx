@@ -32,7 +32,6 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { EditPartDialog } from "@/components/admin/edit-part-dialog";
-import { Pencil } from "lucide-react";
 
 const supabase = createClient();
 
@@ -410,7 +409,7 @@ export default function ListingsPage() {
                       </TableCell>
                       <TableCell>
                         <button
-                          className="font-medium text-sm text-left hover:underline text-blue-600 hover:text-blue-800"
+                          className="font-medium text-sm text-left hover:underline"
                           onClick={() => { setEditPart(part); setEditOpen(true); }}
                         >
                           {part.name}
@@ -466,14 +465,6 @@ export default function ListingsPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 p-0"
-                            onClick={() => { setEditPart(part); setEditOpen(true); }}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
                           {part.fb_posted_at && !part.is_sold && (
                             <Button
                               variant="ghost"
