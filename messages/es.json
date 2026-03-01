@@ -465,7 +465,11 @@
       "noListings": "No hay publicaciones que coincidan con tus filtros",
       "stale": "Antigua",
       "fresh": "Reciente",
-      "warning": "Por vencer"
+      "warning": "Por vencer",
+      "actions": "Acciones",
+      "delistedFb": "Eliminado de Facebook",
+      "delistedEbay": "Eliminado de eBay",
+      "delistFailed": "Error al eliminar"
     },
     "stats": {
       "title": "Estadísticas de inventario",

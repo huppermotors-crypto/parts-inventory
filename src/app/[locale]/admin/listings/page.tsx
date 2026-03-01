@@ -26,8 +26,10 @@ import {
   AlertTriangle,
   CheckCircle2,
   Facebook,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 const supabase = createClient();
 
@@ -128,6 +130,7 @@ function SpeedBadge({ part }: { part: Part }) {
 export default function ListingsPage() {
   const t = useTranslations('admin.listings');
   const td = useTranslations('admin.dashboard');
+  const { toast } = useToast();
   const [parts, setParts] = useState<Part[]>([]);
   const [loading, setLoading] = useState(true);
   const [platform, setPlatform] = useState<PlatformFilter>("all");
@@ -232,6 +235,36 @@ export default function ListingsPage() {
 
     return result;
   }, [parts, platform, status, sortKey, sortDir]);
+
+  const handleDelistFb = async (partId: string) => {
+    const prev = parts;
+    setParts((p) => p.map((x) => x.id === partId ? { ...x, fb_posted_at: null } : x));
+    const { error } = await supabase
+      .from("parts")
+      .update({ fb_posted_at: null })
+      .eq("id", partId);
+    if (error) {
+      setParts(prev);
+      toast({ title: t("delistFailed"), variant: "destructive" });
+    } else {
+      toast({ title: t("delistedFb") });
+    }
+  };
+
+  const handleDelistEbay = async (partId: string) => {
+    const prev = parts;
+    setParts((p) => p.map((x) => x.id === partId ? { ...x, ebay_listed_at: null, ebay_listing_id: null, ebay_offer_id: null, ebay_listing_url: null } : x));
+    const { error } = await supabase
+      .from("parts")
+      .update({ ebay_listed_at: null, ebay_listing_id: null, ebay_offer_id: null, ebay_listing_url: null })
+      .eq("id", partId);
+    if (error) {
+      setParts(prev);
+      toast({ title: t("delistFailed"), variant: "destructive" });
+    } else {
+      toast({ title: t("delistedEbay") });
+    }
+  };
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -361,12 +394,13 @@ export default function ListingsPage() {
                   <TableHead>
                     <SortButton column="days">{t('daysListed')}</SortButton>
                   </TableHead>
+                  <TableHead className="text-right">{t('actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredParts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       {t('noListings')}
                     </TableCell>
                   </TableRow>
@@ -423,6 +457,32 @@ export default function ListingsPage() {
                       </TableCell>
                       <TableCell>
                         <SpeedBadge part={part} />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {part.fb_posted_at && !part.is_sold && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs gap-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                              onClick={() => handleDelistFb(part.id)}
+                            >
+                              <X className="h-3 w-3" />
+                              FB
+                            </Button>
+                          )}
+                          {part.ebay_listed_at && !part.is_sold && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs gap-1 text-red-600 hover:text-red-800 hover:bg-red-50"
+                              onClick={() => handleDelistEbay(part.id)}
+                            >
+                              <X className="h-3 w-3" />
+                              eBay
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))

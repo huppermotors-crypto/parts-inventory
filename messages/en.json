@@ -465,7 +465,11 @@
       "noListings": "No listings match your filters",
       "stale": "Stale",
       "fresh": "Fresh",
-      "warning": "Aging"
+      "warning": "Aging",
+      "actions": "Actions",
+      "delistedFb": "Removed from Facebook",
+      "delistedEbay": "Removed from eBay",
+      "delistFailed": "Failed to delist"
     },
     "stats": {
       "title": "Inventory Statistics",

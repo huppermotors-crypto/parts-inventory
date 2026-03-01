@@ -465,7 +465,11 @@
       "noListings": "Нет объявлений по выбранным фильтрам",
       "stale": "Устарело",
       "fresh": "Свежее",
-      "warning": "Стареет"
+      "warning": "Стареет",
+      "actions": "Действия",
+      "delistedFb": "Снято с Facebook",
+      "delistedEbay": "Снято с eBay",
+      "delistFailed": "Не удалось снять"
     },
     "stats": {
       "title": "Статистика склада",

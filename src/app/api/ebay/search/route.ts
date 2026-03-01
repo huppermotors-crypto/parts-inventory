@@ -133,10 +133,13 @@ export async function GET(request: NextRequest) {
           ((item.price as Record<string, unknown>)?.currency as string) || "USD",
         condition: item.condition,
         image:
+          (item.image as Record<string, unknown>)?.imageUrl ||
           (
             item.thumbnailImages as Array<Record<string, unknown>> | undefined
           )?.[0]?.imageUrl ||
-          (item.image as Record<string, unknown>)?.imageUrl ||
+          (
+            item.additionalImages as Array<Record<string, unknown>> | undefined
+          )?.[0]?.imageUrl ||
           null,
         itemWebUrl: item.itemWebUrl,
         itemId: item.itemId,
