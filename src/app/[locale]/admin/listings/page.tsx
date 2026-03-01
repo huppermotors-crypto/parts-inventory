@@ -31,11 +31,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
+import { EditPartDialog } from "@/components/admin/edit-part-dialog";
+import { Pencil } from "lucide-react";
 
 const supabase = createClient();
 
-type PlatformFilter = "all" | "fb" | "ebay" | "none";
-type StatusFilter = "all" | "active" | "sold";
+type ListingFilter = "all" | "fb" | "ebay" | "sold";
 type SortKey = "date" | "days" | "price" | "name";
 type SortDir = "asc" | "desc";
 
@@ -134,10 +135,11 @@ export default function ListingsPage() {
   const { toast } = useToast();
   const [parts, setParts] = useState<Part[]>([]);
   const [loading, setLoading] = useState(true);
-  const [platform, setPlatform] = useState<PlatformFilter>("all");
-  const [status, setStatus] = useState<StatusFilter>("all");
+  const [filter, setFilter] = useState<ListingFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [editPart, setEditPart] = useState<Part | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   const fetchParts = useCallback(async () => {
     setLoading(true);
@@ -191,16 +193,11 @@ export default function ListingsPage() {
   const filteredParts = useMemo(() => {
     let result = parts;
 
-    // Platform filter
-    if (platform === "fb") result = result.filter((p) => p.fb_posted_at);
-    else if (platform === "ebay") result = result.filter((p) => p.ebay_listed_at);
-    else if (platform === "none")
-      result = result.filter((p) => !p.fb_posted_at && !p.ebay_listed_at);
+    // Filter
+    if (filter === "fb") result = result.filter((p) => p.fb_posted_at && !p.is_sold);
+    else if (filter === "ebay") result = result.filter((p) => p.ebay_listed_at && !p.is_sold);
+    else if (filter === "sold") result = result.filter((p) => p.is_sold);
     else result = result.filter((p) => p.fb_posted_at || p.ebay_listed_at);
-
-    // Status filter
-    if (status === "active") result = result.filter((p) => !p.is_sold);
-    else if (status === "sold") result = result.filter((p) => p.is_sold);
 
     // Sort
     result = [...result].sort((a, b) => {
@@ -235,7 +232,7 @@ export default function ListingsPage() {
     });
 
     return result;
-  }, [parts, platform, status, sortKey, sortDir]);
+  }, [parts, filter, sortKey, sortDir]);
 
   const handleDelistFb = async (partId: string) => {
     const prev = parts;
@@ -354,23 +351,14 @@ export default function ListingsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <Tabs value={platform} onValueChange={(v) => setPlatform(v as PlatformFilter)}>
-          <TabsList>
-            <TabsTrigger value="all">{t('allPlatforms')}</TabsTrigger>
-            <TabsTrigger value="fb">{t('fbOnly')}</TabsTrigger>
-            <TabsTrigger value="ebay">{t('ebayOnly')}</TabsTrigger>
-            <TabsTrigger value="none">{t('notListed')}</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <Tabs value={status} onValueChange={(v) => setStatus(v as StatusFilter)}>
-          <TabsList>
-            <TabsTrigger value="all">{t('allPlatforms')}</TabsTrigger>
-            <TabsTrigger value="active">{t('activeOnly')}</TabsTrigger>
-            <TabsTrigger value="sold">{t('soldOnly')}</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
+      <Tabs value={filter} onValueChange={(v) => setFilter(v as ListingFilter)}>
+        <TabsList>
+          <TabsTrigger value="all">{t('allPlatforms')}</TabsTrigger>
+          <TabsTrigger value="fb">FB</TabsTrigger>
+          <TabsTrigger value="ebay">eBay</TabsTrigger>
+          <TabsTrigger value="sold">{t('soldOnly')}</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {/* Table */}
       <Card>
@@ -379,7 +367,7 @@ export default function ListingsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[50px]"></TableHead>
+                  <TableHead className="w-[68px]"></TableHead>
                   <TableHead className="min-w-[200px]">
                     <SortButton column="name">{td('name')}</SortButton>
                   </TableHead>
@@ -411,17 +399,22 @@ export default function ListingsPage() {
                     <TableRow key={part.id}>
                       <TableCell className="p-1">
                         {part.photos?.[0] ? (
-                          <div className="relative h-10 w-10 rounded overflow-hidden flex-shrink-0">
-                            <Image src={part.photos[0]} alt={part.name} fill className="object-cover" sizes="40px" />
+                          <div className="relative h-[60px] w-[60px] rounded overflow-hidden flex-shrink-0">
+                            <Image src={part.photos[0]} alt={part.name} fill className="object-cover" sizes="60px" />
                           </div>
                         ) : (
-                          <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
-                            <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                          <div className="h-[60px] w-[60px] rounded bg-muted flex items-center justify-center">
+                            <ShoppingBag className="h-5 w-5 text-muted-foreground" />
                           </div>
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium text-sm">{part.name}</div>
+                        <button
+                          className="font-medium text-sm text-left hover:underline text-blue-600 hover:text-blue-800"
+                          onClick={() => { setEditPart(part); setEditOpen(true); }}
+                        >
+                          {part.name}
+                        </button>
                         <div className="text-xs text-muted-foreground">
                           {[part.year, part.make, part.model].filter(Boolean).join(" ")}
                         </div>
@@ -473,6 +466,14 @@ export default function ListingsPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            onClick={() => { setEditPart(part); setEditOpen(true); }}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
                           {part.fb_posted_at && !part.is_sold && (
                             <Button
                               variant="ghost"
@@ -509,6 +510,13 @@ export default function ListingsPage() {
       <p className="text-xs text-muted-foreground">
         {filteredParts.length} part{filteredParts.length !== 1 ? "s" : ""} shown
       </p>
+
+      <EditPartDialog
+        part={editPart}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        onSaved={fetchParts}
+      />
     </div>
   );
 }
