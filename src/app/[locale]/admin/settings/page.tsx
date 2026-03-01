@@ -31,7 +31,7 @@ import {
   Trash2,
   Puzzle,
   History,
-  GitCommit,
+  AlertTriangle,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -80,43 +80,88 @@ export default function SettingsPage() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
 
-  // Changelog
-  interface Commit {
-    sha: string;
-    message: string;
-    date: string;
-    author: string;
+  // Activity Log
+  interface LogEntry {
+    id: string;
+    action: string;
+    details: string | null;
+    part_id: string | null;
+    created_at: string;
   }
-  const [commits, setCommits] = useState<Commit[]>([]);
-  const [commitsLoading, setCommitsLoading] = useState(false);
-  const [commitsError, setCommitsError] = useState(false);
-  const [commitsLoaded, setCommitsLoaded] = useState(false);
+  const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
+  const [logLoading, setLogLoading] = useState(false);
+  const [logError, setLogError] = useState(false);
+  const [logLoaded, setLogLoaded] = useState(false);
 
-  const loadCommits = useCallback(async () => {
-    if (commitsLoaded) return;
-    setCommitsLoading(true);
-    setCommitsError(false);
+  const ACTION_LABELS: Record<string, string> = {
+    part_created: "Part created",
+    part_updated: "Part updated",
+    part_deleted: "Part deleted",
+    part_sold: "Part sold",
+    part_unsold: "Part returned to sale",
+    part_partial_sold: "Partial sale",
+    bulk_sold: "Bulk marked sold",
+    bulk_available: "Bulk marked available",
+    bulk_deleted: "Bulk deleted",
+    bulk_price_update: "Bulk price update",
+    lot_merged: "Lot merged",
+    fb_posted: "Posted to FB",
+    fb_delisted: "Removed from FB",
+    ebay_posted: "Posted to eBay",
+    ebay_delisted: "Removed from eBay",
+    settings_updated: "Settings updated",
+  };
+
+  const [logSize, setLogSize] = useState<{ size_bytes: number; row_count: number } | null>(null);
+  const [archiveInfo, setArchiveInfo] = useState<{ size_bytes: number; row_count: number; oldest: string | null; newest: string | null } | null>(null);
+  const [rotating, setRotating] = useState(false);
+
+  const loadLog = useCallback(async () => {
+    if (logLoaded) return;
+    setLogLoading(true);
+    setLogError(false);
     try {
-      const res = await fetch(
-        "https://api.github.com/repos/huppermotors-crypto/parts-inventory/commits?per_page=50"
-      );
-      if (!res.ok) throw new Error("Failed");
-      const data = await res.json();
-      setCommits(
-        data.map((c: { sha: string; commit: { message: string; author: { name: string; date: string } } }) => ({
-          sha: c.sha,
-          message: c.commit.message,
-          date: c.commit.author.date,
-          author: c.commit.author.name,
-        }))
-      );
-      setCommitsLoaded(true);
+      const [logResult, sizeResult, archiveResult] = await Promise.all([
+        supabase
+          .from("activity_log")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(100),
+        supabase.rpc("get_activity_log_size"),
+        supabase.rpc("get_activity_log_archives"),
+      ]);
+      if (logResult.error) throw logResult.error;
+      setLogEntries(logResult.data || []);
+      if (sizeResult.data) setLogSize(sizeResult.data as { size_bytes: number; row_count: number });
+      if (archiveResult.data) setArchiveInfo(archiveResult.data as { size_bytes: number; row_count: number; oldest: string | null; newest: string | null });
+      setLogLoaded(true);
     } catch {
-      setCommitsError(true);
+      setLogError(true);
     } finally {
-      setCommitsLoading(false);
+      setLogLoading(false);
     }
-  }, [commitsLoaded]);
+  }, [logLoaded]);
+
+  const handleRotateLog = async () => {
+    if (!confirm("Archive old log entries? Only the last 1000 entries will remain in the active log.")) return;
+    setRotating(true);
+    try {
+      await supabase.rpc("rotate_activity_log");
+      setLogLoaded(false);
+      await loadLog();
+    } catch {
+      toast({ title: "Error", description: "Failed to rotate log", variant: "destructive" });
+    } finally {
+      setRotating(false);
+    }
+  };
+
+  function formatBytes(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  }
 
   const loadSettings = useCallback(async () => {
     try {
@@ -398,7 +443,7 @@ export default function SettingsPage() {
         <p className="text-muted-foreground text-sm">{t("subtitle")}</p>
       </div>
 
-      <Tabs defaultValue="general" className="space-y-6">
+      <Tabs defaultValue="general" className="space-y-6" onValueChange={(v) => { if (v === "changelog") loadLog(); }}>
         <TabsList className="w-full flex overflow-x-auto">
           <TabsTrigger value="general" className="flex-1 gap-1.5">
             <SettingsIcon className="h-4 w-4 hidden sm:inline" />
@@ -834,59 +879,126 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* ── Changelog ── */}
-        <TabsContent value="changelog" className="space-y-6" onFocus={loadCommits}>
+        {/* ── Activity Log ── */}
+        <TabsContent value="changelog" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <History className="h-5 w-5" />
-                {t("changelog")}
-              </CardTitle>
-              <CardDescription>{t("changelogDesc")}</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <History className="h-5 w-5" />
+                    {t("changelog")}
+                  </CardTitle>
+                  <CardDescription className="mt-1">{t("changelogDesc")}</CardDescription>
+                </div>
+                {logSize && (
+                  <div className="text-right text-sm shrink-0">
+                    <p className="font-medium">{formatBytes(logSize.size_bytes)}</p>
+                    <p className="text-xs text-muted-foreground">{logSize.row_count} records</p>
+                  </div>
+                )}
+              </div>
+              {logSize && logSize.size_bytes > 500 * 1024 * 1024 && (
+                <div className="mt-3 flex items-center gap-2 p-2 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>Log size exceeds 500 MB. Consider clearing old entries.</span>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
-              {!commitsLoaded && !commitsLoading && !commitsError && (
-                <Button variant="outline" onClick={loadCommits} className="gap-2">
-                  <History className="h-4 w-4" />
-                  {t("changelog")}
-                </Button>
-              )}
-              {commitsLoading && (
+              {logLoading && (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               )}
-              {commitsError && (
+              {logError && (
                 <p className="text-sm text-destructive">{t("changelogError")}</p>
               )}
-              {commitsLoaded && commits.length === 0 && (
+              {logLoaded && logEntries.length === 0 && (
                 <p className="text-sm text-muted-foreground">{t("changelogEmpty")}</p>
               )}
-              {commitsLoaded && commits.length > 0 && (
-                <div className="space-y-1">
-                  {commits.map((c) => (
-                    <div key={c.sha} className="flex items-start gap-3 py-2 border-b last:border-b-0">
-                      <GitCommit className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+              {logLoaded && logEntries.length > 0 && (
+                <div className="space-y-1 max-h-[500px] overflow-y-auto">
+                  {logEntries.map((entry) => (
+                    <div key={entry.id} className="flex items-start gap-3 py-2 border-b last:border-b-0">
+                      <History className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium leading-snug">{c.message.split("\n")[0]}</p>
+                        <p className="text-sm font-medium leading-snug">
+                          {ACTION_LABELS[entry.action] || entry.action}
+                        </p>
+                        {entry.details && (
+                          <p className="text-sm text-muted-foreground">{entry.details}</p>
+                        )}
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          <span className="font-mono">{c.sha.slice(0, 7)}</span>
-                          {" · "}
-                          {new Date(c.date).toLocaleDateString("en-US", {
+                          {new Date(entry.created_at).toLocaleDateString("en-US", {
                             month: "short",
                             day: "numeric",
                             year: "numeric",
                           })}
-                          {" · "}
-                          {c.author}
+                          {" "}
+                          {new Date(entry.created_at).toLocaleTimeString("en-US", {
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
                         </p>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
+              {logLoaded && logEntries.length > 0 && (
+                <div className="mt-4 pt-3 border-t flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    {logSize ? `${logSize.row_count} total records · ${formatBytes(logSize.size_bytes)}` : ""}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRotateLog}
+                    disabled={rotating}
+                    className="gap-1.5 text-xs"
+                  >
+                    {rotating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Database className="h-3 w-3" />}
+                    Archive old entries
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
+
+          {/* Archive info */}
+          {archiveInfo && archiveInfo.row_count > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Database className="h-4 w-4" />
+                  Archive
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-6 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Size: </span>
+                    <span className="font-medium">{formatBytes(archiveInfo.size_bytes)}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Records: </span>
+                    <span className="font-medium">{archiveInfo.row_count}</span>
+                  </div>
+                  {archiveInfo.oldest && archiveInfo.newest && (
+                    <div>
+                      <span className="text-muted-foreground">Period: </span>
+                      <span className="font-medium">
+                        {new Date(archiveInfo.oldest).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                        {" — "}
+                        {new Date(archiveInfo.newest).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
     </div>

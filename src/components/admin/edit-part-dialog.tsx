@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Part } from "@/types/database";
 import { normalizeMakeModel } from "@/lib/utils";
+import { logActivity } from "@/lib/activity-log";
 import {
   Dialog,
   DialogContent,
@@ -336,6 +337,7 @@ export function EditPartDialog({
 
       if (error) throw error;
 
+      logActivity("part_updated", name, part.id);
       toast({
         title: "Part Updated",
         description: `"${name}" has been updated.`,

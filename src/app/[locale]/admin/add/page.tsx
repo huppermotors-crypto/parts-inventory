@@ -32,6 +32,7 @@ import { EbayPriceSearch } from "@/components/admin/ebay-price-search";
 import { PART_CATEGORIES, PART_CONDITIONS } from "@/lib/constants";
 import { getNextStockNumber } from "@/lib/stock-number";
 import { normalizeMakeModel } from "@/lib/utils";
+import { logActivity } from "@/lib/activity-log";
 import {
   Search,
   Loader2,
@@ -355,6 +356,7 @@ export default function AddPartPage() {
 
       if (error) throw error;
 
+      logActivity("part_created", name);
       toast({
         title: "Part Added",
         description: `"${name}" has been added to inventory.`,

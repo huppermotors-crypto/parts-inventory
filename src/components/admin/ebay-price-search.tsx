@@ -162,7 +162,6 @@ export function EbayPriceSearch({
                       alt=""
                       className="h-full w-full object-cover"
                       referrerPolicy="no-referrer"
-                      crossOrigin="anonymous"
                       onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                     />
                   </div>

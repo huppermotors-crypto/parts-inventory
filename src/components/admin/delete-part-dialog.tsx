@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Part } from "@/types/database";
+import { logActivity } from "@/lib/activity-log";
 import {
   Dialog,
   DialogContent,
@@ -56,6 +57,7 @@ export function DeletePartDialog({
 
       if (error) throw error;
 
+      logActivity("part_deleted", part.name, part.id);
       toast({
         title: "Part Deleted",
         description: `"${part.name}" has been removed from inventory.`,

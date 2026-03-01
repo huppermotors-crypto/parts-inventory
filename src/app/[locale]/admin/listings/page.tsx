@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { EditPartDialog } from "@/components/admin/edit-part-dialog";
+import { logActivity } from "@/lib/activity-log";
 
 const supabase = createClient();
 
@@ -249,6 +250,8 @@ export default function ListingsPage() {
       setParts(prev);
       toast({ title: t("delistFailed"), variant: "destructive" });
     } else {
+      const part = parts.find((p) => p.id === partId);
+      logActivity("fb_delisted", part?.name || partId, partId);
       toast({ title: t("delistedFb") });
     }
   };
@@ -264,6 +267,8 @@ export default function ListingsPage() {
       setParts(prev);
       toast({ title: t("delistFailed"), variant: "destructive" });
     } else {
+      const part = parts.find((p) => p.id === partId);
+      logActivity("ebay_delisted", part?.name || partId, partId);
       toast({ title: t("delistedEbay") });
     }
   };

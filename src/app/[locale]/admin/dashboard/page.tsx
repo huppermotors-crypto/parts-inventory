@@ -75,6 +75,7 @@ import {
 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import Image from "next/image";
+import { logActivity } from "@/lib/activity-log";
 
 
 type SortField = "name" | "price" | "created_at" | "make" | "category" | "condition";
@@ -371,6 +372,8 @@ export default function DashboardPage() {
         description: t('failedUpdate'),
         variant: "destructive",
       });
+    } else {
+      logActivity("part_unsold", part.name, part.id);
     }
   };
 
@@ -414,6 +417,7 @@ export default function DashboardPage() {
         return;
       }
 
+      logActivity("part_sold", `${part.name} — $${confirmedPrice.toFixed(2)}`, part.id);
       toast({
         title: t('soldToast'),
         description: t('soldDesc', { name: part.name, price: confirmedPrice.toFixed(2) }),
@@ -507,6 +511,7 @@ export default function DashboardPage() {
     }
 
     setParts((prev) => [soldRecord, ...prev]);
+    logActivity("part_partial_sold", `${part.name} — ${soldQty}x $${confirmedPrice.toFixed(2)}`, part.id);
 
     toast({
       title: t('partialSale'),
@@ -562,6 +567,7 @@ export default function DashboardPage() {
       setParts(previousParts);
       toast({ title: tc('error'), description: t('bulkSoldFailed'), variant: "destructive" });
     } else {
+      logActivity("bulk_sold", `${ids.length} parts`);
       toast({ title: t('bulkUpdate'), description: t('bulkSold', { count: ids.length }) });
     }
   };
@@ -586,6 +592,7 @@ export default function DashboardPage() {
       setParts(previousParts);
       toast({ title: tc('error'), description: t('bulkUpdateFailed'), variant: "destructive" });
     } else {
+      logActivity("bulk_available", `${ids.length} parts`);
       toast({ title: t('bulkUpdate'), description: t('bulkAvailable', { count: ids.length }) });
     }
   };
@@ -612,6 +619,7 @@ export default function DashboardPage() {
       const { error } = await supabase.from("parts").delete().in("id", ids);
       if (error) throw error;
 
+      logActivity("bulk_deleted", `${ids.length} parts`);
       toast({ title: t('bulkDelete'), description: t('bulkDeleted', { count: ids.length }) });
     } catch {
       setParts(previousParts);
@@ -653,6 +661,7 @@ export default function DashboardPage() {
         if (failed) throw new Error("Some updates failed");
       }
 
+      logActivity("bulk_price_update", `${ids.length} parts — ${mode} ${value}`);
       toast({ title: t('pricesUpdated'), description: t('pricesUpdatedDesc', { count: ids.length }) });
     } catch {
       setParts(previousParts);
@@ -702,6 +711,7 @@ export default function DashboardPage() {
         .in("id", mergedIds);
       if (deleteErr) throw deleteErr;
 
+      logActivity("lot_merged", `${mergedIds.length + 1} parts → ${updates.name}`, primaryId);
       toast({ title: t('merged'), description: t('mergedDesc', { count: mergedIds.length + 1 }) });
     } catch {
       setParts(previousParts);
@@ -766,6 +776,7 @@ export default function DashboardPage() {
       return;
     }
 
+    logActivity("fb_posted", part.name, part.id);
     setSelectedIds(new Set());
     toast({
       title: t('postingToFB'),
@@ -785,6 +796,7 @@ export default function DashboardPage() {
       .update({ fb_posted_at: null })
       .eq("id", part.id);
 
+    logActivity("fb_delisted", part.name, part.id);
     toast({
       title: t('fbStatusReset'),
       description: t('fbStatusResetDesc', { name: part.name }),
@@ -847,6 +859,7 @@ export default function DashboardPage() {
       return;
     }
 
+    logActivity("ebay_posted", part.name, part.id);
     setSelectedIds(new Set());
     toast({
       title: t('postingToEbay'),
@@ -870,6 +883,7 @@ export default function DashboardPage() {
       .update({ ebay_listed_at: null, ebay_listing_id: null, ebay_offer_id: null, ebay_listing_url: null })
       .eq("id", part.id);
 
+    logActivity("ebay_delisted", part.name, part.id);
     toast({
       title: t('ebayStatusReset'),
       description: t('ebayStatusResetDesc', { name: part.name }),
