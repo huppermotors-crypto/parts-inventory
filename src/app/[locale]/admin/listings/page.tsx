@@ -70,17 +70,15 @@ function SpeedBadge({ part }: { part: Part }) {
   const fbDays = daysAgo(part.fb_posted_at);
   const ebayDays = daysAgo(part.ebay_listed_at);
   const listedDays = Math.max(fbDays ?? 0, ebayDays ?? 0);
-  const isListed = fbDays !== null || ebayDays !== null;
-
-  if (!isListed) return <span className="text-xs text-muted-foreground">—</span>;
-
   if (part.is_sold) {
     // Sold — compute days from listing to sold (using updated_at as proxy)
     const soldDate = new Date(part.updated_at).getTime();
-    const listedDate = Math.min(
-      part.fb_posted_at ? new Date(part.fb_posted_at).getTime() : Infinity,
-      part.ebay_listed_at ? new Date(part.ebay_listed_at).getTime() : Infinity
-    );
+    const listedDate = part.fb_posted_at || part.ebay_listed_at
+      ? Math.min(
+          part.fb_posted_at ? new Date(part.fb_posted_at).getTime() : Infinity,
+          part.ebay_listed_at ? new Date(part.ebay_listed_at).getTime() : Infinity
+        )
+      : new Date(part.created_at).getTime();
     const soldInDays = Math.floor((soldDate - listedDate) / (1000 * 60 * 60 * 24));
 
     if (soldInDays < 3) {
@@ -108,6 +106,9 @@ function SpeedBadge({ part }: { part: Part }) {
   }
 
   // Active listing
+  if (listedDays === 0 && fbDays === null && ebayDays === null) {
+    return <span className="text-xs text-muted-foreground">—</span>;
+  }
   if (listedDays > 30) {
     return (
       <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-50 px-2 py-0.5 rounded-full">
