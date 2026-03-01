@@ -423,7 +423,9 @@ export default function ListingsPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        {formatPrice(getLotPrice(part.price, part.quantity, part.price_per))}
+                        {part.is_sold && part.sold_price != null
+                          ? formatPrice(part.sold_price)
+                          : formatPrice(getLotPrice(part.price, part.quantity, part.price_per))}
                       </TableCell>
                       <TableCell>
                         {part.fb_posted_at ? (
