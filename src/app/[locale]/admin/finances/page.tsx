@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Loader2, DollarSign, Package, TrendingUp, TrendingDown, ShoppingCart,
   ArrowUpDown, Plus, Pencil, Trash2, ChevronDown, ChevronUp,
-  Car, Fuel, Gauge, Cog, Download, Receipt,
+  Car, Fuel, Gauge, Cog, Download, Receipt, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -66,10 +66,47 @@ export default function FinancesPage() {
   const { toast } = useToast();
   const [mainTab, setMainTab] = useState("overview");
 
-  // ── Year filter ──
-  const currentYear = new Date().getFullYear();
-  const [selectedYear, setSelectedYear] = useState(currentYear.toString());
-  const yearOptions = Array.from({ length: 5 }, (_, i) => (currentYear - i).toString());
+  // ── Period filter ──
+  type PeriodMode = "week" | "month" | "year";
+  const [periodMode, setPeriodMode] = useState<PeriodMode>("year");
+  const [periodDate, setPeriodDate] = useState(new Date());
+
+  // Helper: get period start/end
+  const { periodStart, periodEnd, periodLabel } = useMemo(() => {
+    const d = periodDate;
+    let start: Date, end: Date, label: string;
+
+    if (periodMode === "week") {
+      const day = d.getDay();
+      const diff = day === 0 ? 6 : day - 1; // Monday start
+      start = new Date(d.getFullYear(), d.getMonth(), d.getDate() - diff);
+      end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6, 23, 59, 59);
+      label = `${start.toLocaleDateString("default", { month: "short", day: "numeric" })} — ${end.toLocaleDateString("default", { month: "short", day: "numeric", year: "numeric" })}`;
+    } else if (periodMode === "month") {
+      start = new Date(d.getFullYear(), d.getMonth(), 1);
+      end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
+      label = d.toLocaleDateString("default", { month: "long", year: "numeric" });
+    } else {
+      start = new Date(d.getFullYear(), 0, 1);
+      end = new Date(d.getFullYear(), 11, 31, 23, 59, 59);
+      label = d.getFullYear().toString();
+    }
+
+    return { periodStart: start, periodEnd: end, periodLabel: label };
+  }, [periodMode, periodDate]);
+
+  const navigatePeriod = (dir: -1 | 1) => {
+    setPeriodDate((prev) => {
+      const d = new Date(prev);
+      if (periodMode === "week") d.setDate(d.getDate() + dir * 7);
+      else if (periodMode === "month") d.setMonth(d.getMonth() + dir);
+      else d.setFullYear(d.getFullYear() + dir);
+      return d;
+    });
+  };
+
+  // Year for expenses tab and CSV (still uses period year)
+  const selectedYear = periodDate.getFullYear().toString();
 
   // ── Parts & expenses data ──
   const [parts, setParts] = useState<Part[]>([]);
@@ -162,10 +199,15 @@ export default function FinancesPage() {
 
   // ── Helpers ──
   const partLotPrice = (p: Part) => getLotPrice(p.price, p.quantity || 1, p.price_per || "lot");
+  const yearInt = periodDate.getFullYear();
 
-  // ── Year-filtered data ──
-  const yearInt = parseInt(selectedYear, 10);
+  // ── Helper: check if date is in period ──
+  const isInPeriod = useCallback((dateStr: string) => {
+    const d = new Date(dateStr);
+    return d >= periodStart && d <= periodEnd;
+  }, [periodStart, periodEnd]);
 
+  // ── Year-filtered data (for expenses tab + CSV) ──
   const soldPartsInYear = useMemo(() =>
     parts.filter((p) => p.is_sold && p.sold_at && new Date(p.sold_at).getFullYear() === yearInt),
     [parts, yearInt]
@@ -176,63 +218,148 @@ export default function FinancesPage() {
     [expenses, yearInt]
   );
 
+  // ── Period-filtered sold parts ──
+  const soldPartsInPeriod = useMemo(() =>
+    parts.filter((p) => p.is_sold && p.sold_at && isInPeriod(p.sold_at)),
+    [parts, isInPeriod]
+  );
+
+  // ── Expand recurring expenses into virtual entries for the period ──
+  const expandedExpensesInPeriod = useMemo(() => {
+    const result: { date: string; amount: number; category: string }[] = [];
+
+    for (const e of expenses) {
+      const eDate = new Date(e.date);
+
+      if (!e.is_recurring) {
+        // Non-recurring: just check if it's in period
+        if (isInPeriod(e.date)) {
+          result.push({ date: e.date, amount: e.amount, category: e.category });
+        }
+        continue;
+      }
+
+      // Recurring: generate instances from expense start date through period end
+      const interval = e.recurring_interval || "monthly";
+      const current = new Date(eDate);
+
+      while (current <= periodEnd) {
+        if (current >= periodStart) {
+          result.push({
+            date: current.toISOString().split("T")[0],
+            amount: e.amount,
+            category: e.category,
+          });
+        }
+
+        if (interval === "monthly") {
+          current.setMonth(current.getMonth() + 1);
+        } else {
+          current.setFullYear(current.getFullYear() + 1);
+        }
+      }
+    }
+
+    return result;
+  }, [expenses, periodStart, periodEnd, isInPeriod]);
+
   // ══════════ OVERVIEW TAB DATA ══════════
 
   const totalRevenue = useMemo(() =>
-    soldPartsInYear.reduce((s, p) => s + (p.sold_price || partLotPrice(p)), 0),
-    [soldPartsInYear]
+    soldPartsInPeriod.reduce((s, p) => s + (p.sold_price || partLotPrice(p)), 0),
+    [soldPartsInPeriod]
   );
 
   const totalExpenses = useMemo(() =>
-    expensesInYear.reduce((s, e) => s + e.amount, 0),
-    [expensesInYear]
+    expandedExpensesInPeriod.reduce((s, e) => s + e.amount, 0),
+    [expandedExpensesInPeriod]
   );
 
   const vehicleInvestment = useMemo(() =>
     vehicles.reduce((s, v) => {
       if (!v.purchase_price) return s;
-      const vDate = new Date(v.created_at);
-      if (vDate.getFullYear() === yearInt) return s + v.purchase_price;
+      if (isInPeriod(v.created_at)) return s + v.purchase_price;
       return s;
     }, 0),
-    [vehicles, yearInt]
+    [vehicles, isInPeriod]
   );
 
   const netProfit = totalRevenue - totalExpenses - vehicleInvestment;
 
-  // ── Monthly chart data ──
-  const monthlyData = useMemo(() => {
-    const months = Array.from({ length: 12 }, (_, i) => ({
-      month: new Date(yearInt, i).toLocaleString("default", { month: "short" }),
-      income: 0,
-      expenses: 0,
-    }));
+  // ── Chart data (adapts to period mode) ──
+  const chartData = useMemo(() => {
+    if (periodMode === "year") {
+      // 12 months
+      const months = Array.from({ length: 12 }, (_, i) => ({
+        label: new Date(yearInt, i).toLocaleString("default", { month: "short" }),
+        income: 0,
+        expenses: 0,
+      }));
 
-    for (const p of soldPartsInYear) {
-      if (p.sold_at) {
-        const m = new Date(p.sold_at).getMonth();
-        months[m].income += p.sold_price || partLotPrice(p);
+      for (const p of soldPartsInPeriod) {
+        if (p.sold_at) {
+          const m = new Date(p.sold_at).getMonth();
+          months[m].income += p.sold_price || partLotPrice(p);
+        }
       }
-    }
+      for (const e of expandedExpensesInPeriod) {
+        const m = new Date(e.date).getMonth();
+        months[m].expenses += e.amount;
+      }
+      return months;
 
-    for (const e of expensesInYear) {
-      const m = new Date(e.date).getMonth();
-      months[m].expenses += e.amount;
-    }
+    } else if (periodMode === "month") {
+      // Days in month
+      const daysInMonth = periodEnd.getDate();
+      const days = Array.from({ length: daysInMonth }, (_, i) => ({
+        label: (i + 1).toString(),
+        income: 0,
+        expenses: 0,
+      }));
 
-    return months;
-  }, [soldPartsInYear, expensesInYear, yearInt]);
+      for (const p of soldPartsInPeriod) {
+        if (p.sold_at) {
+          const d = new Date(p.sold_at).getDate() - 1;
+          days[d].income += p.sold_price || partLotPrice(p);
+        }
+      }
+      for (const e of expandedExpensesInPeriod) {
+        const d = new Date(e.date).getDate() - 1;
+        if (d >= 0 && d < daysInMonth) days[d].expenses += e.amount;
+      }
+      return days;
+
+    } else {
+      // Week: 7 days (Mon-Sun)
+      const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+      const days = dayNames.map((label) => ({ label, income: 0, expenses: 0 }));
+
+      for (const p of soldPartsInPeriod) {
+        if (p.sold_at) {
+          const dow = new Date(p.sold_at).getDay();
+          const idx = dow === 0 ? 6 : dow - 1;
+          days[idx].income += p.sold_price || partLotPrice(p);
+        }
+      }
+      for (const e of expandedExpensesInPeriod) {
+        const dow = new Date(e.date).getDay();
+        const idx = dow === 0 ? 6 : dow - 1;
+        days[idx].expenses += e.amount;
+      }
+      return days;
+    }
+  }, [periodMode, yearInt, soldPartsInPeriod, expandedExpensesInPeriod, periodEnd]);
 
   // ── Pie chart data ──
   const expenseByCategoryData = useMemo(() => {
     const map = new Map<string, number>();
-    for (const e of expensesInYear) {
+    for (const e of expandedExpensesInPeriod) {
       map.set(e.category, (map.get(e.category) || 0) + e.amount);
     }
     return Array.from(map.entries())
       .map(([name, value]) => ({ name: t(`categories.${name}`), value }))
       .sort((a, b) => b.value - a.value);
-  }, [expensesInYear, t]);
+  }, [expandedExpensesInPeriod, t]);
 
   // ══════════ EXPENSES TAB ══════════
 
@@ -257,31 +384,48 @@ export default function FinancesPage() {
 
   // ── CSV Export ──
   const exportCSV = () => {
-    const rows: string[][] = [["Date", "Type", "Category", "Description", "Amount"]];
+    const totalIncome = soldPartsInYear.reduce((s, p) => s + (p.sold_price || partLotPrice(p)), 0);
+    const totalExp = expensesInYear.reduce((s, e) => s + e.amount, 0);
+    const profit = totalIncome - totalExp;
 
-    for (const p of soldPartsInYear) {
-      rows.push([
+    const lines: string[][] = [];
+
+    // Summary header
+    lines.push(["Financial Report", selectedYear]);
+    lines.push([]);
+    lines.push(["Total Income", totalIncome.toFixed(2)]);
+    lines.push(["Total Expenses", totalExp.toFixed(2)]);
+    lines.push(["Net Profit", profit.toFixed(2)]);
+    lines.push([]);
+
+    // Income section
+    lines.push(["=== INCOME ==="]);
+    lines.push(["Date", "Category", "Description", "Amount"]);
+    const incomeRows = soldPartsInYear
+      .map((p) => [
         p.sold_at ? p.sold_at.split("T")[0] : "",
-        "Income",
         "Part Sale",
         p.name,
         (p.sold_price || partLotPrice(p)).toFixed(2),
-      ]);
-    }
+      ])
+      .sort((a, b) => a[0].localeCompare(b[0]));
+    lines.push(...incomeRows);
+    lines.push([]);
 
-    for (const e of expensesInYear) {
-      rows.push([
+    // Expenses section
+    lines.push(["=== EXPENSES ==="]);
+    lines.push(["Date", "Category", "Description", "Amount"]);
+    const expenseRows = expensesInYear
+      .map((e) => [
         e.date,
-        "Expense",
         e.category,
         e.description || "",
-        (-e.amount).toFixed(2),
-      ]);
-    }
+        e.amount.toFixed(2),
+      ])
+      .sort((a, b) => a[0].localeCompare(b[0]));
+    lines.push(...expenseRows);
 
-    rows.sort((a, b) => a[0].localeCompare(b[0]));
-
-    const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
+    const csv = lines.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -492,22 +636,32 @@ export default function FinancesPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold">{t("title")}</h1>
           <p className="text-muted-foreground text-sm">{t("subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-[100px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {yearOptions.map((y) => (
-                <SelectItem key={y} value={y}>{y}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Period mode selector */}
+          <Tabs value={periodMode} onValueChange={(v) => setPeriodMode(v as PeriodMode)}>
+            <TabsList className="h-8">
+              <TabsTrigger value="week" className="text-xs px-2 h-6">{t("week")}</TabsTrigger>
+              <TabsTrigger value="month" className="text-xs px-2 h-6">{t("month")}</TabsTrigger>
+              <TabsTrigger value="year" className="text-xs px-2 h-6">{t("year")}</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {/* Period navigation */}
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigatePeriod(-1)}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm font-medium min-w-[140px] text-center">{periodLabel}</span>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigatePeriod(1)}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
           <Button variant="outline" size="sm" onClick={exportCSV}>
             <Download className="h-4 w-4 mr-2" />
             CSV
@@ -535,7 +689,7 @@ export default function FinancesPage() {
               </CardHeader>
               <CardContent className="px-4 pb-3">
                 <p className="text-2xl font-bold text-green-600">{formatPrice(totalRevenue)}</p>
-                <p className="text-xs text-muted-foreground">{soldPartsInYear.length} {t("sales")}</p>
+                <p className="text-xs text-muted-foreground">{soldPartsInPeriod.length} {t("sales")}</p>
               </CardContent>
             </Card>
             <Card>
@@ -546,7 +700,7 @@ export default function FinancesPage() {
               </CardHeader>
               <CardContent className="px-4 pb-3">
                 <p className="text-2xl font-bold text-red-600">{formatPrice(totalExpenses)}</p>
-                <p className="text-xs text-muted-foreground">{expensesInYear.length} {t("entries")}</p>
+                <p className="text-xs text-muted-foreground">{expandedExpensesInPeriod.length} {t("entries")}</p>
               </CardContent>
             </Card>
             <Card>
@@ -582,9 +736,9 @@ export default function FinancesPage() {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={monthlyData}>
+                  <BarChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
+                    <XAxis dataKey="label" />
                     <YAxis tickFormatter={(v) => `$${v}`} />
                     <Tooltip formatter={(value) => formatPrice(Number(value))} />
                     <Legend />
