@@ -675,7 +675,12 @@
       "faviconFailed": "Error al subir el favicon",
       "faviconRemove": "Eliminar",
       "faviconRemoved": "Favicon eliminado",
-      "faviconDefault": "Predeterminado"
+      "faviconDefault": "Predeterminado",
+      "tabChangelog": "Cambios",
+      "changelog": "Registro de cambios",
+      "changelogDesc": "Cambios y actualizaciones recientes de la aplicación",
+      "changelogEmpty": "No se encontraron cambios",
+      "changelogError": "Error al cargar el registro"
     }
   },
   "metadata": {

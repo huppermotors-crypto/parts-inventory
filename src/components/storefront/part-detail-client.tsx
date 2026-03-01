@@ -24,7 +24,6 @@ import {
   Tag,
   Layers,
   Hash,
-  Calendar,
   X,
   Pencil,
   MessageCircle,
@@ -356,17 +355,6 @@ export function PartDetailClient({ initialPart, priceRules = [] }: PartDetailCli
             <div className="flex items-center gap-3 text-sm">
               <Layers className="h-4 w-4 text-muted-foreground shrink-0" />
               <span>{(() => { try { return tCat(part.category); } catch { return part.category; } })()}</span>
-            </div>
-
-            <div className="flex items-center gap-3 text-sm">
-              <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span>
-                {t('listed', { date: new Date(part.created_at).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                }) })}
-              </span>
             </div>
 
             {/* Description */}

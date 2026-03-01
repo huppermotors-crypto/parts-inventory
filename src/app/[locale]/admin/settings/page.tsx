@@ -30,6 +30,8 @@ import {
   Upload,
   Trash2,
   Puzzle,
+  History,
+  GitCommit,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -77,6 +79,44 @@ export default function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
+
+  // Changelog
+  interface Commit {
+    sha: string;
+    message: string;
+    date: string;
+    author: string;
+  }
+  const [commits, setCommits] = useState<Commit[]>([]);
+  const [commitsLoading, setCommitsLoading] = useState(false);
+  const [commitsError, setCommitsError] = useState(false);
+  const [commitsLoaded, setCommitsLoaded] = useState(false);
+
+  const loadCommits = useCallback(async () => {
+    if (commitsLoaded) return;
+    setCommitsLoading(true);
+    setCommitsError(false);
+    try {
+      const res = await fetch(
+        "https://api.github.com/repos/huppermotors-crypto/parts-inventory/commits?per_page=50"
+      );
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      setCommits(
+        data.map((c: { sha: string; commit: { message: string; author: { name: string; date: string } } }) => ({
+          sha: c.sha,
+          message: c.commit.message,
+          date: c.commit.author.date,
+          author: c.commit.author.name,
+        }))
+      );
+      setCommitsLoaded(true);
+    } catch {
+      setCommitsError(true);
+    } finally {
+      setCommitsLoading(false);
+    }
+  }, [commitsLoaded]);
 
   const loadSettings = useCallback(async () => {
     try {
@@ -379,6 +419,10 @@ export default function SettingsPage() {
           <TabsTrigger value="tools" className="flex-1 gap-1.5">
             <Database className="h-4 w-4 hidden sm:inline" />
             {t("tabTools")}
+          </TabsTrigger>
+          <TabsTrigger value="changelog" className="flex-1 gap-1.5">
+            <History className="h-4 w-4 hidden sm:inline" />
+            {t("tabChangelog")}
           </TabsTrigger>
         </TabsList>
 
@@ -786,6 +830,61 @@ export default function SettingsPage() {
                   {t("downloadExtension")}
                 </Button>
               </a>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── Changelog ── */}
+        <TabsContent value="changelog" className="space-y-6" onFocus={loadCommits}>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-5 w-5" />
+                {t("changelog")}
+              </CardTitle>
+              <CardDescription>{t("changelogDesc")}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!commitsLoaded && !commitsLoading && !commitsError && (
+                <Button variant="outline" onClick={loadCommits} className="gap-2">
+                  <History className="h-4 w-4" />
+                  {t("changelog")}
+                </Button>
+              )}
+              {commitsLoading && (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              )}
+              {commitsError && (
+                <p className="text-sm text-destructive">{t("changelogError")}</p>
+              )}
+              {commitsLoaded && commits.length === 0 && (
+                <p className="text-sm text-muted-foreground">{t("changelogEmpty")}</p>
+              )}
+              {commitsLoaded && commits.length > 0 && (
+                <div className="space-y-1">
+                  {commits.map((c) => (
+                    <div key={c.sha} className="flex items-start gap-3 py-2 border-b last:border-b-0">
+                      <GitCommit className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium leading-snug">{c.message.split("\n")[0]}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          <span className="font-mono">{c.sha.slice(0, 7)}</span>
+                          {" · "}
+                          {new Date(c.date).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                          {" · "}
+                          {c.author}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

@@ -675,7 +675,12 @@
       "faviconFailed": "Не удалось загрузить фавикон",
       "faviconRemove": "Удалить",
       "faviconRemoved": "Фавикон удалён",
-      "faviconDefault": "По умолчанию"
+      "faviconDefault": "По умолчанию",
+      "tabChangelog": "Лог",
+      "changelog": "Лог изменений",
+      "changelogDesc": "Последние изменения и обновления приложения",
+      "changelogEmpty": "Изменений не найдено",
+      "changelogError": "Не удалось загрузить лог"
     }
   },
   "metadata": {

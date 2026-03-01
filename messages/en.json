@@ -675,7 +675,12 @@
       "faviconFailed": "Failed to upload favicon",
       "faviconRemove": "Remove custom",
       "faviconRemoved": "Custom favicon removed",
-      "faviconDefault": "Default"
+      "faviconDefault": "Default",
+      "tabChangelog": "Changelog",
+      "changelog": "Changelog",
+      "changelogDesc": "Recent changes and updates to the application",
+      "changelogEmpty": "No changes found",
+      "changelogError": "Failed to load changelog"
     }
   },
   "metadata": {
