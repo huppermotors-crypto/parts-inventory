@@ -37,7 +37,7 @@ const navItems = [
   { key: "analytics", href: "/admin/analytics", icon: BarChart3 },
   { key: "pricing", href: "/admin/pricing", icon: Percent },
   { key: "listings", href: "/admin/listings", icon: ShoppingBag },
-  { key: "stats", href: "/admin/stats", icon: DollarSign },
+  { key: "finances", href: "/admin/finances", icon: DollarSign },
   { key: "chats", href: "/admin/chats", icon: MessageCircle },
   { key: "seo", href: "/admin/seo", icon: Globe2 },
   { key: "settings", href: "/admin/settings", icon: Settings },

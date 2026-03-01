@@ -65,6 +65,19 @@ export interface NHTSAFullDecodeResult extends NHTSADecodeResult {
   fuel_type: string | null;
 }
 
+export type ExpenseCategory = "rent" | "shipping" | "tools" | "supplies" | "advertising" | "fees" | "other";
+
+export interface Expense {
+  id: string;
+  created_at: string;
+  date: string;
+  amount: number;
+  category: ExpenseCategory;
+  description: string | null;
+  is_recurring: boolean;
+  recurring_interval: "monthly" | "yearly" | null;
+}
+
 export interface Vehicle {
   id: string;
   created_at: string;
