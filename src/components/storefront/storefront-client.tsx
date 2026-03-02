@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Part, PriceRule } from "@/types/database";
 import { applyPriceRules } from "@/lib/price-rules";
+import { useDebounce } from "@/hooks/use-debounce";
 import { StorefrontHeader } from "@/components/storefront/header";
 import { PartCard } from "@/components/storefront/part-card";
 import { FiltersSidebar } from "@/components/storefront/filters-sidebar";
@@ -43,6 +44,7 @@ export function StorefrontClient() {
   const [parts, setParts] = useState<Part[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [selectedMake, setSelectedMake] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedCondition, setSelectedCondition] = useState<string | null>(null);
@@ -59,7 +61,7 @@ export function StorefrontClient() {
     const [partsRes, rulesRes] = await Promise.all([
       supabase
         .from("parts")
-        .select("id, name, price, quantity, price_per, year, make, model, vin, condition, category, photos, created_at")
+        .select("id, name, price, quantity, price_per, year, make, model, vin, condition, category, photos, created_at, stock_number, description")
         .eq("is_published", true)
         .eq("is_sold", false)
         .order("created_at", { ascending: false }),
@@ -100,13 +102,24 @@ export function StorefrontClient() {
 
   const filteredParts = useMemo(() => {
     const filtered = parts.filter((part) => {
-      const q = search.toLowerCase();
-      const matchesSearch =
-        !q ||
-        part.name.toLowerCase().includes(q) ||
-        (part.make && part.make.toLowerCase().includes(q)) ||
-        (part.model && part.model.toLowerCase().includes(q)) ||
-        (part.description && part.description.toLowerCase().includes(q));
+      const q = debouncedSearch.trim().toLowerCase();
+      let matchesSearch = true;
+      if (q.length >= 2) {
+        const words = q.split(/\s+/).filter(Boolean);
+        const searchableText = [
+          part.name,
+          part.make,
+          part.model,
+          part.description,
+          part.stock_number,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        matchesSearch = words.every((word) => searchableText.includes(word));
+      } else if (q.length > 0) {
+        matchesSearch = true; // < 2 chars: show all (don't filter)
+      }
 
       const matchesMake = !selectedMake || (part.make && part.make.toLowerCase().trim() === selectedMake.toLowerCase().trim());
       const matchesCategory =
@@ -139,7 +152,7 @@ export function StorefrontClient() {
     });
 
     return filtered;
-  }, [parts, search, selectedMake, selectedCategory, selectedCondition, priceMin, priceMax, sortBy]);
+  }, [parts, debouncedSearch, selectedMake, selectedCategory, selectedCondition, priceMin, priceMax, sortBy]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredParts.length / PAGE_SIZE));
@@ -151,7 +164,7 @@ export function StorefrontClient() {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, selectedMake, selectedCategory, selectedCondition, priceMin, priceMax, sortBy]);
+  }, [debouncedSearch, selectedMake, selectedCategory, selectedCondition, priceMin, priceMax, sortBy]);
 
   const activeFiltersCount =
     (selectedMake ? 1 : 0) +
@@ -312,21 +325,47 @@ export function StorefrontClient() {
                     : t('noPartsEmpty')}
                 </p>
                 {(search || activeFiltersCount > 0) && (
-                  <Button
-                    variant="outline"
-                    className="mt-4"
-                    onClick={() => {
-                      setSearch("");
-                      setSelectedMake(null);
-                      setSelectedCategory(null);
-                      setSelectedCondition(null);
-                      setPriceMin("");
-                      setPriceMax("");
-                    }}
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    {t('clearAllFilters')}
-                  </Button>
+                  <>
+                    <Button
+                      variant="outline"
+                      className="mt-4"
+                      onClick={() => {
+                        setSearch("");
+                        setSelectedMake(null);
+                        setSelectedCategory(null);
+                        setSelectedCondition(null);
+                        setPriceMin("");
+                        setPriceMax("");
+                      }}
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      {t('clearAllFilters')}
+                    </Button>
+                    {usedCategories.length > 0 && (
+                      <div className="mt-6">
+                        <p className="text-sm text-muted-foreground mb-2">{t('browseCategories')}</p>
+                        <div className="flex flex-wrap justify-center gap-2">
+                          {usedCategories.slice(0, 6).map((cat) => (
+                            <Button
+                              key={cat}
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => {
+                                setSearch("");
+                                setSelectedMake(null);
+                                setSelectedCondition(null);
+                                setPriceMin("");
+                                setPriceMax("");
+                                setSelectedCategory(cat);
+                              }}
+                            >
+                              {(() => { try { return tCat(cat); } catch { return cat; } })()}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             ) : viewMode === "grid" ? (
@@ -463,6 +502,8 @@ export function StorefrontClient() {
             <Link href="/shipping" className="underline hover:text-foreground">{tFooter('shipping')}</Link>
             {" | "}
             <Link href="/privacy" className="underline hover:text-foreground">{tFooter('privacy')}</Link>
+            {" | "}
+            <Link href="/admin/dashboard" className="underline hover:text-foreground">{tFooter('admin')}</Link>
           </p>
         </div>
       </footer>

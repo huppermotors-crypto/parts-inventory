@@ -15,6 +15,7 @@
     "noPartsWithFilters": "Try adjusting your search or filters to find what you're looking for.",
     "noPartsEmpty": "No parts are available at the moment. Check back soon!",
     "clearAllFilters": "Clear all filters",
+    "browseCategories": "Or browse by category:",
     "sortNewest": "Newest First",
     "sortPriceAsc": "Price: Low to High",
     "sortPriceDesc": "Price: High to Low",
@@ -177,7 +178,8 @@
   "footer": {
     "copyright": "\u00a9 {year} HuppeR Auto Parts. All rights reserved.",
     "shipping": "Shipping & Payment",
-    "privacy": "Privacy Policy"
+    "privacy": "Privacy Policy",
+    "admin": "Admin"
   },
   "login": {
     "title": "Admin Login",
@@ -231,12 +233,12 @@
       "title": "Dashboard",
       "addPart": "Add Part",
       "total": "Total",
-      "onSale": "On Sale",
+      "onSale": "Sale",
       "sold": "Sold",
       "inventory": "Inventory",
       "soldValue": "Sold Value",
       "all": "All",
-      "live": "On Sale",
+      "live": "Sale",
       "hidden": "Hidden",
       "searchParts": "Search parts...",
       "allMakes": "All Makes",

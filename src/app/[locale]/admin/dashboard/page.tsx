@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { Part } from "@/types/database";
 import { PART_CATEGORIES } from "@/lib/constants";
+import { useDebounce } from "@/hooks/use-debounce";
 import { conditionColors, formatPrice, formatVehicle, normalizeMakeModel, getLotPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -94,6 +95,7 @@ export default function DashboardPage() {
   const [parts, setParts] = useState<Part[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [filterMake, setFilterMake] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<StatusFilter>("live");
@@ -208,15 +210,27 @@ export default function DashboardPage() {
       if (filterStatus === "live" && (!part.is_published || part.is_sold)) return false;
       if (filterStatus === "sold" && !part.is_sold) return false;
 
-      // Text search
-      const q = search.toLowerCase();
-      const matchesSearch =
-        !q ||
-        part.name.toLowerCase().includes(q) ||
-        (part.make && part.make.toLowerCase().includes(q)) ||
-        (part.model && part.model.toLowerCase().includes(q)) ||
-        (part.serial_number && part.serial_number.toLowerCase().includes(q)) ||
-        (part.vin && part.vin.toLowerCase().includes(q));
+      // Text search (multi-word: all words must match, min 2 chars)
+      const q = debouncedSearch.trim().toLowerCase();
+      let matchesSearch = true;
+      if (q.length >= 2) {
+        const words = q.split(/\s+/).filter(Boolean);
+        const searchableText = [
+          part.name,
+          part.make,
+          part.model,
+          part.serial_number,
+          part.vin,
+          part.stock_number,
+          part.description,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        matchesSearch = words.every((word) => searchableText.includes(word));
+      } else if (q.length > 0) {
+        matchesSearch = true;
+      }
 
       // Make filter (case-insensitive)
       const matchesMake =
@@ -238,7 +252,7 @@ export default function DashboardPage() {
 
       return matchesSearch && matchesMake && matchesCategory && matchesVin && matchesOther && matchesNotOnFB && matchesNotOnEbay;
     });
-  }, [parts, search, filterMake, filterCategory, filterStatus, filterNoVin, filterOtherCategory, filterNotOnFB, filterNotOnEbay]);
+  }, [parts, debouncedSearch, filterMake, filterCategory, filterStatus, filterNoVin, filterOtherCategory, filterNotOnFB, filterNotOnEbay]);
 
   // --- Sorting ---
   const sortedParts = useMemo(() => {
@@ -274,12 +288,12 @@ export default function DashboardPage() {
   // Reset page when filters/sort changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, filterMake, filterCategory, filterStatus, filterNoVin, filterOtherCategory, filterNotOnFB, filterNotOnEbay, sortField, sortDirection]);
+  }, [debouncedSearch, filterMake, filterCategory, filterStatus, filterNoVin, filterOtherCategory, filterNotOnFB, filterNotOnEbay, sortField, sortDirection]);
 
   // Clear selection on filter changes
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [search, filterMake, filterCategory, filterStatus, filterNoVin, filterOtherCategory, filterNotOnFB, filterNotOnEbay]);
+  }, [debouncedSearch, filterMake, filterCategory, filterStatus, filterNoVin, filterOtherCategory, filterNotOnFB, filterNotOnEbay]);
 
   const activeFiltersCount =
     (filterMake !== "all" ? 1 : 0) +
@@ -891,6 +905,22 @@ export default function DashboardPage() {
   };
 
 
+  // Highlight search matches in text
+  const highlightMatch = (text: string | null | undefined) => {
+    if (!text) return text;
+    const q = debouncedSearch.trim().toLowerCase();
+    if (q.length < 2) return text;
+    const words = q.split(/\s+/).filter(Boolean);
+    // Build regex from all search words
+    const escaped = words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    const regex = new RegExp(`(${escaped.join("|")})`, "gi");
+    const parts = text.split(regex);
+    if (parts.length === 1) return text;
+    return parts.map((part, i) =>
+      regex.test(part) ? <mark key={i} className="bg-yellow-200 rounded-sm px-0.5">{part}</mark> : part
+    );
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -1239,7 +1269,7 @@ export default function DashboardPage() {
                     </TableCell>
                     <TableCell>
                       <span className="font-mono text-xs text-muted-foreground">
-                        {part.stock_number || "—"}
+                        {part.stock_number ? highlightMatch(part.stock_number) : "—"}
                       </span>
                     </TableCell>
                     <TableCell>
@@ -1249,11 +1279,11 @@ export default function DashboardPage() {
                           target="_blank"
                           className="font-medium hover:text-primary hover:underline transition-colors"
                         >
-                          {part.name}
+                          {highlightMatch(part.name)}
                         </Link>
                         {part.serial_number && (
                           <p className="text-xs text-muted-foreground font-mono">
-                            S/N: {part.serial_number}
+                            S/N: {highlightMatch(part.serial_number)}
                           </p>
                         )}
                       </div>
@@ -1266,9 +1296,7 @@ export default function DashboardPage() {
                     <TableCell>
                       {part.make || part.model ? (
                         <span className="text-sm">
-                          {[part.year, part.make, part.model]
-                            .filter(Boolean)
-                            .join(" ")}
+                          {highlightMatch([part.year, part.make, part.model].filter(Boolean).join(" "))}
                         </span>
                       ) : (
                         <span className="text-sm text-muted-foreground">—</span>
@@ -1490,7 +1518,7 @@ export default function DashboardPage() {
                             target="_blank"
                             className="font-semibold truncate hover:text-primary hover:underline"
                           >
-                            {part.name}
+                            {highlightMatch(part.name)}
                           </Link>
                           {part.stock_number && (
                             <span className="font-mono text-xs text-muted-foreground shrink-0">#{part.stock_number}</span>

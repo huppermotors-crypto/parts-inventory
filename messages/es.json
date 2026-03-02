@@ -15,6 +15,7 @@
     "noPartsWithFilters": "Intenta ajustar tu búsqueda o los filtros para encontrar lo que buscas.",
     "noPartsEmpty": "No hay piezas disponibles en este momento. ¡Vuelve pronto!",
     "clearAllFilters": "Borrar todos los filtros",
+    "browseCategories": "O busca por categoría:",
     "sortNewest": "Más recientes primero",
     "sortPriceAsc": "Precio: de menor a mayor",
     "sortPriceDesc": "Precio: de mayor a menor",
@@ -177,7 +178,8 @@
   "footer": {
     "copyright": "\u00a9 {year} HuppeR Auto Parts. Todos los derechos reservados.",
     "shipping": "Envíos y pagos",
-    "privacy": "Política de privacidad"
+    "privacy": "Política de privacidad",
+    "admin": "Admin"
   },
   "login": {
     "title": "Acceso de administrador",
